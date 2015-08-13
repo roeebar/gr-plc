@@ -1,0 +1,32 @@
+<block>
+  <name>Plcp receiver</name>
+  <key>plc_plcp_receiver</key>
+  <category>PLC</category>
+  <import>import plc</import>
+  <make>plc.plcp_receiver($threshold, $min_plateau, $debug)</make>
+  <param>
+    <name>Threshold</name>
+    <key>threshold</key>
+    <type>float</type>
+  </param>
+  <param>
+    <name>Min_plateau</name>
+    <key>min_plateau</key>
+    <type>raw</type>
+  </param>
+  <param>
+    <name>Debug</name>
+    <key>debug</key>
+    <value> false</value>
+    <type>raw</type>
+  </param>
+  <sink>
+    <name>in</name>
+    <type>float</type>
+    <nports>2</nports>
+  </sink>
+  <source>
+    <name>out</name>
+    <type>float</type>
+  </source>
+</block>

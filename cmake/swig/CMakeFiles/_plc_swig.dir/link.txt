@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -O3 -DNDEBUG   -shared -Wl,-soname,_plc_swig.so -o _plc_swig.so CMakeFiles/_plc_swig.dir/plc_swigPYTHON_wrap.cxx.o -lpython2.7 ../lib/libgnuradio-plc.so -lboost_filesystem -lboost_system -lgnuradio-runtime -lgnuradio-pmt -llightplc -Wl,-rpath,/home/roee/Dropbox/Thesis/gr-plc/gr-plc/cmake/lib: 

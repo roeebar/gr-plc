@@ -1,0 +1,1 @@
+/usr/bin/c++   -O3 -DNDEBUG    CMakeFiles/plc_swig_swig_2d0df.dir/plc_swig_swig_2d0df.cpp.o  -o plc_swig_swig_2d0df -rdynamic 

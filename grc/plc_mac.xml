@@ -1,0 +1,21 @@
+<block>
+  <name>PLC MAC</name>
+  <key>plc_mac</key>
+  <category>PLC</category>
+  <import>import plc</import>
+  <make>plc.mac($period_ms, $count)</make>
+  <param>
+    <name>Period_ms</name>
+    <key>period_ms</key>
+    <type>float</type>
+  </param>
+  <param>
+    <name>Count</name>
+    <key>count</key>
+    <type>int</type>
+  </param>
+  <source>
+    <name>mac out</name>
+    <type>message</type>
+  </source>
+</block>

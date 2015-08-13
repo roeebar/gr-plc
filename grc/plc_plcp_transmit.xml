@@ -1,0 +1,29 @@
+<block>
+  <name>PLCP Transmitter</name>
+  <key>plc_plcp_transmit</key>
+  <category>PLC</category>
+  <import>import plc</import>
+  <make>plc.plcp_transmit($debug)</make>
+  <param>
+    <name>Debug</name>
+    <key>debug</key>
+    <value>False</value>
+    <type>bool</type>
+    <option>
+      <name>Enable</name>
+      <key>True</key>
+    </option>
+    <option>
+      <name>Disable</name>
+      <key>False</key>
+    </option>
+  </param>
+  <sink>
+    <name>in</name>
+    <type>message</type>
+  </sink>
+  <source>
+    <name>out</name>
+    <type>float</type>
+  </source>
+</block>
