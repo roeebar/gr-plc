@@ -19,5 +19,7 @@
 install(FILES
     plc_plcp_transmit.xml
     plc_mac.xml
-    plc_plcp_receiver.xml DESTINATION share/gnuradio/grc/blocks
+    plc_plcp_receiver.xml
+    plc_mac_receiver.xml
+    plc_mac_transmitter.xml DESTINATION share/gnuradio/grc/blocks
 )

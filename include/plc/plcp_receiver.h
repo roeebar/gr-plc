@@ -46,7 +46,7 @@ namespace gr {
        * class. plc::plcp_receiver::make is the public interface for
        * creating new instances.
        */
-      static sptr make(float threshold, unsigned int min_plateau, bool debug = false);
+      static sptr make(bool debug = false);
     };
 
   } // namespace plc

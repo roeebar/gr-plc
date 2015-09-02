@@ -22,7 +22,7 @@
 #define INCLUDED_PLC_PLCP_TRANSMIT_IMPL_H
 
 #include <plc/plcp_transmit.h>
-#include <plcp.h>
+#include <lightplc/plcp.h>
 
 namespace gr {
   namespace plc {

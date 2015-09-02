@@ -1,9 +1,15 @@
 <block>
-  <name>PLCP Receiver</name>
-  <key>plc_plcp_receiver</key>
+  <name>MAC Receiver</name>
+  <key>plc_mac_receiver</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.plcp_receiver($debug)</make>
+  <make>plc.mac_receiver($output_filename, $debug)</make>
+  <param>
+    <name>File</name>
+    <key>output_filename</key>
+    <value></value>
+    <type>file_save</type>
+  </param>
   <param>
     <name>Debug</name>
     <key>debug</key>
@@ -20,11 +26,6 @@
   </param>
   <sink>
     <name>in</name>
-    <type>float</type>
-    <nports>2</nports>
-  </sink>
-  <source>
-    <name>out</name>
     <type>message</type>
-  </source>
+  </sink>
 </block>

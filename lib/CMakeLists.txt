@@ -28,7 +28,8 @@ list(APPEND plc_sources
     plcp_transmit_impl.cc
     mac_impl.cc
     plcp_receiver_impl.cc
-)
+    mac_receiver_impl.cc
+    mac_transmitter_impl.cc )
 
 set(plc_sources "${plc_sources}" PARENT_SCOPE)
 if(NOT plc_sources)
@@ -65,10 +66,11 @@ install(TARGETS gnuradio-plc
 include(GrTest)
 
 include_directories(${CPPUNIT_INCLUDE_DIRS})
-
 list(APPEND test_plc_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/test_plc.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_plc.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_transmitter.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_receiver.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_plcp_receiver.cc
 )
 
@@ -80,6 +82,6 @@ target_link_libraries(
   ${Boost_LIBRARIES}
   ${CPPUNIT_LIBRARIES}
   lightplc
-)
+ )
 
-GR_ADD_TEST(test_plc test-plc)
+# GR_ADD_TEST(test_plc test-plc)

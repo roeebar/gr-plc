@@ -22,40 +22,61 @@
 #include "config.h"
 #endif
 
-#include <gnuradio/io_signature.h>
 #include "plcp_receiver_impl.h"
 #include "debug.h"
+#include <gnuradio/io_signature.h>
+#include <gnuradio/fft/fft.h>
 
 namespace gr {
   namespace plc {
 
+    const int plcp_receiver_impl::SYNCP_SIZE = light_plc::Plcp::SYNCP_SIZE;
+    const int plcp_receiver_impl::SYNC_LENGTH = 2 * plcp_receiver_impl::SYNCP_SIZE;
+    const int plcp_receiver_impl::PREAMBLE_SIZE = light_plc::Plcp::PREAMBLE_SIZE;
+    const int plcp_receiver_impl::FRAME_CONTROL_SIZE = light_plc::Plcp::FRAME_CONTROL_SIZE;
+    const float plcp_receiver_impl::THRESHOLD = 0.9;
+    const int plcp_receiver_impl::MIN_PLATEAU = 5.5 * plcp_receiver_impl::SYNCP_SIZE; 
+
+
     plcp_receiver::sptr
-    plcp_receiver::make(float threshold, unsigned int min_plateau, bool debug)
+    plcp_receiver::make(bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new plcp_receiver_impl(threshold, min_plateau, debug));
+        (new plcp_receiver_impl(debug));
     }
 
     /*
      * The private constructor
      */
-    plcp_receiver_impl::plcp_receiver_impl(float threshold, unsigned int min_plateau, bool debug)
+    plcp_receiver_impl::plcp_receiver_impl(bool debug)
       : gr::block("plcp_receiver",
               gr::io_signature::make(2, 2, sizeof(float)),
-              gr::io_signature::make(1, 1, sizeof(float))),
+              gr::io_signature::make(0, 0, 0)),
         d_debug(debug),
         d_state(SEARCH),
         d_plateau(0),
-        d_offset(0),
-        THRESHOLD(threshold),
-        MIN_PLATEAU(min_plateau),
-        SYNC_LENGTH(3.5*512) 
+        d_payload_size(0),
+        d_payload_offset(0),
+        d_sync_offset(0),
+        d_frame_control_offset(0),
+        d_preamble_offset(0),
+        d_frame_start(0),
+        d_output_datastream_offset(0),
+        d_output_datastream_len(0)
     {
+      message_port_register_out(pmt::mp("out"));
+
       //light_plc::Plcp::debug(debug);
       d_plcp = light_plc::Plcp();
-      std::vector<float> syncp (d_plcp.syncp()); 
-      d_fir = new gr::filter::kernel::fir_filter_fff(1, syncp);
-      d_correlation = gr::fft::malloc_float(3.5*512);
+      
+      // Set the correlation filter
+      light_plc::VectorFloat syncp (d_plcp.preamble() + SYNCP_SIZE * 7.5, d_plcp.preamble() + SYNCP_SIZE * 8.5);
+      std::reverse(syncp.begin(), syncp.end());
+      d_fir = new gr::filter::kernel::fir_filter_fff(1, syncp);    
+      d_correlation = gr::fft::malloc_float(SYNC_LENGTH); 
+
+      d_preamble = light_plc::VectorFloat(PREAMBLE_SIZE); 
+      d_frame_control = light_plc::VectorFloat(FRAME_CONTROL_SIZE);
     }
 
     /*
@@ -70,7 +91,13 @@ namespace gr {
     void
     plcp_receiver_impl::forecast (int noutput_items, gr_vector_int &ninput_items_required)
     {
-        /* <+forecast+> e.g. ninput_items_required[0] = noutput_items */
+      if (d_state == SYNC) {
+        ninput_items_required[0] = SYNC_LENGTH + SYNCP_SIZE - 1;
+        ninput_items_required[1] = SYNC_LENGTH + SYNCP_SIZE - 1;
+      } else {
+        ninput_items_required[0] = noutput_items;
+        ninput_items_required[1] = noutput_items;
+      }
     }
 
     int
@@ -79,117 +106,156 @@ namespace gr {
                        gr_vector_const_void_star &input_items,
                        gr_vector_void_star &output_items)
     {
-        const float *in1 = (const float *) input_items[0];
-        const float *in2 = (const float *) input_items[1];
+        const float *in0 = (const float *) input_items[0];
+        const float *in1 = (const float *) input_items[1];
         int ninput = std::min(ninput_items[0], ninput_items[1]);
 
         int i = 0;
         switch(d_state) {
 
-        case SEARCH: 
+        case SEARCH:
+          dout << "PLCP Receiver: state = SEARCH, d_plateau = " << d_plateau << std::endl;
           while (i < ninput) {
-            if(in1[i] > THRESHOLD) {
+            if(in0[i] > THRESHOLD) {
               if(d_plateau < MIN_PLATEAU) {
                 d_plateau++;
               } else {
                 d_state = SYNC;
                 d_plateau = 0;
-                //insert_tag(nitems_written(0));
-                dout << "Found frame!" << std::endl;
+                dout << "PLCP Receiver: Found frame! i = " << i << std::endl;
                 break;
               }   
             } else {
               d_plateau = 0;
             }
+            d_preamble[d_preamble_offset++] = in1[i];
+            d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
             i++;
           }
           break;
 
         case SYNC:
-          d_fir->filterN(d_correlation, in2, std::min(SYNC_LENGTH, std::max(ninput - 511, 0)));
-
-          while(i + 511 < ninput) {
-            d_cor.push_back(pair<double, int>(d_correlation[i], d_offset));
-            i++;
-            d_offset++;
-
-            if(d_offset == SYNC_LENGTH) {
-              d_cor.sort();
-              unsigned int sync_pos = std::max(d_cor[0].second, d_cor[1].second);
-              d_frame_start = 1.5*512 - (SYNC_LENGTH - sync_pos);
-              if ((d_frame_start < 0) || (std::min(d_cor[0].first, d_cor[1].first) < -THRESHOLD))
-              {
-                d_state = RESET;
+        {
+          dout << "PLCP Receiver: state = SYNC, d_sync_offset = " << d_sync_offset << std::endl;
+          d_fir->filterN(d_correlation, in1, SYNC_LENGTH);
+          int max1_index = 0, max2_index = 0;
+          float max1_value = d_correlation[0];
+          float max2_value = d_correlation[0];
+          for (; i < SYNC_LENGTH; i++) {
+            d_preamble[d_preamble_offset++] = in1[i];
+            d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
+            if (d_correlation[i] > max2_value) {
+              if (d_correlation[i] > max1_value) {
+                max2_value = max1_value;
+                max2_index = max1_index;
+                max1_value = d_correlation[i];
+                max1_index = i;
+              } else {
+                max2_value = d_correlation[i];
+                max2_index = i;
               }
-
-              d_offset = 0;
-              d_state = CHANNEL_ESTIMATE;
-              break;
             }
           }
+          unsigned int sync_pos = std::max(max1_index, max2_index);
+          dout << "PLCP Receiver: state = SYNC, max1 = " << max1_value << ", " << max1_index 
+                                            << " max2 = " << max2_value << ", " << max2_index 
+                                            << " sync_pos = " << sync_pos << std::endl;           
+          d_frame_start = 1.5 * SYNCP_SIZE + sync_pos - i;  // frame begins 1.5 syncp after last min
+          if (d_frame_start < 0)
+            d_state = RESET; // If sync_pos does not make sense
+          else 
+            d_state = CHANNEL_ESTIMATE;
           break;
-        case CHANNEL_ESTIMATE:
-          while (i<ninput) {
-            rel = d_offset - d_frame_start;
-            if (rel >= 0 && rel < IEEE1901_FRAME_CONTROL_SIZE) {
-              frame_control[rel] = in2[i];
-            } else if (rel = IEEE1901_FRAME_CONTROL_SIZE) {
-              d_plcp.estimateChannel(preamble);
-              d_length = d_plcp.parseFrameControl(frame_control);
-              state = COPY;
-            } else {
-              i++;
-              d_offset++;
-            }
-        case RESET:
-          //d_copy_left = MAX_SAMPLES;
-          break;
-        case COPY: break;
         }
 
+        case CHANNEL_ESTIMATE:
+          dout << "PLCP Receiver: state = CHANNEL_ESTIMATE, d_frame_control_offset = " << d_frame_start << std::endl;
+          while (i < ninput && d_sync_offset < d_frame_start) {
+            d_preamble[d_preamble_offset++] = in1[i];
+            d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
+            d_sync_offset++;
+            i++;
+          }
+          if (d_sync_offset == d_frame_start) {
+            light_plc::VectorFloat preamble_aligned (d_preamble.size());
+            light_plc::VectorFloat::iterator preamble_aligned_iter (preamble_aligned.begin());
+            preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
+            std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
+            d_plcp.estimateChannel(preamble_aligned.begin(), preamble_aligned.end());
+            d_state = COPY_FRAME_CONTROL;
+          }
+          break;
 
-        float *out = (float *) output_items[0];
+        case COPY_FRAME_CONTROL:
+          dout << "PLCP Receiver: state = COPY_FRAME_CONTROL" << std::endl;
+          while (i < ninput) {
+            if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
+              d_frame_control[d_frame_control_offset] = in1[i];
+            } else  {
+              d_payload_size = d_plcp.setReceivedFrameControl(d_frame_control.begin());
+              if (d_payload_size == -1) {
+                d_state = RESET;
+              } else {
+                d_state = COPY_PAYLOAD;
+                d_payload = light_plc::VectorFloat(d_payload_size);
+              }
+              break;
+            }
+            i++;
+            d_frame_control_offset++;
+          }
+          break;
+
+        case COPY_PAYLOAD: {
+          dout << "PLCP Receiver: state = COPY_PAYLOAD, d_payload_size = " << d_payload_size << " d_payload_offset = " << d_payload_offset << " ninput = " << ninput << std::endl;
+          int k = std::min(d_payload_size - d_payload_offset, ninput);
+          std::copy(in1, in1 + k, d_payload.begin() + d_payload_offset);
+          d_payload_offset += k;
+          i += k;
+          if (d_payload_offset == d_payload_size) {
+            light_plc::VectorInt mpdu_payload = d_plcp.resolveReceivedPayload(d_payload.begin(), light_plc::RATE_1_2);
+            std::vector<char> mpdu_payload_byte(mpdu_payload.begin(), mpdu_payload.end());
+
+            dout << "PLCP Receiver: payload resolved. Payload size = " << mpdu_payload.size() << std::endl;
+            // dict
+            pmt::pmt_t dict = pmt::make_dict();
+
+            // blob
+            pmt::pmt_t mpdu_payload_blob = pmt::make_blob(mpdu_payload_byte.data(), mpdu_payload_byte.size());
+
+            // pdu
+            message_port_pub(pmt::mp("out"), pmt::cons(dict, mpdu_payload_blob));
+
+            d_state = RESET;
+          }
+          break;
+        }
+
+        case RESET:
+          dout << "PLCP Receiver: state = RESET" << std::endl;
+          d_frame_control_offset = 0;
+          d_sync_offset = 0;
+          d_preamble_offset = 0;
+          d_frame_control_offset = 0;
+          d_payload_size = 0;
+          d_payload_offset = 0;
+          d_cor.clear();
+          d_output_datastream_offset = 0;
+          d_output_datastream_len = 0;
+          d_state = SEARCH;
+          break;
+        }
 
         // Do <+signal processing+>
         // Tell runtime system how many input items we consumed on
         // each input stream.
         consume_each (i);
 
+        dout << "PLCP Receiver: consumed: " << i << std::endl;
+
         // Tell runtime system how many output items we produced.
-        return noutput_items;
+        return 0;
     }
-
-
-    void search_frame_start() {
-
-    // sort list (highest correlation first)
-    assert(d_cor.size() == SYNC_LENGTH);
-    d_cor.sort();
-
-    // copy list in vector for nicer access
-    vector<pair<double, int> > vec(d_cor.begin(), d_cor.end());
-    d_cor.clear();
-
-    // in case we don't find anything use SYNC_LENGTH
-    d_frame_start = SYNC_LENGTH;
-
-    for(int i = 0; i < 3; i++) {
-      for(int k = i + 1; k < 4; k++) {
-              int diff = abs(get<1>(vec[i]) - get<1>(vec[k]));
-              if(diff == 64) {
-                      d_frame_start =  max(get<1>(vec[i]), get<1>(vec[k])) + 64;
-                      // nice match found, return immediately
-                      return;
-
-              // TODO: check if these offsets make sense
-              } else if(diff == 63) {
-                      d_frame_start = max(get<1>(vec[i]), get<1>(vec[k])) + 63;
-              } else if(diff == 65) {
-                      d_frame_start = max(get<1>(vec[i]), get<1>(vec[k])) + 64;
-              }
-      }
-    }
-}
 
 
   } /* namespace plc */

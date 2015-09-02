@@ -1,9 +1,20 @@
 <block>
-  <name>PLCP Receiver</name>
-  <key>plc_plcp_receiver</key>
+  <name>MAC Transmitter</name>
+  <key>plc_mac_transmitter</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.plcp_receiver($debug)</make>
+  <make>plc.mac_transmitter($input_filename, $period_ms, $debug)</make>
+  <param>
+    <name>File</name>
+    <key>input_filename</key>
+    <value></value>
+    <type>file_open</type>
+  </param>
+  <param>
+    <name>Period (ms)</name>
+    <key>period_ms</key>
+    <type>float</type>
+  </param>
   <param>
     <name>Debug</name>
     <key>debug</key>
@@ -18,11 +29,6 @@
       <key>False</key>
     </option>
   </param>
-  <sink>
-    <name>in</name>
-    <type>float</type>
-    <nports>2</nports>
-  </sink>
   <source>
     <name>out</name>
     <type>message</type>

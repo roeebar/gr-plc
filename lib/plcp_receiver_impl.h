@@ -22,30 +22,48 @@
 #define INCLUDED_PLC_PLCP_RECEIVER_IMPL_H
 
 #include <plc/plcp_receiver.h>
-#include <plcp.h>
+#include <lightplc/plcp.h>
+#include <list>
 #include <gnuradio/filter/fir_filter.h>
-
 
 namespace gr {
   namespace plc {
 
     class plcp_receiver_impl : public plcp_receiver
     {
-     private:
+
+     static const int SYNCP_SIZE;
+     static const int SYNC_LENGTH;
+     static const int PREAMBLE_SIZE;
+     static const int FRAME_CONTROL_SIZE;
+     static const float THRESHOLD;
+     static const int MIN_PLATEAU; 
+
+    private:
       light_plc::Plcp d_plcp;
       gr::filter::kernel::fir_filter_fff *d_fir;
       const bool d_debug;
-      enum {SEARCH, SYNC, COPY, RESET} d_state;
-      int d_copy_left;
-      unsigned int d_plateau;
+      enum {SEARCH, SYNC, CHANNEL_ESTIMATE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET} d_state;
+      int d_plateau;
+      int d_payload_size;
+      int d_payload_offset;
       float *d_correlation;
-      unsigned int d_offset;
-      const double THRESHOLD;
-      const unsigned int MIN_PLATEAU;
+      light_plc::VectorFloat d_preamble;
+      light_plc::VectorFloat d_frame_control;
+      light_plc::VectorFloat d_payload;
+      int d_sync_offset;
+      int d_frame_control_offset;
+      int d_preamble_offset;
+      int d_frame_start;
+      light_plc::VectorInt d_output_datastream;
+      int d_output_datastream_offset;
+      int d_output_datastream_len;
 
+      std::list<std::pair<double, int>> d_cor; 
+      std::list<std::pair<double, int>>::iterator d_cor_iter;
 
      public:
-      plcp_receiver_impl(float threshold, unsigned int min_plateau, bool debug);
+      plcp_receiver_impl(bool debug);
       ~plcp_receiver_impl();
 
       // Where all the action really happens

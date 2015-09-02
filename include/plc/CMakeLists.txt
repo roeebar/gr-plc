@@ -24,5 +24,7 @@ install(FILES
     api.h
     plcp_transmit.h
     mac.h
-    plcp_receiver.h DESTINATION include/plc
+    # plcp_receiver.h
+    mac_receiver.h
+    mac_transmitter.h DESTINATION include/plc
 )

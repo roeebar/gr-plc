@@ -73,19 +73,19 @@ namespace gr {
     {
       float *out = (float *) output_items[0];
 
-      dout << "PLCP called offset: " << d_datastream_offset <<
+      dout << "PLCP Transmitter: called offset: " << d_datastream_offset <<
               "   length: " << d_datastream_len << std::endl;
 
       while(!d_datastream_offset) {
         pmt::pmt_t msg(delete_head_blocking(pmt::intern("in")));
 
         if(pmt::is_eof_object(msg)) {
-                dout << "PLCP: exiting" << std::endl;
+                dout << "PLCP Transmitter: exiting" << std::endl;
                 return -1;
         }
 
         if(pmt::is_pair(msg)) {
-          dout << "PLCP: received new message" << std::endl;
+          dout << "PLCP Transmitter: received new message" << std::endl;
           gr::thread::scoped_lock lock(d_mutex);
 
           size_t mpdu_payload_length = pmt::blob_length(pmt::cdr(msg));
@@ -114,12 +114,12 @@ namespace gr {
       std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::VectorFloat::value_type)*i);
 
       d_datastream_offset += i;
-      dout << "PLCP: consumed " << i << std::endl;
+      dout << "PLCP Transmitter: produced: " << i << std::endl;
 
       if(d_datastream_offset == d_datastream_len) {
               d_datastream_offset = 0;
               d_datastream_len = 0;
-              dout << "PLCP: packet sent!" << std::endl;
+              dout << "PLCP Transmitter: packet sent!" << std::endl;
       }
 
       // Tell runtime system how many output items we produced.
