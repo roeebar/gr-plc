@@ -12,6 +12,8 @@ namespace gr {
     class mac_receiver_impl : public mac_receiver
     {
      private:
+      long int d_time_begin;
+      long int d_total_bytes;      
       bool d_debug;
       std::ofstream d_save_file;
       void parse(pmt::pmt_t msg);

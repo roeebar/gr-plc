@@ -1,9 +1,10 @@
+<?xml version="1.0"?>
 <block>
-  <name>PLCP Receiver</name>
-  <key>plc_plcp_receiver</key>
+  <name>APP In</name>
+  <key>plc_app_in</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.plcp_receiver($debug)</make>
+  <make>plc.app_in($debug)</make>
   <param>
     <name>Debug</name>
     <key>debug</key>
@@ -19,12 +20,11 @@
     </option>
   </param>
   <sink>
-    <name>in</name>
-    <type>float</type>
-    <nports>3</nports>
+    <name>mac in</name>
+    <type>message</type>
   </sink>
   <source>
     <name>out</name>
-    <type>message</type>
+    <type>byte</type>
   </source>
 </block>

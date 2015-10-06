@@ -1,27 +1,9 @@
 /* -*- c++ -*- */
-/* 
- * Copyright 2015 <+YOU OR YOUR COMPANY+>.
- * 
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3, or (at your option)
- * any later version.
- * 
- * This software is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this software; see the file COPYING.  If not, write to
- * the Free Software Foundation, Inc., 51 Franklin Street,
- * Boston, MA 02110-1301, USA.
- */
 
-#ifndef INCLUDED_PLC_PLCP_RECEIVER_IMPL_H
-#define INCLUDED_PLC_PLCP_RECEIVER_IMPL_H
+#ifndef INCLUDED_PLC_PHY_IMPL_H
+#define INCLUDED_PLC_PHY_IMPL_H
 
-#include <plc/plcp_receiver.h>
+#include <plc/phy.h>
 #include <lightplc/plcp.h>
 #include <list>
 #include <gnuradio/filter/fir_filter.h>
@@ -29,10 +11,9 @@
 namespace gr {
   namespace plc {
 
-    class plcp_receiver_impl : public plcp_receiver
+    class phy_impl : public phy
     {
-
-     static const int SYNCP_SIZE;
+   	 static const int SYNCP_SIZE;
      static const int SYNC_LENGTH;
      static const int PREAMBLE_SIZE;
      static const int FRAME_CONTROL_SIZE;
@@ -40,11 +21,21 @@ namespace gr {
      static const float MIN_ENERGY;
      static const int MIN_PLATEAU; 
 
-    private:
+     private:
       light_plc::Plcp d_plcp;
-      gr::filter::kernel::fir_filter_fff *d_fir;
       const bool d_debug;
-      enum {SEARCH, SYNC, CHANNEL_ESTIMATE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET} d_state;
+
+      // Transmitter vars
+      bool d_transmitter_disabled;
+      light_plc::VectorFloat d_datastream;
+      int d_datastream_offset;
+      int d_datastream_len;
+      enum {READY, BUSY, TX_RESET} d_transmitter_state;
+
+      // Receiver vars
+      bool d_receiver_disabled;
+      gr::filter::kernel::fir_filter_fff *d_fir;
+      enum {SEARCH, SYNC, CHANNEL_ESTIMATE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RX_RESET} d_receiver_state;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
@@ -59,13 +50,13 @@ namespace gr {
       light_plc::VectorInt d_output_datastream;
       int d_output_datastream_offset;
       int d_output_datastream_len;
-
       std::list<std::pair<double, int>> d_cor; 
       std::list<std::pair<double, int>>::iterator d_cor_iter;
 
      public:
-      plcp_receiver_impl(bool debug);
-      ~plcp_receiver_impl();
+      phy_impl(bool disable_transmitter, bool disable_receiver, bool debug);
+      ~phy_impl();
+	  void mac_in (pmt::pmt_t msg);
 
       // Where all the action really happens
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);
@@ -79,5 +70,6 @@ namespace gr {
   } // namespace plc
 } // namespace gr
 
-#endif /* INCLUDED_PLC_PLCP_RECEIVER_IMPL_H */
+
+#endif /* INCLUDED_PLC_PHY_IMPL_H */
 

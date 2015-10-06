@@ -27,7 +27,7 @@ namespace gr {
        * class. plc::mac_transmitter::make is the public interface for
        * creating new instances.
        */
-      static sptr make(char *input_filename, float period_ms, bool debug = false);
+      static sptr make(char *input_filename, float period_ms, bool repeat, bool debug = false);
     };
 
   } // namespace plc

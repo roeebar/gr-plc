@@ -15,6 +15,7 @@ namespace gr {
       boost::shared_ptr<gr::thread::thread> d_thread;
       bool d_finished;
       float d_period_ms;
+      bool d_repeat;
       bool d_debug;
       std::ifstream d_input_file;
       void send_data();
@@ -22,7 +23,7 @@ namespace gr {
 
 
      public:
-      mac_transmitter_impl(char *input_filename, float period_ms, bool debug);
+      mac_transmitter_impl(char *input_filename, float period_ms, bool repeat, bool debug);
       ~mac_transmitter_impl();
 
       // Where all the action really happens

@@ -29,6 +29,9 @@
 #include "qa_plcp_receiver.h"
 #include "qa_mac_receiver.h"
 #include "qa_mac_transmitter.h"
+#include "qa_phy.h"
+#include "qa_app_out.h"
+#include "qa_app_in.h"
 
 CppUnit::TestSuite *
 qa_plc::suite()
@@ -37,6 +40,9 @@ qa_plc::suite()
   s->addTest(gr::plc::qa_plcp_receiver::suite());
   s->addTest(gr::plc::qa_mac_receiver::suite());
   s->addTest(gr::plc::qa_mac_transmitter::suite());
+  s->addTest(gr::plc::qa_phy::suite());
+  s->addTest(gr::plc::qa_app_out::suite());
+  s->addTest(gr::plc::qa_app_in::suite());
 
   return s;
 }

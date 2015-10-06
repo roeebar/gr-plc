@@ -12,21 +12,22 @@ namespace gr {
   namespace plc {
 
     mac_transmitter::sptr
-    mac_transmitter::make(char *input_filename, float period_ms, bool debug)
+    mac_transmitter::make(char *input_filename, float period_ms, bool repeat, bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new mac_transmitter_impl(input_filename, period_ms, debug));
+        (new mac_transmitter_impl(input_filename, period_ms, repeat, debug));
     }
 
     /*
      * The private constructor
      */
-    mac_transmitter_impl::mac_transmitter_impl(char *input_filename, float period_ms, bool debug)
+    mac_transmitter_impl::mac_transmitter_impl(char *input_filename, float period_ms, bool repeat, bool debug)
       : gr::block("mac_transmitter",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(0, 0, 0)),
               d_finished(false),
               d_period_ms(period_ms),
+              d_repeat(repeat),
               d_debug(debug)
     {
       message_port_register_out(pmt::mp("out"));
@@ -91,14 +92,20 @@ namespace gr {
     {
       // make MAC frame      
       int number_of_blocks = 2;
-      int mpdu_payload_length = 520*8*number_of_blocks;
-      std::vector<char> mpdu_payload(mpdu_payload_length);
-      d_input_file.read(mpdu_payload.data(), mpdu_payload_length);
+      int mpdu_payload_length = 520*number_of_blocks;
+      std::vector<uint8_t> mpdu_payload(mpdu_payload_length);
+      d_input_file.read((char *)mpdu_payload.data(), mpdu_payload_length);
 
       dout << "MAC Transmitter: read " << d_input_file.gcount() << " from file" << std::endl;
 
-      if (d_input_file.eof()) 
+      if (d_input_file.eof()) {
         dout << "MAC Transmitter: reached EOF" << std::endl;
+        if (d_repeat) {
+          dout << "MAC Transmitter: repeating..." << std::endl;
+          d_input_file.seekg(0);
+          d_input_file.clear();
+        }
+      }
 
       if (!d_input_file.good()) {
         d_finished = true;
@@ -109,8 +116,7 @@ namespace gr {
         //dict = pmt::dict_add(dict, pmt::mp("crc_included"), pmt::PMT_T);
 
         // blob
-        pmt::pmt_t mpdu_payload_blob = pmt::make_blob(mpdu_payload.data(), mpdu_payload.size());
-
+        pmt::pmt_t mpdu_payload_blob = pmt::init_u8vector(mpdu_payload.size(), mpdu_payload.data());
         // pdu
         message_port_pub(pmt::mp("out"), pmt::cons(dict, mpdu_payload_blob));
       }

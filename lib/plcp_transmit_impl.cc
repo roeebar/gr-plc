@@ -114,7 +114,6 @@ namespace gr {
       std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::VectorFloat::value_type)*i);
 
       d_datastream_offset += i;
-      dout << "PLCP Transmitter: produced: " << i << std::endl;
 
       if(d_datastream_offset == d_datastream_len) {
               d_datastream_offset = 0;

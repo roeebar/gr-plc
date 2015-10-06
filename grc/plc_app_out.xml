@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <block>
-  <name>MAC</name>
-  <key>plc_mac</key>
+  <name>APP Out</name>
+  <key>plc_app_out</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $debug)</make>
+  <make>plc.app_out($dest, $debug)</make>
   <param>
-    <name>Address</name>
-    <key>device_addr</key>
+    <name>Destination</name>
+    <key>dest</key>
     <value>[0x23, 0x23, 0x23, 0x23, 0x23, 0x23]</value>
     <type>int_vector</type>
   </param>
@@ -26,23 +26,11 @@
     </option>
   </param>
   <sink>
-    <name>app in</name>
-    <type>message</type>
-    <optional>1</optional>
-  </sink>
-  <sink>
-    <name>phy in</name>
-    <type>message</type>
-    <optional>1</optional>
+    <name>in</name>
+    <type>byte</type>
   </sink>
   <source>
-    <name>app out</name>
+    <name>mac out</name>
     <type>message</type>
-    <optional>1</optional>
-  </source>
-  <source>
-    <name>phy out</name>
-    <type>message</type>
-    <optional>1</optional>
   </source>
 </block>

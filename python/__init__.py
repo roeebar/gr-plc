@@ -31,4 +31,6 @@ except ImportError:
 	pass
 
 # import any pure python here
+from mac import mac
+
 #

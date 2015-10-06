@@ -26,10 +26,12 @@ include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 list(APPEND plc_sources
     plcp_transmit_impl.cc
-    mac_impl.cc
     plcp_receiver_impl.cc
     mac_receiver_impl.cc
-    mac_transmitter_impl.cc )
+    mac_transmitter_impl.cc
+    phy_impl.cc
+    app_out_impl.cc
+    app_in_impl.cc )
 
 set(plc_sources "${plc_sources}" PARENT_SCOPE)
 if(NOT plc_sources)
@@ -69,6 +71,9 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 list(APPEND test_plc_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/test_plc.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_plc.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_in.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_out.cc
+    ${CMAKE_CURRENT_SOURCE_DIR}/qa_phy.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_transmitter.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_receiver.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_plcp_receiver.cc
@@ -82,6 +87,7 @@ target_link_libraries(
   ${Boost_LIBRARIES}
   ${CPPUNIT_LIBRARIES}
   lightplc
+  itpp
  )
 
 # GR_ADD_TEST(test_plc test-plc)
