@@ -32,9 +32,6 @@ namespace gr {
         d_debug(debug)
     {
         message_port_register_in(pmt::mp("mac in"));
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        d_time_begin = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     }
 
     /*
@@ -42,6 +39,14 @@ namespace gr {
      */
     app_in_impl::~app_in_impl()
     {
+    }
+
+    bool app_in_impl::start()
+    {
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        d_time_begin = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        return true;
     }
 
     void
@@ -79,7 +84,7 @@ namespace gr {
         struct timeval tp;
         gettimeofday(&tp, NULL);
         long int now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-        dout << "Rate:" << (double)(d_total_bytes)/(now-d_time_begin) << " kB/s" << std::endl;
+        dout << "APP In: Rate:" << (double)(d_total_bytes)/(now-d_time_begin) << " kB/s" << std::endl;
 
         // Tell runtime system how many output items we produced.
         return i;

@@ -3,11 +3,12 @@
 
 import numpy
 import binascii
-import logging
 import sys
+import time
 from gnuradio import gr
 
 class mac(gr.basic_block):
+    # The numbers represents bytes location/width
     MAC_FRAME_MFH_WIDTH = 2
     MAC_FRAME_MFH_OFFSET = 0
     MAC_FRAME_ODA_WIDTH = 6
@@ -18,11 +19,11 @@ class mac(gr.basic_block):
     MAC_FRAME_PAYLOAD_OFFSET = MAC_FRAME_MFH_WIDTH + MAC_FRAME_ODA_WIDTH + MAC_FRAME_OSA_WIDTH + MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
     MAC_FRAME_ICV_WIDTH = 4
 
-    MAX_SEGMENTS = 3
-    incomplete_frames = {}
-    streams_out = {}
-    phy_ready = False
+    PHY_BLOCK_HEADER_WIDTH = 4
+    PHY_BLOCK_BODY_OFFSET = 4
+    PHY_BLOCK_PBCS_WIDTH = 4 
 
+    # The numbers represents bits location/width
     PHY_BLOCK_HEADER_SSN_WIDTH = 16
     PHY_BLOCK_HEADER_SSN_OFFSET = 0
     PHY_BLOCK_HEADER_MFBO_WIDTH = 9
@@ -36,11 +37,13 @@ class mac(gr.basic_block):
     PHY_BLOCK_HEADER_OPSF_WIDTH = 1
     PHY_BLOCK_HEADER_OPSF_OFFSET = 28
 
-    PHY_BLOCK_HEADER_WIDTH = 4
-    PHY_BLOCK_BODY_OFFSET = 4 # in bytes
-    PHY_BLOCK_PBCS_WIDTH = 4 
-
-
+    MAX_SEGMENTS = 3
+    MAX_FRAMES_IN_BUFFER = 10
+    incomplete_frames = {}
+    streams_out = {}
+    frames_in_buffer = 0
+    need_to_sent_status = True
+    phy_ready = False
 
     """
     docstring for block mac
@@ -63,13 +66,19 @@ class mac(gr.basic_block):
         if gr.pmt.is_pair(msg):
             if gr.pmt.is_u8vector(gr.pmt.cdr(msg)) and gr.pmt.is_dict(gr.pmt.car(msg)):
                 payload = bytearray(gr.pmt.u8vector_elements(gr.pmt.cdr(msg)))
-                if self.debug: print "MAC: received payload from APP, size = " + str(len(payload))
-                dict = gr.pmt.to_python(gr.pmt.car(msg))
-                dest = bytearray(dict["dest"])
-                #dest = bytearray(gr.pmt.symbol_to_string(gr.pmt.car(msg)))
-                mac_frame = self.create_mac_frame(dest, payload)
-                self.submit_mac_frame(mac_frame)
-                self.send_to_phy()
+                if self.debug: print "MAC: received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.frames_in_buffer)
+                if self.frames_in_buffer >= self.MAX_FRAMES_IN_BUFFER:
+                    sys.stderr.write ("MAC: buffer is full, dropping frame from APP\n")
+                    self.need_to_sent_status = True
+                    return
+                else:
+                    dict = gr.pmt.to_python(gr.pmt.car(msg))
+                    dest = bytearray(dict["dest"])
+                    mac_frame = self.create_mac_frame(dest, payload)
+                    self.submit_mac_frame(mac_frame)
+                    self.send_to_phy()
+                    self.need_to_sent_status = True
+                    self.send_status_to_app()
 
     def phy_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
@@ -103,11 +112,21 @@ class mac(gr.basic_block):
 
         if self.debug: print "MAC: sent MPDU to PHY"
 
+        self.send_status_to_app()
+
+    def send_status_to_app(self):
+        if self.need_to_sent_status:
+            if self.frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
+                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"));
+                self.need_to_sent_status = False
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call
         for i in range(len(ninput_items_required)):
             ninput_items_required[i] = noutput_items
+
+    def start(self):
+        self.send_status_to_app()
 
     def general_work(self, input_items, output_items):
         noutput_items = output_items[0].size
@@ -144,7 +163,7 @@ class mac(gr.basic_block):
         dest_addr = self.get_bytes_field(mac_frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
         payload = self.get_bytes_field(mac_frame, self.MAC_FRAME_PAYLOAD_OFFSET, payload_size)        
         if not self.crc32_check(mac_frame[self.MAC_FRAME_MFH_OFFSET + self.MAC_FRAME_MFH_WIDTH:]):
-            if self.debug: print "MAC: MAC frame CRC error, dropping frame"
+            sys.stderr.write("MAC: MAC frame CRC error, dropping frame\n")
         else:
             if dest_addr == self.device_addr:
                 return payload
@@ -157,6 +176,7 @@ class mac(gr.basic_block):
             stream = {"ssn": 0, "frames": [], "remainder": bytearray(0)}
             self.streams_out[str(dest)] = stream
         stream["frames"].append(frame)
+        self.frames_in_buffer += 1
         if self.debug: print "MAC: added MAC frame to tranmission buffer, frame size = " + str(len(frame))
 
     def receive_mac_frame(self, frame):
@@ -207,7 +227,9 @@ class mac(gr.basic_block):
             mac_boundary_offset = 0
             body_size = 512
             segment = remainder[0:body_size]
-            remainder = remainder[body_size:]        
+            if remainder:
+                remainder = remainder[body_size:]
+                if not remainder: self.frames_in_buffer -= 1
             while len(segment) < body_size and frames:
                 if not mac_boundary_flag:
                     mac_boundary_offset = len(segment)
@@ -215,7 +237,8 @@ class mac(gr.basic_block):
                 remainder = frames[0][body_size-len(segment):]
                 segment += frames[0][0:body_size-len(segment)]                
                 frames.pop(0)
-            
+                if not remainder: self.frames_in_buffer -= 1
+
             # Determine if segment should be 128 bytes or 512
             if len(segment) < body_size:
                 if len(segment) < 128 and num_segments == 0: body_size = 128 
@@ -258,7 +281,7 @@ class mac(gr.basic_block):
             j += phy_block_size
 
             if not self.crc32_check(phy_block):
-                if self.debug: print "MAC: PHY block CRC error, dropping block"
+                sys.stderr.write("MAC: PHY block CRC error, dropping block\n")
                 continue
             
             # Parsing segment
@@ -292,7 +315,7 @@ class mac(gr.basic_block):
                     header = segment[i:i + self.MAC_FRAME_MFH_WIDTH]
                     if header[0] & 0x03 == 0: # indicates zero padding segment
                         break
-                    length = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + self.MAC_FRAME_MFH_WIDTH + self.MAC_FRAME_ICV_WIDTH + 1                        
+                    length = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + self.MAC_FRAME_MFH_WIDTH + self.MAC_FRAME_ICV_WIDTH + 1
                 mac_frame_data = segment[i:i + length]
                 if len(mac_frame_data) != length:
                     incomplete_frame = {}
@@ -301,7 +324,7 @@ class mac(gr.basic_block):
                     next_ssn = (ssn + 1) % 65636
                     self.incomplete_frames[next_ssn] = incomplete_frame
                 else:
-                    self.receive_mac_frame(self.mac_frame_data)
+                    self.receive_mac_frame(mac_frame_data)
                 i += len(mac_frame_data)
 
     def set_bytes_field(self, frame, bytes, offset):

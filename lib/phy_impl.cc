@@ -21,19 +21,21 @@ namespace gr {
     const int phy_impl::MIN_PLATEAU = 5.5 * phy_impl::SYNCP_SIZE; // minimum autocorrelation plateau
 
     phy::sptr
-    phy::make(bool disable_transmitter, bool disable_receiver, bool debug)
+    phy::make(int robo_mode, int modulation, bool disable_transmitter, bool disable_receiver, bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new phy_impl(disable_transmitter, disable_receiver, debug));
+        (new phy_impl((light_plc::RoboMode)robo_mode, (light_plc::Modulation) modulation, disable_transmitter, disable_receiver, debug));
     }
 
     /*
      * The private constructor
      */
-    phy_impl::phy_impl(bool disable_receiver, bool disable_transmitter, bool debug)
+    phy_impl::phy_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool disable_receiver, bool disable_transmitter, bool debug)
       : gr::block("phy",
              gr::io_signature::make(0, 3, sizeof(float)),
              gr::io_signature::make(0, 1, sizeof(float))),
+            d_robo_mode(robo_mode),
+            d_modulation(modulation),
             d_debug (debug),
 
             // Transmitter vars
@@ -89,10 +91,11 @@ namespace gr {
             d_transmitter_state = BUSY;
             size_t mpdu_payload_length = 0;
             const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
-            d_datastream = d_plcp.createDatastream(mpdu_payload, mpdu_payload_length, light_plc::STD_ROBO, light_plc::RATE_1_2);
+            dout << "modulation = " << d_modulation << std::endl;
+            d_datastream = d_plcp.createDatastream(mpdu_payload, mpdu_payload_length, d_robo_mode, light_plc::RATE_1_2, d_modulation);
             d_datastream_len = d_datastream.size();
           } else if (d_transmitter_state == BUSY) {
-              dout << "PHY Transmitter: transmitter is busy, dropping MPDU" << std::endl;             
+              std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
           }
         }      
       }
@@ -174,31 +177,7 @@ namespace gr {
             }
             dout << "PHY Receiver: state = SYNC, m_index = " << m_index << ", " << "m_value = "  << m_value << std::endl;
             unsigned int sync_pos = m_index;
-            
-            // int max1_index = 0, max2_index = 0;
-            // float max1_value = d_correlation[0];
-            // float max2_value = d_correlation[0];
-
-            // for (; i < SYNC_LENGTH; i++) {
-            //   d_preamble[d_preamble_offset++] = in2[i];
-            //   d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
-
-            //   if (d_correlation[i] > max2_value) {
-            //     if (d_correlation[i] > max1_value) {
-            //       max2_value = max1_value;
-            //       max2_index = max1_index;
-            //       max1_value = d_correlation[i];
-            //       max1_index = i;
-            //     } else {
-            //       max2_value = d_correlation[i];
-            //       max2_index = i;
-            //     }
-            //   }
-            // }
-            // unsigned int sync_pos = std::max(max1_index, max2_index);
-            // dout << "PHY Receiver: state = SYNC, max1 = " << max1_value << ", " << max1_index 
-            //                                   << " max2 = " << max2_value << ", " << max2_index 
-            //                                   << " sync_pos = " << sync_pos << std::endl;           
+                     
             d_frame_start = 1.5 * SYNCP_SIZE + sync_pos - i;  // frame begins 1.5 syncp after last min
             if (d_frame_start < 0) {
               d_receiver_state = RX_RESET; // If sync_pos does not make sense
@@ -232,9 +211,9 @@ namespace gr {
               if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
                 d_frame_control[d_frame_control_offset] = in2[i];
               } else  {
-                d_payload_size = d_plcp.resolveFrameControl(d_frame_control.begin(), light_plc::RATE_1_2);
+                d_payload_size = d_plcp.resolveFrameControl(d_frame_control.begin(), light_plc::RATE_1_2, d_modulation);
                 if (d_payload_size == -1) {
-                  dout << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
+                  std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
                   d_receiver_state = RX_RESET;
                 } else {
                   d_receiver_state = COPY_PAYLOAD;

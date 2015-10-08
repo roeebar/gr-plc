@@ -23,6 +23,8 @@ namespace gr {
 
      private:
       light_plc::Plcp d_plcp;
+      light_plc::RoboMode d_robo_mode;
+      light_plc::Modulation d_modulation;
       const bool d_debug;
 
       // Transmitter vars
@@ -54,7 +56,7 @@ namespace gr {
       std::list<std::pair<double, int>>::iterator d_cor_iter;
 
      public:
-      phy_impl(bool disable_transmitter, bool disable_receiver, bool debug);
+      phy_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool disable_receiver, bool disable_transmitter, bool debug);
       ~phy_impl();
 	  void mac_in (pmt::pmt_t msg);
 

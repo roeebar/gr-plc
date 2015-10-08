@@ -29,6 +29,10 @@
     <name>in</name>
     <type>byte</type>
   </sink>
+  <sink>
+    <name>mac in</name>
+    <type>message</type>
+  </sink>
   <source>
     <name>mac out</name>
     <type>message</type>

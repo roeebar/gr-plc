@@ -5,7 +5,6 @@
 
 #include <plc/api.h>
 #include <gnuradio/block.h>
-
 namespace gr {
   namespace plc {
 
@@ -27,7 +26,7 @@ namespace gr {
        * class. plc::phy::make is the public interface for
        * creating new instances.
        */
-      static sptr make(bool disable_transmitter, bool disable_receiver, bool debug);
+      static sptr make(int robo_mode, int modulation, bool disable_transmitter, bool disable_receiver, bool debug);
     };
 
   } // namespace plc

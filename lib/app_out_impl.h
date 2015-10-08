@@ -18,11 +18,18 @@ namespace gr {
       pmt::pmt_t d_mac_payload_pmt;
       pmt::pmt_t d_dest_pmt;
       int d_mac_payload_offset;
+      bool d_payload_sent;
+      long int d_time_begin;
+      long int d_total_bytes;
       bool d_debug;
 
      public:
       app_out_impl(std::vector<uint8_t> dest, bool debug);
       ~app_out_impl();
+
+      void send_payload();
+      bool start();
+      bool stop();
 
       // Where all the action really happens
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);

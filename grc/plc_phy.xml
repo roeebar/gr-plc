@@ -3,7 +3,67 @@
   <key>plc_phy</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.phy($disable_receiver, $disable_transmitter, $debug)</make>
+  <make>plc.phy($robo_mode, $modulation, $disable_receiver, $disable_transmitter, $debug)</make>
+  <param>
+    <name>ROBO Mode</name>
+    <key>robo_mode</key>
+    <value>0</value>
+    <type>int</type>
+    <option>
+      <name>NO ROBO</name>
+      <key>0</key>
+    </option>
+    <option>
+      <name>STD_ROBO</name>
+      <key>1</key>
+    </option>
+    <option>
+      <name>HS_ROBO</name>
+      <key>2</key>
+    </option>
+    <option>
+      <name>MINI_ROBO</name>
+      <key>3</key>
+    </option>
+  </param>
+  <param>
+    <name>Modulation</name>
+    <key>modulation</key>
+    <value>0</value>
+    <type>int</type>
+    <option>
+      <name>BPSK</name>
+      <key>0</key>
+    </option>
+    <option>
+      <name>QPSK</name>
+      <key>1</key>
+    </option>
+    <option>
+      <name>QAM8</name>
+      <key>2</key>
+    </option>
+    <option>
+      <name>QAM16</name>
+      <key>3</key>
+    </option>
+    <option>
+      <name>QAM64</name>
+      <key>4</key>
+    </option>
+    <option>
+      <name>QAM256</name>
+      <key>5</key>
+    </option>
+    <option>
+      <name>QAM1024</name>
+      <key>6</key>
+    </option>
+    <option>
+      <name>QAM4096</name>
+      <key>7</key>
+    </option>
+  </param>
   <param>
     <name>Transmitter</name>
     <key>disable_transmitter</key>
