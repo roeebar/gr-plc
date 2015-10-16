@@ -12,10 +12,10 @@
 namespace gr {
   namespace plc {
 
-    const int phy_impl::SYNCP_SIZE = light_plc::Plcp::SYNCP_SIZE;
+    const int phy_impl::SYNCP_SIZE = light_plc::plcp::SYNCP_SIZE;
     const int phy_impl::SYNC_LENGTH = 2 * phy_impl::SYNCP_SIZE; // length for frame alignment attempt
-    const int phy_impl::PREAMBLE_SIZE = light_plc::Plcp::PREAMBLE_SIZE;
-    const int phy_impl::FRAME_CONTROL_SIZE = light_plc::Plcp::FRAME_CONTROL_SIZE;
+    const int phy_impl::PREAMBLE_SIZE = light_plc::plcp::PREAMBLE_SIZE;
+    const int phy_impl::FRAME_CONTROL_SIZE = light_plc::plcp::FRAME_CONTROL_SIZE;
     const float phy_impl::THRESHOLD = 0.9; // autocorrelation threshold
     const float phy_impl::MIN_ENERGY = 1e-3; // signal minimum energy
     const int phy_impl::MIN_PLATEAU = 5.5 * phy_impl::SYNCP_SIZE; // minimum autocorrelation plateau
@@ -60,18 +60,18 @@ namespace gr {
       message_port_register_in(pmt::mp("mac in"));
       message_port_register_out(pmt::mp("mac out"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_impl::mac_in, this, _1));
-      //light_plc::Plcp::debug(debug);
-      d_plcp = light_plc::Plcp();
+      d_plcp = light_plc::plcp();
+      d_plcp.debug(d_debug);
 
       // Set the correlation filter
-      light_plc::VectorFloat syncp (d_plcp.preamble() + SYNCP_SIZE * 7.5, d_plcp.preamble() + SYNCP_SIZE * 8.5);
+      light_plc::vector_float syncp (d_plcp.preamble() + SYNCP_SIZE * 7.5, d_plcp.preamble() + SYNCP_SIZE * 8.5);
       std::reverse(syncp.begin(), syncp.end());
       d_fir = new gr::filter::kernel::fir_filter_fff(1, syncp);    
       d_correlation = gr::fft::malloc_float(SYNC_LENGTH); 
 
       // Init some vectors
-      d_preamble = light_plc::VectorFloat(PREAMBLE_SIZE); 
-      d_frame_control = light_plc::VectorFloat(FRAME_CONTROL_SIZE);
+      d_preamble = light_plc::vector_float(PREAMBLE_SIZE); 
+      d_frame_control = light_plc::vector_float(FRAME_CONTROL_SIZE);
     }
 
     /*
@@ -85,19 +85,30 @@ namespace gr {
 
     void phy_impl::mac_in (pmt::pmt_t msg) {
       if(pmt::is_pair(msg)) {
-        if (pmt::is_u8vector(pmt::cdr(msg))) {
-          dout << "PHY Transmitter: received new MPDU" << std::endl;
+        if (pmt::is_u8vector(pmt::cdr(msg)) && pmt::is_dict(pmt::car(msg))) {
+          pmt::pmt_t dict = pmt::car(msg);
+          pmt::pmt_t key = pmt::mp("type");
+          if (!pmt::dict_has_key(dict,key))
+            return;
           if (d_transmitter_state == READY) {
-            d_transmitter_state = BUSY;
-            size_t mpdu_payload_length = 0;
-            const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
-            dout << "modulation = " << d_modulation << std::endl;
-            d_datastream = d_plcp.createDatastream(mpdu_payload, mpdu_payload_length, d_robo_mode, light_plc::RATE_1_2, d_modulation);
-            d_datastream_len = d_datastream.size();
+            pmt::pmt_t type = pmt::dict_ref(dict, key, pmt::PMT_NIL);
+            if (pmt::symbol_to_string(type) == "sof") {
+              dout << "PHY Transmitter: received new MPDU (SOF) from MAC" << std::endl;            
+              d_transmitter_state = BUSY;
+              size_t mpdu_payload_length = 0;
+              const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
+              d_datastream = d_plcp.create_sof_ppdu(mpdu_payload, mpdu_payload_length, d_robo_mode, light_plc::RATE_1_2, d_modulation);
+              d_datastream_len = d_datastream.size();
+            } else if (pmt::symbol_to_string(type) == "sound") {
+              dout << "PHY Transmitter: received new MPDU (Sound) from MAC" << std::endl;            
+              d_transmitter_state = BUSY;
+              d_datastream = d_plcp.create_sound_ppdu(light_plc::STD_ROBO);
+              d_datastream_len = d_datastream.size();
+            }
           } else if (d_transmitter_state == BUSY) {
-              std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
+            std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
           }
-        }      
+        }
       }
     }
 
@@ -196,11 +207,11 @@ namespace gr {
               i++;
             }
             if (d_sync_offset == d_frame_start) {
-              light_plc::VectorFloat preamble_aligned (d_preamble.size());
-              light_plc::VectorFloat::iterator preamble_aligned_iter (preamble_aligned.begin());
+              light_plc::vector_float preamble_aligned (d_preamble.size());
+              light_plc::vector_float::iterator preamble_aligned_iter (preamble_aligned.begin());
               preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
               std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
-              d_plcp.estimateChannel(preamble_aligned.begin(), preamble_aligned.end());
+              d_plcp.resolve_preamble(preamble_aligned.begin(), preamble_aligned.end());
               d_receiver_state = COPY_FRAME_CONTROL;
             }
             break;
@@ -211,14 +222,14 @@ namespace gr {
               if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
                 d_frame_control[d_frame_control_offset] = in2[i];
               } else  {
-                d_payload_size = d_plcp.resolveFrameControl(d_frame_control.begin(), light_plc::RATE_1_2, d_modulation);
+                d_payload_size = d_plcp.resolve_frame_control(d_frame_control.begin(), light_plc::RATE_1_2, d_modulation);
                 if (d_payload_size == -1) {
                   std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
                   d_receiver_state = RX_RESET;
                 } else {
                   d_receiver_state = COPY_PAYLOAD;
                   dout << "PHY Receiver: Frame control is OK!" << std::endl;
-                  d_payload = light_plc::VectorFloat(d_payload_size);
+                  d_payload = light_plc::vector_float(d_payload_size);
                 }
                 break;
               }
@@ -233,18 +244,18 @@ namespace gr {
             d_payload_offset += k;
             i += k;
             if (d_payload_offset == d_payload_size) {
-              pmt::pmt_t mpdu_payload_pmt = pmt::make_u8vector(d_plcp.payloadSize(), 0);
+              pmt::pmt_t mpdu_payload_pmt = pmt::make_u8vector(d_plcp.payload_size(), 0);
               size_t len;
               unsigned char *mpdu_payload_blob = (unsigned char*)pmt::u8vector_writable_elements(mpdu_payload_pmt, len);
-              d_plcp.resolvePayload(d_payload.begin(), mpdu_payload_blob);
+              d_plcp.resolve_payload(d_payload.begin(), mpdu_payload_blob);
+              dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.payload_size() << ", type = " << d_plcp.frame_type() << std::endl;
+              if (d_plcp.frame_type() == light_plc::MPDU_TYPE_SOF) {
+                // dict
+                pmt::pmt_t dict = pmt::make_dict();
 
-              dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.payloadSize() << std::endl;
-
-              // dict
-              pmt::pmt_t dict = pmt::make_dict();
-
-              // mpdu
-              message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
+                // mpdu
+                message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
+              }
 
               d_receiver_state = RX_RESET;
             }
@@ -294,7 +305,7 @@ namespace gr {
               add_item_tag(0, nitems_written(0), key, value, srcid);
             }
 
-            std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::VectorFloat::value_type)*i);
+            std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_float::value_type)*i);
 
             d_datastream_offset += i;
 

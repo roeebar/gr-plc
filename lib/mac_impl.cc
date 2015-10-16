@@ -108,7 +108,7 @@ namespace gr {
 
       // dict
       pmt::pmt_t dict = pmt::make_dict();
-      //dict = pmt::dict_add(dict, pmt::mp("crc_included"), pmt::PMT_T);
+      dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
 
       // blob
       pmt::pmt_t mpdu_payload_blob = pmt::make_blob(mpdu_payload.data(), mpdu_payload.size());

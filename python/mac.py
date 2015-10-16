@@ -42,7 +42,8 @@ class mac(gr.basic_block):
     incomplete_frames = {}
     streams_out = {}
     frames_in_buffer = 0
-    need_to_sent_status = True
+    need_to_send_status = True
+    need_to_tx_sound = True
     phy_ready = False
 
     """
@@ -69,7 +70,7 @@ class mac(gr.basic_block):
                 if self.debug: print "MAC: received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.frames_in_buffer)
                 if self.frames_in_buffer >= self.MAX_FRAMES_IN_BUFFER:
                     sys.stderr.write ("MAC: buffer is full, dropping frame from APP\n")
-                    self.need_to_sent_status = True
+                    self.need_to_send_status = True
                     return
                 else:
                     dict = gr.pmt.to_python(gr.pmt.car(msg))
@@ -77,7 +78,7 @@ class mac(gr.basic_block):
                     mac_frame = self.create_mac_frame(dest, payload)
                     self.submit_mac_frame(mac_frame)
                     self.send_to_phy()
-                    self.need_to_sent_status = True
+                    self.need_to_send_status = True
                     self.send_status_to_app()
 
     def phy_in_handler(self, msg):
@@ -96,29 +97,31 @@ class mac(gr.basic_block):
     def send_to_phy(self):
         if not self.phy_ready: return
 
-        mpdu_payload = self.create_mpdu_payload()
-        if not mpdu_payload: return
-
         # dict
-        pmt_dict = gr.pmt.make_dict();
-        #dict = pmt::dict_add(dict, pmt::mp("crc_included"), pmt::PMT_T);
+        dict = gr.pmt.make_dict();
 
-        # create u8vector        
-        mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
-
-        # mpdu
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(pmt_dict, mpdu_payload_u8vector));
+        if self.need_to_tx_sound:
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sound"));
+            mpdu_payload_u8vector = gr.pmt.init_u8vector(0, []);
+            if self.debug: print "MAC: sending MPDU (Sound) to PHY"
+            self.need_to_tx_sound = False
+        else:
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"));
+            mpdu_payload = self.create_mpdu_payload()
+            if not mpdu_payload: return
+            # create u8vector        
+            mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
+            if self.debug: print "MAC: sending MPDU (SOF) to PHY"
+            self.need_to_tx_sound = True
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(dict, mpdu_payload_u8vector));
         self.phy_ready = False
-
-        if self.debug: print "MAC: sent MPDU to PHY"
-
         self.send_status_to_app()
 
     def send_status_to_app(self):
-        if self.need_to_sent_status:
+        if self.need_to_send_status:
             if self.frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
                 self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"));
-                self.need_to_sent_status = False
+                self.need_to_send_status = False
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call

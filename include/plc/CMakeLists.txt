@@ -22,9 +22,7 @@
 ########################################################################
 install(FILES
     api.h
-    plcp_transmit.h
-    # plcp_receiver.h
-    mac_receiver.h
+    # mac_receiver.h
     mac_transmitter.h
     phy.h
     app_out.h

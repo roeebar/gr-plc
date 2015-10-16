@@ -8,8 +8,6 @@
 %include "plc_swig_doc.i"
 
 %{
-#include "plc/plcp_transmit.h"
-#include "plc/plcp_receiver.h"
 #include "plc/mac_receiver.h"
 #include "plc/mac_transmitter.h"
 #include "plc/phy.h"
@@ -17,11 +15,7 @@
 #include "plc/app_in.h"
 %}
 
-%include "plc/plcp_transmit.h"
-GR_SWIG_BLOCK_MAGIC2(plc, plcp_transmit);
 
-%include "plc/plcp_receiver.h"
-GR_SWIG_BLOCK_MAGIC2(plc, plcp_receiver);
 
 %include "plc/mac_receiver.h"
 GR_SWIG_BLOCK_MAGIC2(plc, mac_receiver);

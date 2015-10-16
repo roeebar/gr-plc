@@ -22,14 +22,14 @@ namespace gr {
      static const int MIN_PLATEAU; 
 
      private:
-      light_plc::Plcp d_plcp;
+      light_plc::plcp d_plcp;
       light_plc::RoboMode d_robo_mode;
       light_plc::Modulation d_modulation;
       const bool d_debug;
 
       // Transmitter vars
       bool d_transmitter_disabled;
-      light_plc::VectorFloat d_datastream;
+      light_plc::vector_float d_datastream;
       int d_datastream_offset;
       int d_datastream_len;
       enum {READY, BUSY, TX_RESET} d_transmitter_state;
@@ -42,14 +42,14 @@ namespace gr {
       int d_payload_size;
       int d_payload_offset;
       float *d_correlation;
-      light_plc::VectorFloat d_preamble;
-      light_plc::VectorFloat d_frame_control;
-      light_plc::VectorFloat d_payload;
+      light_plc::vector_float d_preamble;
+      light_plc::vector_float d_frame_control;
+      light_plc::vector_float d_payload;
       int d_sync_offset;
       int d_frame_control_offset;
       int d_preamble_offset;
       int d_frame_start;
-      light_plc::VectorInt d_output_datastream;
+      light_plc::vector_int d_output_datastream;
       int d_output_datastream_offset;
       int d_output_datastream_len;
       std::list<std::pair<double, int>> d_cor; 
