@@ -23,5 +23,7 @@ install(FILES
     plc_mac.xml
     plc_phy.xml
     plc_app_out.xml
-    plc_app_in.xml DESTINATION share/gnuradio/grc/blocks
+    plc_app_in.xml
+    plc_phy_tx.xml
+    plc_phy_rx.xml DESTINATION share/gnuradio/grc/blocks
 )

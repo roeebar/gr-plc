@@ -26,5 +26,7 @@ install(FILES
     mac_transmitter.h
     phy.h
     app_out.h
-    app_in.h DESTINATION include/plc
+    app_in.h
+    phy_tx.h
+    phy_rx.h DESTINATION include/plc
 )

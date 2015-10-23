@@ -61,7 +61,7 @@ namespace gr {
       message_port_register_out(pmt::mp("mac out"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_impl::mac_in, this, _1));
       d_plcp = light_plc::plcp();
-      d_plcp.debug(d_debug);
+      //d_plcp.debug(d_debug);
 
       // Set the correlation filter
       light_plc::vector_float syncp (d_plcp.preamble() + SYNCP_SIZE * 7.5, d_plcp.preamble() + SYNCP_SIZE * 8.5);
@@ -120,9 +120,13 @@ namespace gr {
         ninput_items_required[1] = SYNC_LENGTH + SYNCP_SIZE - 1;
         ninput_items_required[2] = SYNC_LENGTH + SYNCP_SIZE - 1;
       } else {
-        ninput_items_required[0] = noutput_items;
-        ninput_items_required[1] = noutput_items;
-        ninput_items_required[2] = noutput_items;
+        // ninput_items_required[0] = noutput_items;
+        // ninput_items_required[1] = noutput_items;
+        // ninput_items_required[2] = noutput_items;
+        ninput_items_required[0] = 0;
+        ninput_items_required[1] = 0;
+        ninput_items_required[2] = 0;
+
       }
     }
 
@@ -306,6 +310,7 @@ namespace gr {
             }
 
             std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_float::value_type)*i);
+            dout << "PHY Transmitter: state = BUSY, copied " << i << "/" << d_datastream_len << std::endl;
 
             d_datastream_offset += i;
 
@@ -326,6 +331,7 @@ namespace gr {
           }
 
           case READY:
+            dout << "PHY Transmitter: state = READY" << std::endl;
             break;
         }
 

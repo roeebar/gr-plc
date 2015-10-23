@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # 
 
-import numpy
 import binascii
 import sys
-import time
+from datetime import datetime, timedelta
 from gnuradio import gr
 
 class mac(gr.basic_block):
@@ -37,13 +36,15 @@ class mac(gr.basic_block):
     PHY_BLOCK_HEADER_OPSF_WIDTH = 1
     PHY_BLOCK_HEADER_OPSF_OFFSET = 28
 
-    MAX_SEGMENTS = 3
-    MAX_FRAMES_IN_BUFFER = 10
-    incomplete_frames = {}
-    streams_out = {}
-    frames_in_buffer = 0
+    MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
+    MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
+    rx_incomplete_frames = {}
+    tx_frames_buffer = {}
+    tx_frames_in_buffer = 0
+    last_ssn = -1 # track last ssn received
     need_to_send_status = True
-    need_to_tx_sound = True
+    last_sound_frame = datetime.min # last time a sound frame was transmitted
+    sound_frame_rate = 5 ; # minimum time in seconds between sounds frames
     phy_ready = False
 
     """
@@ -67,8 +68,8 @@ class mac(gr.basic_block):
         if gr.pmt.is_pair(msg):
             if gr.pmt.is_u8vector(gr.pmt.cdr(msg)) and gr.pmt.is_dict(gr.pmt.car(msg)):
                 payload = bytearray(gr.pmt.u8vector_elements(gr.pmt.cdr(msg)))
-                if self.debug: print "MAC: received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.frames_in_buffer)
-                if self.frames_in_buffer >= self.MAX_FRAMES_IN_BUFFER:
+                if self.debug: print "MAC: received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_buffer)
+                if self.tx_frames_in_buffer >= self.MAX_FRAMES_IN_BUFFER:
                     sys.stderr.write ("MAC: buffer is full, dropping frame from APP\n")
                     self.need_to_send_status = True
                     return
@@ -77,7 +78,7 @@ class mac(gr.basic_block):
                     dest = bytearray(dict["dest"])
                     mac_frame = self.create_mac_frame(dest, payload)
                     self.submit_mac_frame(mac_frame)
-                    self.send_to_phy()
+                    self.send_frame_to_phy()
                     self.need_to_send_status = True
                     self.send_status_to_app()
 
@@ -92,19 +93,19 @@ class mac(gr.basic_block):
             status = gr.pmt.symbol_to_string(msg)
             if status == "READY":
                 self.phy_ready = True
-                self.send_to_phy()
+                self.send_frame_to_phy()
 
-    def send_to_phy(self):
+    def send_frame_to_phy(self):
         if not self.phy_ready: return
 
         # dict
         dict = gr.pmt.make_dict();
 
-        if self.need_to_tx_sound:
+        if (datetime.now()-self.last_sound_frame).total_seconds() >= self.sound_frame_rate:
             dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sound"));
             mpdu_payload_u8vector = gr.pmt.init_u8vector(0, []);
             if self.debug: print "MAC: sending MPDU (Sound) to PHY"
-            self.need_to_tx_sound = False
+            self.last_sound_frame = datetime.now();
         else:
             dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"));
             mpdu_payload = self.create_mpdu_payload()
@@ -112,14 +113,13 @@ class mac(gr.basic_block):
             # create u8vector        
             mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
             if self.debug: print "MAC: sending MPDU (SOF) to PHY"
-            self.need_to_tx_sound = True
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(dict, mpdu_payload_u8vector));
         self.phy_ready = False
         self.send_status_to_app()
 
     def send_status_to_app(self):
         if self.need_to_send_status:
-            if self.frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
+            if self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
                 self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"));
                 self.need_to_send_status = False
 
@@ -173,13 +173,13 @@ class mac(gr.basic_block):
 
     def submit_mac_frame(self, frame):
         dest = self.get_bytes_field(frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
-        if (str(dest) in self.streams_out):
-            stream = self.streams_out[str(dest)]
+        if (str(dest) in self.tx_frames_buffer):
+            stream = self.tx_frames_buffer[str(dest)]
         else:
             stream = {"ssn": 0, "frames": [], "remainder": bytearray(0)}
-            self.streams_out[str(dest)] = stream
+            self.tx_frames_buffer[str(dest)] = stream
         stream["frames"].append(frame)
-        self.frames_in_buffer += 1
+        self.tx_frames_in_buffer += 1
         if self.debug: print "MAC: added MAC frame to tranmission buffer, frame size = " + str(len(frame))
 
     def receive_mac_frame(self, frame):
@@ -209,11 +209,11 @@ class mac(gr.basic_block):
 
     def create_mpdu_payload(self):
         # Check if buffer is empty
-        if not len(self.streams_out): return
+        if not len(self.tx_frames_buffer): return
         stream = {}
-        for key in self.streams_out:
-            if self.streams_out[key]["frames"] or self.streams_out[key]["remainder"]:
-                stream = self.streams_out[key]
+        for key in self.tx_frames_buffer:
+            if self.tx_frames_buffer[key]["frames"] or self.tx_frames_buffer[key]["remainder"]:
+                stream = self.tx_frames_buffer[key]
                 break
         if not stream: return
 
@@ -232,7 +232,7 @@ class mac(gr.basic_block):
             segment = remainder[0:body_size]
             if remainder:
                 remainder = remainder[body_size:]
-                if not remainder: self.frames_in_buffer -= 1
+                if not remainder: self.tx_frames_in_buffer -= 1
             while len(segment) < body_size and frames:
                 if not mac_boundary_flag:
                     mac_boundary_offset = len(segment)
@@ -240,7 +240,7 @@ class mac(gr.basic_block):
                 remainder = frames[0][body_size-len(segment):]
                 segment += frames[0][0:body_size-len(segment)]                
                 frames.pop(0)
-                if not remainder: self.frames_in_buffer -= 1
+                if not remainder: self.tx_frames_in_buffer -= 1
 
             # Determine if segment should be 128 bytes or 512
             if len(segment) < body_size:
@@ -277,6 +277,9 @@ class mac(gr.basic_block):
         while (j < len(msdu_payload)):
             phy_block = msdu_payload[j:j + phy_block_size]
             ssn = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_SSN_OFFSET, self.PHY_BLOCK_HEADER_SSN_WIDTH)
+            if ssn != self.last_ssn+1:
+                sys.stderr.write("MAC: discontinued SSN numbering (last = " +str(self.last_ssn) + ", current = " + str(ssn) + "\n")
+            self.last_ssn = ssn
             mac_boundary_offset = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_MFBO_OFFSET, self.PHY_BLOCK_HEADER_MFBO_WIDTH)
             mac_boundary_flag = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_MMBF_OFFSET, self.PHY_BLOCK_HEADER_MMBF_WIDTH)
             segment = self.get_bytes_field(phy_block, self.PHY_BLOCK_BODY_OFFSET, phy_block_size - phy_block_overhead_size)
@@ -292,8 +295,8 @@ class mac(gr.basic_block):
             if not mac_boundary_flag: mac_boundary_offset = len(segment) # if not mac boundary, use the whole segment
             mac_frame_data = segment[0:mac_boundary_offset]
 
-            if mac_frame_data and ssn in self.incomplete_frames:
-                incomplete_frame = self.incomplete_frames[ssn]
+            if mac_frame_data and ssn in self.rx_incomplete_frames:
+                incomplete_frame = self.rx_incomplete_frames[ssn]
                 incomplete_frame["data"] += mac_frame_data
                 if incomplete_frame["length"] == 1: # length = 1 means the length is not calculated yet
                     header = incomplete_frame["data"][0:2]
@@ -301,15 +304,9 @@ class mac(gr.basic_block):
                 if incomplete_frame["length"] == len(incomplete_frame["data"]):
                     self.receive_mac_frame(incomplete_frame["data"])
                 else:
-                    del self.incomplete_frames[ssn]
+                    del self.rx_incomplete_frames[ssn]
                     next_ssn = (ssn + 1) % 65636
-                    self.incomplete_frames[next_ssn] = incomplete_frame
-                    #self.last_incomplete_frame_ssn = next_ssn
-
-            # if mac_boundary_flag and self.last_incomplete_frame_ssn != 0:
-            #     self.receive_mac_frame(self.incomplete_frames[self.last_incomplete_frame_ssn]["data"])
-            #     del self.incomplete_frames[self.last_incomplete_frame_ssn]
-            #     self.last_incomplete_frame_ssn = 0
+                    self.rx_incomplete_frames[next_ssn] = incomplete_frame
 
             i += len(mac_frame_data)
             while i < len(segment):
@@ -325,7 +322,7 @@ class mac(gr.basic_block):
                     incomplete_frame["data"] = mac_frame_data
                     incomplete_frame["length"] = length
                     next_ssn = (ssn + 1) % 65636
-                    self.incomplete_frames[next_ssn] = incomplete_frame
+                    self.rx_incomplete_frames[next_ssn] = incomplete_frame
                 else:
                     self.receive_mac_frame(mac_frame_data)
                 i += len(mac_frame_data)

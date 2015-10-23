@@ -29,7 +29,9 @@ list(APPEND plc_sources
     mac_transmitter_impl.cc
     phy_impl.cc
     app_out_impl.cc
-    app_in_impl.cc )
+    app_in_impl.cc
+    phy_tx_impl.cc
+    phy_rx_impl.cc )
 
 set(plc_sources "${plc_sources}" PARENT_SCOPE)
 if(NOT plc_sources)

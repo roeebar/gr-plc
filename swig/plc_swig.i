@@ -13,6 +13,8 @@
 #include "plc/phy.h"
 #include "plc/app_out.h"
 #include "plc/app_in.h"
+#include "plc/phy_tx.h"
+#include "plc/phy_rx.h"
 %}
 
 
@@ -28,3 +30,7 @@ GR_SWIG_BLOCK_MAGIC2(plc, phy);
 GR_SWIG_BLOCK_MAGIC2(plc, app_out);
 %include "plc/app_in.h"
 GR_SWIG_BLOCK_MAGIC2(plc, app_in);
+%include "plc/phy_tx.h"
+GR_SWIG_BLOCK_MAGIC2(plc, phy_tx);
+%include "plc/phy_rx.h"
+GR_SWIG_BLOCK_MAGIC2(plc, phy_rx);

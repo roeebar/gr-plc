@@ -6,7 +6,7 @@
     <key>options</key>
     <param>
       <key>author</key>
-      <value></value>
+      <value>Roee Bar</value>
     </param>
     <param>
       <key>alias</key>
@@ -42,7 +42,7 @@
     </param>
     <param>
       <key>generate_options</key>
-      <value>no_gui</value>
+      <value>qt_gui</value>
     </param>
     <param>
       <key>id</key>
@@ -81,11 +81,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(344, 13)</value>
+      <value>(176, 75)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -101,7 +101,11 @@
     </param>
   </block>
   <block>
-    <key>variable</key>
+    <key>variable_function_probe</key>
+    <param>
+      <key>block_id</key>
+      <value>probe_in</value>
+    </param>
     <param>
       <key>comment</key>
       <value></value>
@@ -111,8 +115,16 @@
       <value>True</value>
     </param>
     <param>
+      <key>function_args</key>
+      <value></value>
+    </param>
+    <param>
+      <key>function_name</key>
+      <value>rate</value>
+    </param>
+    <param>
       <key>_coordinate</key>
-      <value>(216, 13)</value>
+      <value>(512, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -120,11 +132,58 @@
     </param>
     <param>
       <key>id</key>
-      <value>samp_rate</value>
+      <value>function_probe_rate_in</value>
+    </param>
+    <param>
+      <key>poll_rate</key>
+      <value>10</value>
     </param>
     <param>
       <key>value</key>
-      <value>25000000</value>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_function_probe</key>
+    <param>
+      <key>block_id</key>
+      <value>probe_out</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>function_args</key>
+      <value></value>
+    </param>
+    <param>
+      <key>function_name</key>
+      <value>rate</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(672, 11)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>function_probe_rate_out</value>
+    </param>
+    <param>
+      <key>poll_rate</key>
+      <value>10</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>0</value>
     </param>
   </block>
   <block>
@@ -139,7 +198,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(448, 13)</value>
+      <value>(176, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -147,11 +206,97 @@
     </param>
     <param>
       <key>id</key>
-      <value>simulation</value>
+      <value>samp_rate</value>
     </param>
     <param>
       <key>value</key>
-      <value>False</value>
+      <value>25e6</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_rate_in</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(840, 11)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Rate in (Bps)</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>real</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_rate_out</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(992, 11)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0_0</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Rate out (Bps)</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>real</value>
     </param>
   </block>
   <block>
@@ -174,11 +319,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(568, 219)</value>
+      <value>(552, 211)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -217,7 +362,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -264,7 +409,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -319,11 +464,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/gr-plc/Testing/data/received_payload.dat</value>
+      <value>/home/roee/gr-plc/Testing/video-out.ts</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -343,7 +488,7 @@
     </param>
     <param>
       <key>unbuffered</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>vlen</key>
@@ -468,15 +613,15 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/gr-plc/Testing/data/input_payload.dat</value>
+      <value>/home/roee/gr-plc/Testing/Sesame Street - Elmo's Ducks.ts</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(75, 160)</value>
+      <value>(43, 160)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -527,7 +672,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/gr-plc/Testing/data/received_raw.dat</value>
+      <value>/home/roee/gr-plc/Testing/data/transmitted_raw.dat</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -555,7 +700,7 @@
     </param>
     <param>
       <key>repeat</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>vlen</key>
@@ -578,7 +723,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -621,7 +766,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -676,7 +821,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -716,6 +861,57 @@
     </param>
   </block>
   <block>
+    <key>blocks_multiply_const_vxx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>const</key>
+      <value>0.3</value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(552, 331)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_multiply_const_vxx_0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>float</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
     <key>blocks_multiply_xx</key>
     <param>
       <key>alias</key>
@@ -731,7 +927,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -782,7 +978,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -837,54 +1033,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(983, 976)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>270</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_null_sink_0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>float</value>
-    </param>
-    <param>
-      <key>num_inputs</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_null_sink</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>bus_conns</key>
-      <value>[[0,],]</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -905,108 +1054,6 @@
     <param>
       <key>num_inputs</key>
       <value>1</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_null_sink</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>bus_conns</key>
-      <value>[[0,],]</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(617, 824)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>90</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_null_sink_1</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>byte</value>
-    </param>
-    <param>
-      <key>num_inputs</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_null_source</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>bus_conns</key>
-      <value>[[0,],]</value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(544, 127)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>180</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_null_source_0</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>num_outputs</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>float</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1084,11 +1131,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(144, 339)</value>
+      <value>(88, 339)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1112,7 +1159,7 @@
     </param>
     <param>
       <key>samples_per_second</key>
-      <value>35e3</value>
+      <value>70e3</value>
     </param>
     <param>
       <key>type</key>
@@ -1139,7 +1186,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(560, -1)</value>
+      <value>(272, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1163,7 +1210,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>2</value>
+      <value>4</value>
     </param>
   </block>
   <block>
@@ -1182,11 +1229,11 @@
     </param>
     <param>
       <key>debug</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1233,7 +1280,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1280,7 +1327,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1327,7 +1374,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1351,7 +1398,7 @@
     </param>
   </block>
   <block>
-    <key>plc_mac_receiver</key>
+    <key>plc_phy_rx</key>
     <param>
       <key>alias</key>
       <value></value>
@@ -1366,45 +1413,6 @@
     </param>
     <param>
       <key>debug</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>output_filename</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/data/received_payload.dat</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(1125, 824)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>270</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>plc_mac_receiver_0</value>
-    </param>
-  </block>
-  <block>
-    <key>plc_phy</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value>[1,0,0,0]</value>
-    </param>
-    <param>
-      <key>debug</key>
       <value>False</value>
     </param>
     <param>
@@ -1413,7 +1421,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(463, 184)</value>
+      <value>(937, 824)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1421,7 +1429,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>plc_phy_0</value>
+      <value>plc_phy_rx_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1439,17 +1447,9 @@
       <key>robo_mode</key>
       <value>robo_mode</value>
     </param>
-    <param>
-      <key>disable_receiver</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>disable_transmitter</key>
-      <value>False</value>
-    </param>
   </block>
   <block>
-    <key>plc_phy</key>
+    <key>plc_phy_tx</key>
     <param>
       <key>alias</key>
       <value></value>
@@ -1460,19 +1460,19 @@
     </param>
     <param>
       <key>affinity</key>
-      <value>[0,1,0,0]</value>
+      <value></value>
     </param>
     <param>
       <key>debug</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(951, 792)</value>
+      <value>(459, 192)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1480,7 +1480,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>plc_phy_1</value>
+      <value>plc_phy_tx_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1498,20 +1498,122 @@
       <key>robo_mode</key>
       <value>robo_mode</value>
     </param>
+  </block>
+  <block>
+    <key>blocks_probe_rate</key>
     <param>
-      <key>disable_receiver</key>
-      <value>False</value>
+      <key>alias</key>
+      <value></value>
     </param>
     <param>
-      <key>disable_transmitter</key>
-      <value>True</value>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(571, 752)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>90</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>probe_in</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>byte</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>mintime</key>
+      <value>500.0</value>
+    </param>
+    <param>
+      <key>alpha</key>
+      <value>0.15</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_probe_rate</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(195, 160)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>90</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>probe_out</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>byte</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>mintime</key>
+      <value>500.0</value>
+    </param>
+    <param>
+      <key>alpha</key>
+      <value>0.15</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
     </param>
   </block>
   <block>
     <key>qtgui_time_sink_x</key>
     <param>
       <key>autoscale</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>alias</key>
@@ -1535,7 +1637,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1811,7 +1913,7 @@
     </param>
     <param>
       <key>size</key>
-      <value>2000</value>
+      <value>8000</value>
     </param>
     <param>
       <key>srate</key>
@@ -1839,7 +1941,7 @@
     </param>
     <param>
       <key>tr_tag</key>
-      <value>""</value>
+      <value>packet_len</value>
     </param>
     <param>
       <key>type</key>
@@ -1870,7 +1972,7 @@
     <key>qtgui_time_sink_x</key>
     <param>
       <key>autoscale</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>alias</key>
@@ -1894,11 +1996,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>False</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(336, 727)</value>
+      <value>(368, 707)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -2170,7 +2272,7 @@
     </param>
     <param>
       <key>size</key>
-      <value>2000</value>
+      <value>8000</value>
     </param>
     <param>
       <key>srate</key>
@@ -2190,7 +2292,7 @@
     </param>
     <param>
       <key>tr_mode</key>
-      <value>qtgui.TRIG_MODE_FREE</value>
+      <value>qtgui.TRIG_MODE_NORM</value>
     </param>
     <param>
       <key>tr_slope</key>
@@ -2202,7 +2304,7 @@
     </param>
     <param>
       <key>type</key>
-      <value>complex</value>
+      <value>float</value>
     </param>
     <param>
       <key>update_time</key>
@@ -2241,7 +2343,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(680, -1)</value>
+      <value>(392, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2292,7 +2394,7 @@
     </param>
     <param>
       <key>gain0</key>
-      <value>100</value>
+      <value>0</value>
     </param>
     <param>
       <key>ant10</key>
@@ -2932,7 +3034,7 @@
     </param>
     <param>
       <key>dev_args</key>
-      <value>send_buff_size=1000000</value>
+      <value></value>
     </param>
     <param>
       <key>_enabled</key>
@@ -3755,7 +3857,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(80, 555)</value>
+      <value>(72, 539)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3934,9 +4036,15 @@
   </connection>
   <connection>
     <source_block_id>blocks_complex_to_float_0</source_block_id>
-    <sink_block_id>plc_phy_1</sink_block_id>
+    <sink_block_id>plc_phy_rx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>2</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_complex_to_float_0</source_block_id>
+    <sink_block_id>qtgui_time_sink_x_1_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_delay_0</source_block_id>
@@ -3982,15 +4090,21 @@
   </connection>
   <connection>
     <source_block_id>blocks_moving_average_xx_0</source_block_id>
-    <sink_block_id>plc_phy_1</sink_block_id>
+    <sink_block_id>plc_phy_rx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_moving_average_xx_1</source_block_id>
-    <sink_block_id>plc_phy_1</sink_block_id>
+    <sink_block_id>plc_phy_rx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
+    <sink_block_id>blocks_float_to_complex_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_multiply_xx_0</source_block_id>
@@ -4001,12 +4115,6 @@
   <connection>
     <source_block_id>blocks_multiply_xx_1</source_block_id>
     <sink_block_id>blocks_moving_average_xx_1</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_null_source_0</source_block_id>
-    <sink_block_id>plc_phy_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4023,6 +4131,12 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
+    <source_block_id>blocks_throttle_0</source_block_id>
+    <sink_block_id>probe_out</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
     <source_block_id>plc_app_in_0</source_block_id>
     <sink_block_id>blocks_file_sink_0</sink_block_id>
     <source_key>0</source_key>
@@ -4030,7 +4144,7 @@
   </connection>
   <connection>
     <source_block_id>plc_app_in_0</source_block_id>
-    <sink_block_id>blocks_null_sink_1</sink_block_id>
+    <sink_block_id>probe_in</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4048,7 +4162,7 @@
   </connection>
   <connection>
     <source_block_id>plc_mac_0</source_block_id>
-    <sink_block_id>plc_phy_0</sink_block_id>
+    <sink_block_id>plc_phy_tx_0</sink_block_id>
     <source_key>phy out</source_key>
     <sink_key>mac in</sink_key>
   </connection>
@@ -4059,32 +4173,20 @@
     <sink_key>mac in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_phy_0</source_block_id>
-    <sink_block_id>plc_mac_0</sink_block_id>
-    <source_key>mac out</source_key>
-    <sink_key>phy in</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_phy_0</source_block_id>
-    <sink_block_id>blocks_float_to_complex_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_phy_1</source_block_id>
+    <source_block_id>plc_phy_rx_0</source_block_id>
     <sink_block_id>plc_mac_0_0</sink_block_id>
     <source_key>mac out</source_key>
     <sink_key>phy in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_phy_1</source_block_id>
-    <sink_block_id>plc_mac_receiver_0</sink_block_id>
+    <source_block_id>plc_phy_tx_0</source_block_id>
+    <sink_block_id>plc_mac_0</sink_block_id>
     <source_key>mac out</source_key>
-    <sink_key>in</sink_key>
+    <sink_key>phy in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_phy_1</source_block_id>
-    <sink_block_id>blocks_null_sink_0</sink_block_id>
+    <source_block_id>plc_phy_tx_0</source_block_id>
+    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4097,12 +4199,6 @@
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
     <sink_block_id>blocks_file_sink_1</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>uhd_usrp_source_0</source_block_id>
-    <sink_block_id>qtgui_time_sink_x_1_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
