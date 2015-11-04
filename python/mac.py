@@ -84,11 +84,18 @@ class mac(gr.basic_block):
 
     def phy_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
-            cdr = gr.pmt.cdr(msg);
-            if gr.pmt.is_u8vector(cdr):
-                if self.debug: print "MAC: received MPDU from PHY"
-                mpdu_payload = bytearray(gr.pmt.u8vector_elements(cdr))
-                self.parse_mpdu_payload(mpdu_payload)
+            cdr = gr.pmt.cdr(msg)
+            car = gr.pmt.car(msg)
+            if gr.pmt.is_dict(car) and gr.pmt.is_u8vector(cdr):
+                dic = gr.pmt.to_python(car)
+                if dic["type"] == "sof":
+                    if self.debug: print "MAC: received MPDU (SOF) from PHY"
+                    self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.to_pmt("receive"));
+                    mpdu_payload = bytearray(gr.pmt.u8vector_elements(cdr))
+                    self.parse_mpdu_payload(mpdu_payload)
+                elif dic["type"] == "sound":
+                    if self.debug: print "MAC: received MPDU (Sound) from PHY"
+                    self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.to_pmt("sense"));
         if gr.pmt.is_symbol(msg):
             status = gr.pmt.symbol_to_string(msg)
             if status == "READY":
@@ -166,10 +173,8 @@ class mac(gr.basic_block):
         dest_addr = self.get_bytes_field(mac_frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
         payload = self.get_bytes_field(mac_frame, self.MAC_FRAME_PAYLOAD_OFFSET, payload_size)        
         if not self.crc32_check(mac_frame[self.MAC_FRAME_MFH_OFFSET + self.MAC_FRAME_MFH_WIDTH:]):
-            sys.stderr.write("MAC: MAC frame CRC error, dropping frame\n")
-        else:
-            if dest_addr == self.device_addr:
-                return payload
+            sys.stderr.write("MAC: MAC frame CRC error\n")
+        return payload
 
     def submit_mac_frame(self, frame):
         dest = self.get_bytes_field(frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
@@ -287,8 +292,7 @@ class mac(gr.basic_block):
             j += phy_block_size
 
             if not self.crc32_check(phy_block):
-                sys.stderr.write("MAC: PHY block CRC error, dropping block\n")
-                continue
+                sys.stderr.write("MAC: PHY block CRC error\n")
             
             # Parsing segment
             i = 0

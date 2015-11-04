@@ -24,7 +24,6 @@ install(FILES
     api.h
     # mac_receiver.h
     mac_transmitter.h
-    phy.h
     app_out.h
     app_in.h
     phy_tx.h

@@ -19,7 +19,7 @@ namespace gr {
      static const int FRAME_CONTROL_SIZE;
      static const float THRESHOLD;
      static const float MIN_ENERGY;
-     static const int MIN_PLATEAU; 
+     static const int MIN_PLATEAU;
 
      private:
       light_plc::plcp d_plcp;
@@ -27,7 +27,7 @@ namespace gr {
       light_plc::Modulation d_modulation;
       const bool d_debug;
       gr::filter::kernel::fir_filter_fff *d_fir;
-      enum {SEARCH, SYNC, CHANNEL_ESTIMATE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RX_RESET} d_receiver_state;
+      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, SENSE, HALT} d_receiver_state;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
@@ -44,10 +44,13 @@ namespace gr {
       int d_output_datastream_len;
       std::list<std::pair<double, int>> d_cor; 
       std::list<std::pair<double, int>>::iterator d_cor_iter;
+      std::vector<float> d_noise;
+      int d_noise_offset;
 
      public:
       phy_rx_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool debug);
       ~phy_rx_impl();
+      void mac_in (pmt::pmt_t msg);
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);
 
       // Where all the action really happens

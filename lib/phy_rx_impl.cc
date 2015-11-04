@@ -37,7 +37,7 @@ namespace gr {
             d_robo_mode(robo_mode),
             d_modulation(modulation),
             d_debug (debug),
-            d_receiver_state(RX_RESET),
+            d_receiver_state(RESET),
             d_plateau(0),
             d_payload_size(0),
             d_payload_offset(0),
@@ -46,10 +46,18 @@ namespace gr {
             d_preamble_offset(0),
             d_frame_start(0),
             d_output_datastream_offset(0),
-            d_output_datastream_len(0)
+            d_output_datastream_len(0),
+            d_noise(0),
+            d_noise_offset(0)
     {
+
       message_port_register_out(pmt::mp("mac out"));
+      message_port_register_in(pmt::mp("mac in"));
+      set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
+
       d_plcp = light_plc::plcp();
+      d_plcp.set_modulation(d_modulation);
+      d_plcp.set_robo_mode(d_robo_mode);      
       //d_plcp.debug(d_debug);
 
       // Set the correlation filter
@@ -70,6 +78,15 @@ namespace gr {
     {
       delete d_fir;
       gr::fft::free(d_correlation);        
+    }
+
+    void phy_rx_impl::mac_in (pmt::pmt_t msg) {
+      if(pmt::is_symbol(msg)) {
+        if (pmt::symbol_to_string(msg) == "receive")
+          d_receiver_state = RESET;
+        if (pmt::symbol_to_string(msg) == "sense")
+          d_receiver_state = SENSE;
+      }
     }
 
     void
@@ -143,15 +160,15 @@ namespace gr {
                    
           d_frame_start = 1.5 * SYNCP_SIZE + sync_pos - i;  // frame begins 1.5 syncp after last min
           if (d_frame_start < 0) {
-            d_receiver_state = RX_RESET; // If sync_pos does not make sense
+            d_receiver_state = RESET; // If sync_pos does not make sense
           } else {
-            d_receiver_state = CHANNEL_ESTIMATE;
+            d_receiver_state = COPY_PREAMBLE;
           }
           break;
         }
 
-        case CHANNEL_ESTIMATE:
-          dout << "PHY Receiver: state = CHANNEL_ESTIMATE, d_frame_control_offset = " << d_frame_start << std::endl;
+        case COPY_PREAMBLE:
+          dout << "PHY Receiver: state = COPY_PREAMBLE, d_frame_control_offset = " << d_frame_start << std::endl;
           while (i < ninput && d_sync_offset < d_frame_start) {
             d_preamble[d_preamble_offset++] = in2[i];
             d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
@@ -174,12 +191,12 @@ namespace gr {
             if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
               d_frame_control[d_frame_control_offset] = in2[i];
             } else  {
-              d_payload_size = d_plcp.resolve_frame_control(d_frame_control.begin(), light_plc::RATE_1_2, d_modulation);
-              if (d_payload_size == -1) {
+              if (d_plcp.resolve_frame_control(d_frame_control.begin()) == false) {
                 std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
-                d_receiver_state = RX_RESET;
+                d_receiver_state = RESET;
               } else {
                 d_receiver_state = COPY_PAYLOAD;
+                d_payload_size = d_plcp.get_ppdu_payload_size();
                 dout << "PHY Receiver: Frame control is OK!" << std::endl;
                 d_payload = light_plc::vector_float(d_payload_size);
               }
@@ -196,25 +213,30 @@ namespace gr {
           d_payload_offset += k;
           i += k;
           if (d_payload_offset == d_payload_size) {
-            pmt::pmt_t mpdu_payload_pmt = pmt::make_u8vector(d_plcp.payload_size(), 0);
+            pmt::pmt_t mpdu_payload_pmt = pmt::make_u8vector(d_plcp.get_mpdu_payload_size(), 0);
             size_t len;
             unsigned char *mpdu_payload_blob = (unsigned char*)pmt::u8vector_writable_elements(mpdu_payload_pmt, len);
             d_plcp.resolve_payload(d_payload.begin(), mpdu_payload_blob);
-            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.payload_size() << ", type = " << d_plcp.frame_type() << std::endl;
-            if (d_plcp.frame_type() == light_plc::MPDU_TYPE_SOF) {
+            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.get_mpdu_payload_size() << ", type = " << d_plcp.get_frame_type() << std::endl;
+            if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
               // dict
               pmt::pmt_t dict = pmt::make_dict();
-
+              dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
+              // mpdu
+              message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
+            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
+              // dict
+              pmt::pmt_t dict = pmt::make_dict();
+              dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sound"));
               // mpdu
               message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
             }
-
-            d_receiver_state = RX_RESET;
+            d_receiver_state = HALT;
           }
           break;
         }
 
-        case RX_RESET:
+        case RESET:
           dout << "PHY Receiver: state = RESET" << std::endl;
           d_plateau = 0;
           d_frame_control_offset = 0;
@@ -226,8 +248,30 @@ namespace gr {
           d_cor.clear();
           d_output_datastream_offset = 0;
           d_output_datastream_len = 0;
+          d_noise_offset = 0;
           d_receiver_state = SEARCH;
           break;
+
+        case SENSE:
+          if (d_noise_offset == 0) 
+            d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
+          while (i < ninput) {
+            d_noise[d_noise_offset++] = in2[i];
+            if (d_noise_offset == d_plcp.get_inter_frame_space()) {
+              float noise_var(0);
+              for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
+                noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
+              d_plcp.set_noise_psd(noise_var * 2);
+              dout << "PHY Receiver: state = SENSE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
+              d_noise_offset = 0;
+              d_receiver_state = RESET;
+            }
+            i++;
+          }
+          break;
+
+        case HALT:
+            break;
       }
 
       // Tell runtime system how many input items we consumed on

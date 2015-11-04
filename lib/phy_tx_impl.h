@@ -4,6 +4,7 @@
 #define INCLUDED_PLC_PHY_TX_IMPL_H
 
 #include <plc/phy_tx.h>
+#include <lightplc/plcp.h>
 
 namespace gr {
   namespace plc {

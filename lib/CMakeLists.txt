@@ -25,13 +25,13 @@ include(GrPlatform) #define LIB_SUFFIX
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 list(APPEND plc_sources
+    phy_tx_impl.cc
+    phy_rx_impl.cc
     mac_receiver_impl.cc
     mac_transmitter_impl.cc
-    phy_impl.cc
     app_out_impl.cc
     app_in_impl.cc
-    phy_tx_impl.cc
-    phy_rx_impl.cc )
+)
 
 set(plc_sources "${plc_sources}" PARENT_SCOPE)
 if(NOT plc_sources)
@@ -73,7 +73,6 @@ list(APPEND test_plc_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_plc.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_in.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_out.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_phy.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_transmitter.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_receiver.cc
     )

@@ -84,6 +84,11 @@
     <type>float</type>
     <nports>3</nports>
   </sink>
+  <sink>
+    <name>mac in</name>
+    <type>message</type>
+    <optional>1</optional>
+  </sink>
   <source>
     <name>mac out</name>
     <type>message</type>

@@ -21,7 +21,6 @@ install(FILES
     plc_mac_receiver.xml
     plc_mac_transmitter.xml
     plc_mac.xml
-    plc_phy.xml
     plc_app_out.xml
     plc_app_in.xml
     plc_phy_tx.xml

@@ -5,7 +5,6 @@
 #endif
 
 #include <gnuradio/io_signature.h>
-#include <lightplc/plcp.h>
 #include <boost/thread.hpp>
 #include "debug.h"
 #include "phy_tx_impl.h"
@@ -38,6 +37,8 @@ namespace gr {
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_tx_impl::mac_in, this, _1));
       message_port_register_out(pmt::mp("mac out"));
       d_plcp = light_plc::plcp();
+      d_plcp.set_modulation(d_modulation);
+      d_plcp.set_robo_mode(d_robo_mode);
       //d_plcp.debug(d_debug);
     }
 
@@ -61,7 +62,7 @@ namespace gr {
               dout << "PHY Transmitter: received new MPDU (SOF) from MAC" << std::endl;            
               size_t mpdu_payload_length = 0;
               const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
-              d_datastream = d_plcp.create_sof_ppdu(mpdu_payload, mpdu_payload_length, d_robo_mode, light_plc::RATE_1_2, d_modulation);
+              d_datastream = d_plcp.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
               d_datastream_len = d_datastream.size();
               d_transmitter_state = TX;
             } else if (pmt::symbol_to_string(type) == "sound") {
@@ -123,7 +124,6 @@ namespace gr {
           }
 
           case READY:
-            dout << "PHY Transmitter: state = READY" << std::endl;
             done = true;
             break;
         }
