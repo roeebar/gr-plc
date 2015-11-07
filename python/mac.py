@@ -42,15 +42,14 @@ class mac(gr.basic_block):
     tx_frames_buffer = {}
     tx_frames_in_buffer = 0
     last_ssn = -1 # track last ssn received
-    need_to_send_status = True
     last_sound_frame = datetime.min # last time a sound frame was transmitted
     sound_frame_rate = 5 ; # minimum time in seconds between sounds frames
-    phy_ready = False
-
+    state_waiting_for_app, state_sending_sound, state_sending_sof, state_sending_sack, state_waiting_for_sack, state_waiting_for_sof = range(6)
+    transmission_queue_is_full = False
     """
     docstring for block mac
     """
-    def __init__(self, device_addr, debug):
+    def __init__(self, device_addr, master, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -63,72 +62,120 @@ class mac(gr.basic_block):
         self.set_msg_handler(gr.pmt.to_pmt("phy in"), self.phy_in_handler)
         self.device_addr = bytearray(''.join(chr(x) for x in device_addr))
         self.debug = debug
+        self.is_master = master;
+        if self.is_master: 
+            self.name = "MAC (master)"
+            self.state = self.state_waiting_for_app
+        else: 
+            self.name = "MAC (slave)"
+            self.state = self.state_waiting_for_sof
 
     def app_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
             if gr.pmt.is_u8vector(gr.pmt.cdr(msg)) and gr.pmt.is_dict(gr.pmt.car(msg)):
                 payload = bytearray(gr.pmt.u8vector_elements(gr.pmt.cdr(msg)))
-                if self.debug: print "MAC: received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_buffer)
-                if self.tx_frames_in_buffer >= self.MAX_FRAMES_IN_BUFFER:
-                    sys.stderr.write ("MAC: buffer is full, dropping frame from APP\n")
-                    self.need_to_send_status = True
-                    return
-                else:
+                if self.debug: print self.name + ": received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_buffer)
+                if self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
                     dict = gr.pmt.to_python(gr.pmt.car(msg))
                     dest = bytearray(dict["dest"])
                     mac_frame = self.create_mac_frame(dest, payload)
                     self.submit_mac_frame(mac_frame)
-                    self.send_frame_to_phy()
-                    self.need_to_send_status = True
-                    self.send_status_to_app()
+                    if not self.transmission_queue_is_full:
+                        self.send_status_to_app()
+                    if self.state == self.state_waiting_for_app: self.send_sof_to_phy()
+                else :
+                    sys.stderr.write (self.name + ": buffer is full, dropping frame from APP\n")
+                    if self.debug: print self.name + ": buffer is full, dropping frame from APP"
 
     def phy_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
             cdr = gr.pmt.cdr(msg)
             car = gr.pmt.car(msg)
+            if gr.pmt.is_symbol(car) and gr.pmt.is_dict(cdr):
+                cmd = gr.pmt.to_python(car)
+                if cmd == "SACK":
+                    if self.debug: print self.name + ": received MPDU (SACK) from PHY"
+                    if self.is_master:
+                        self.send_sof_to_phy()
+                        self.send_idle_to_phy()
+                elif cmd == "SOUND":
+                    if self.debug: print self.name + ": received MPDU (Sound) from PHY"
+                    self.send_sense_to_phy()
             if gr.pmt.is_dict(car) and gr.pmt.is_u8vector(cdr):
                 dic = gr.pmt.to_python(car)
                 if dic["type"] == "sof":
-                    if self.debug: print "MAC: received MPDU (SOF) from PHY"
-                    self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.to_pmt("receive"));
+                    if self.debug: print self.name + ": received MPDU (SOF) from PHY"
                     mpdu_payload = bytearray(gr.pmt.u8vector_elements(cdr))
                     self.parse_mpdu_payload(mpdu_payload)
-                elif dic["type"] == "sound":
-                    if self.debug: print "MAC: received MPDU (Sound) from PHY"
-                    self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.to_pmt("sense"));
+                    if not self.is_master: 
+                        self.send_sack_to_phy()
+                        self.send_idle_to_phy()
         if gr.pmt.is_symbol(msg):
             status = gr.pmt.symbol_to_string(msg)
-            if status == "READY":
-                self.phy_ready = True
-                self.send_frame_to_phy()
+            if status == "TX_DONE":
+                if self.debug: print self.name + ": received TX_DONE from PHY"
+                if self.state == self.state_sending_sound:
+                    self.send_sof_to_phy()
+                elif self.state == self.state_sending_sof:
+                    self.state = self.state_waiting_for_sack
+                    self.send_receive_to_phy()
+                elif self.state == self.state_sending_sack:
+                    self.state = self.state_waiting_for_sof
+                    self.send_receive_to_phy()
 
-    def send_frame_to_phy(self):
-        if not self.phy_ready: return
+    def send_sof_to_phy(self):
+        # Send sound if timout
+        if self.sound_timout():
+            self.send_sound_to_phy()
+            return
 
-        # dict
+        # Else, try to get a new MAC frame from transmission queue
+        mpdu_payload = self.create_mpdu_payload()
+        if not mpdu_payload: 
+            self.state = self.state_waiting_for_app
+            return
+
+        # If succeeded, send the SOF frame to Phy
         dict = gr.pmt.make_dict();
-
-        if (datetime.now()-self.last_sound_frame).total_seconds() >= self.sound_frame_rate:
-            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sound"));
-            mpdu_payload_u8vector = gr.pmt.init_u8vector(0, []);
-            if self.debug: print "MAC: sending MPDU (Sound) to PHY"
-            self.last_sound_frame = datetime.now();
-        else:
-            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"));
-            mpdu_payload = self.create_mpdu_payload()
-            if not mpdu_payload: return
-            # create u8vector        
-            mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
-            if self.debug: print "MAC: sending MPDU (SOF) to PHY"
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"));
+        mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
+        if self.debug: print self.name + ": sending MPDU (SOF) to PHY"
+        self.state = self.state_sending_sof
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(dict, mpdu_payload_u8vector));
-        self.phy_ready = False
-        self.send_status_to_app()
+
+    def send_sound_to_phy(self):
+        if self.debug: print self.name + ": sending MPDU (Sound) to PHY"
+        self.state = self.state_sending_sound
+        dict = gr.pmt.make_dict();
+        self.last_sound_frame = datetime.now();
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SOUND"), dict));
+
+    def send_sack_to_phy(self):
+        if self.debug: print self.name + ": sending MPDU (SACK) to PHY"
+        self.state = self.state_sending_sack
+        sackd = [0b00010101, 0, 0]
+        sackd_u8vector = gr.pmt.init_u8vector(len(sackd), list(sackd))
+        dict = gr.pmt.make_dict();
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sackd"), sackd_u8vector);
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SACK"), dict));
+
+    def send_idle_to_phy(self):
+        dict = gr.pmt.make_dict();
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("IDLE"), dict));
+
+    def send_receive_to_phy(self):
+        dict = gr.pmt.make_dict();
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("RECEIVE"), dict));
+
+    def send_sense_to_phy(self):
+        dict = gr.pmt.make_dict();
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SENSE"), dict));
 
     def send_status_to_app(self):
-        if self.need_to_send_status:
-            if self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
-                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"));
-                self.need_to_send_status = False
+        self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"));
+
+    def sound_timout(self):
+        return (datetime.now() - self.last_sound_frame).total_seconds() >= self.sound_frame_rate
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call
@@ -173,7 +220,7 @@ class mac(gr.basic_block):
         dest_addr = self.get_bytes_field(mac_frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
         payload = self.get_bytes_field(mac_frame, self.MAC_FRAME_PAYLOAD_OFFSET, payload_size)        
         if not self.crc32_check(mac_frame[self.MAC_FRAME_MFH_OFFSET + self.MAC_FRAME_MFH_WIDTH:]):
-            sys.stderr.write("MAC: MAC frame CRC error\n")
+            sys.stderr.write(self.name + ": MAC frame CRC error\n")
         return payload
 
     def submit_mac_frame(self, frame):
@@ -185,12 +232,13 @@ class mac(gr.basic_block):
             self.tx_frames_buffer[str(dest)] = stream
         stream["frames"].append(frame)
         self.tx_frames_in_buffer += 1
-        if self.debug: print "MAC: added MAC frame to tranmission buffer, frame size = " + str(len(frame))
+        if self.tx_frames_in_buffer == self.MAX_FRAMES_IN_BUFFER: self.transmission_queue_is_full = True
+        if self.debug: print self.name + ": added MAC frame to tranmission queue, frame size = " + str(len(frame))
 
     def receive_mac_frame(self, frame):
         payload = self.parse_mac_frame(frame)
         if payload:
-            if self.debug: print "MAC: received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
+            if self.debug: print self.name + ": received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
             # dict
             pmt_dict = gr.pmt.make_dict();
             #dict = pmt::dict_add(dict, pmt::mp("crc_included"), pmt::PMT_T);
@@ -270,9 +318,14 @@ class mac(gr.basic_block):
         stream["remainder"] = remainder
         stream["ssn"] = ssn
 
+        if self.transmission_queue_is_full and self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
+            self.transmission_queue_is_full = False
+            self.send_status_to_app()
+
         return payload
 
     def parse_mpdu_payload(self, msdu_payload):
+        phy_blocks_error = []
         phy_block_overhead_size = self.PHY_BLOCK_HEADER_WIDTH + self.PHY_BLOCK_PBCS_WIDTH
         if len(msdu_payload) > 128 + phy_block_overhead_size:
             phy_block_size = 512 + phy_block_overhead_size
@@ -283,7 +336,7 @@ class mac(gr.basic_block):
             phy_block = msdu_payload[j:j + phy_block_size]
             ssn = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_SSN_OFFSET, self.PHY_BLOCK_HEADER_SSN_WIDTH)
             if ssn != self.last_ssn+1:
-                sys.stderr.write("MAC: discontinued SSN numbering (last = " +str(self.last_ssn) + ", current = " + str(ssn) + "\n")
+                sys.stderr.write(self.name + ": discontinued SSN numbering (last = " +str(self.last_ssn) + ", current = " + str(ssn) + "\n")
             self.last_ssn = ssn
             mac_boundary_offset = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_MFBO_OFFSET, self.PHY_BLOCK_HEADER_MFBO_WIDTH)
             mac_boundary_flag = self.get_numeric_field(phy_block, self.PHY_BLOCK_HEADER_MMBF_OFFSET, self.PHY_BLOCK_HEADER_MMBF_WIDTH)
@@ -292,8 +345,11 @@ class mac(gr.basic_block):
             j += phy_block_size
 
             if not self.crc32_check(phy_block):
-                sys.stderr.write("MAC: PHY block CRC error\n")
-            
+                sys.stderr.write(self.name + ": PHY block CRC error\n")
+                phy_blocks_error.append(1)
+            else:
+                phy_blocks_error.append(0)
+
             # Parsing segment
             i = 0
             if not mac_boundary_flag: mac_boundary_offset = len(segment) # if not mac boundary, use the whole segment
@@ -330,6 +386,7 @@ class mac(gr.basic_block):
                 else:
                     self.receive_mac_frame(mac_frame_data)
                 i += len(mac_frame_data)
+        return phy_blocks_error
 
     def set_bytes_field(self, frame, bytes, offset):
         frame[offset:offset+len(bytes)] = bytes

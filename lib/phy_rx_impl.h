@@ -27,7 +27,9 @@ namespace gr {
       light_plc::Modulation d_modulation;
       const bool d_debug;
       gr::filter::kernel::fir_filter_fff *d_fir;
-      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, SENSE, HALT} d_receiver_state;
+      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, SENSE, IDLE, HALT} d_receiver_state;
+      float d_search_corr;
+      float d_energy;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;

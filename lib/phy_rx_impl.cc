@@ -32,12 +32,14 @@ namespace gr {
      */
     phy_rx_impl::phy_rx_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool debug)
       : gr::sync_block("phy_rx",
-              gr::io_signature::make(3, 3, sizeof(float)),
+              gr::io_signature::make(1, 1, sizeof(float)),
               gr::io_signature::make(0, 0, 0)),
             d_robo_mode(robo_mode),
             d_modulation(modulation),
             d_debug (debug),
             d_receiver_state(RESET),
+            d_search_corr(0),
+            d_energy(0),
             d_plateau(0),
             d_payload_size(0),
             d_payload_offset(0),
@@ -81,10 +83,15 @@ namespace gr {
     }
 
     void phy_rx_impl::mac_in (pmt::pmt_t msg) {
-      if(pmt::is_symbol(msg)) {
-        if (pmt::symbol_to_string(msg) == "receive")
-          d_receiver_state = RESET;
-        if (pmt::symbol_to_string(msg) == "sense")
+      if (pmt::is_pair(msg)) {
+        if (!pmt::is_symbol(car(msg)))
+          return;
+        std::string cmd = pmt::symbol_to_string(car(msg));
+        if (cmd == "IDLE")
+          d_receiver_state = IDLE;
+        else if (cmd == "RECEIVE")
+          d_receiver_state = RESET;         
+        else if (cmd == "SENSE")
           d_receiver_state = SENSE;
       }
     }
@@ -96,6 +103,14 @@ namespace gr {
         ninput_items_required[0] = SYNC_LENGTH + SYNCP_SIZE - 1;
         ninput_items_required[1] = SYNC_LENGTH + SYNCP_SIZE - 1;
         ninput_items_required[2] = SYNC_LENGTH + SYNCP_SIZE - 1;
+      } else if (d_receiver_state == RESET) {
+        ninput_items_required[0] = 2 * SYNCP_SIZE;
+        ninput_items_required[1] = 2 * SYNCP_SIZE;
+        ninput_items_required[2] = 2 * SYNCP_SIZE;
+      } else if (d_receiver_state == SENSE) {
+        ninput_items_required[0] = d_plcp.get_inter_frame_space();
+        ninput_items_required[1] = d_plcp.get_inter_frame_space();
+        ninput_items_required[2] = d_plcp.get_inter_frame_space();
       } else {
         ninput_items_required[0] = noutput_items;
         ninput_items_required[1] = noutput_items;
@@ -109,29 +124,30 @@ namespace gr {
               gr_vector_const_void_star &input_items,
               gr_vector_void_star &output_items)
     {
-      const float *in0 = (const float *) input_items[0]; // auto-correlation 
-      const float *in1 = (const float *) input_items[1]; // energy
-      const float *in2 = (const float *) input_items[2]; // raw data
+      const float *in = (const float *) input_items[0]; 
       int ninput = noutput_items;
-      //int ninput = std::min(ninput_items[0], ninput_items[1]);
       int i = 0;
 
       switch(d_receiver_state) {
 
+        case IDLE:
         case SEARCH:
-          while (i < ninput) {
-            if(in1[i] > MIN_ENERGY && in0[i]/in1[i] > THRESHOLD) {
+          while (i + 2*SYNCP_SIZE < ninput) {
+            d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
+            d_energy += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE] - in[i] * in[i]);
+            if(d_energy > MIN_ENERGY && d_search_corr / d_energy > THRESHOLD) {
               if(d_plateau < MIN_PLATEAU) {
                 d_plateau++;
               } else {
                 dout << "PHY Receiver: state = SEARCH, Found frame!" << std::endl;
+                i += 2 * SYNCP_SIZE;                
                 d_receiver_state = SYNC;
                 break;
               }   
             } else {
               d_plateau = 0;
             }
-            d_preamble[d_preamble_offset++] = in2[i];
+            d_preamble[d_preamble_offset++] = in[i + 2 * SYNCP_SIZE];
             d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
             i++;
           }
@@ -139,26 +155,25 @@ namespace gr {
 
         case SYNC: {
           dout << "PHY Receiver: state = SYNC, d_sync_offset = " << d_sync_offset << " ninput = " << ninput << std::endl;
-          d_fir->filterN(d_correlation, in2, SYNC_LENGTH);
+          d_fir->filterN(d_correlation, in, SYNC_LENGTH);
           
-          int m_index = 0;
-          float m_value = d_correlation[0] * d_correlation[SYNCP_SIZE];
+          int max_index = 0;
+          float max_value = d_correlation[0] * d_correlation[SYNCP_SIZE];
           for (; i < SYNC_LENGTH - SYNCP_SIZE; i++) {
-            d_preamble[d_preamble_offset++] = in2[i];
+            d_preamble[d_preamble_offset++] = in[i];
             d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
-            if ((d_correlation[i] * d_correlation[i+SYNCP_SIZE]) > m_value) {
-              m_index = i + SYNCP_SIZE;
-              m_value = d_correlation[i] * d_correlation[i+SYNCP_SIZE];
+            if ((d_correlation[i] * d_correlation[i + SYNCP_SIZE]) > max_value) {
+              max_index = i;
+              max_value = d_correlation[i] * d_correlation[i + SYNCP_SIZE];
             }
           }
           for (; i < SYNC_LENGTH; i++) {
-            d_preamble[d_preamble_offset++] = in2[i];
+            d_preamble[d_preamble_offset++] = in[i];
             d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
           }
-          dout << "PHY Receiver: state = SYNC, m_index = " << m_index << ", " << "m_value = "  << m_value << std::endl;
-          unsigned int sync_pos = m_index;
+          dout << "PHY Receiver: state = SYNC, max_index = " << max_index << ", " << "max_value = "  << max_value << std::endl;
                    
-          d_frame_start = 1.5 * SYNCP_SIZE + sync_pos - i;  // frame begins 1.5 syncp after last min
+          d_frame_start = 2.5 * SYNCP_SIZE + max_index - i;  // frame begins 1.5 syncp after last min
           if (d_frame_start < 0) {
             d_receiver_state = RESET; // If sync_pos does not make sense
           } else {
@@ -168,9 +183,9 @@ namespace gr {
         }
 
         case COPY_PREAMBLE:
-          dout << "PHY Receiver: state = COPY_PREAMBLE, d_frame_control_offset = " << d_frame_start << std::endl;
+          dout << "PHY Receiver: state = COPY_PREAMBLE, d_sync_offset = " << d_sync_offset << std::endl;
           while (i < ninput && d_sync_offset < d_frame_start) {
-            d_preamble[d_preamble_offset++] = in2[i];
+            d_preamble[d_preamble_offset++] = in[i];
             d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
             d_sync_offset++;
             i++;
@@ -189,7 +204,7 @@ namespace gr {
           dout << "PHY Receiver: state = COPY_FRAME_CONTROL" << std::endl;
           while (i < ninput) {
             if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
-              d_frame_control[d_frame_control_offset] = in2[i];
+              d_frame_control[d_frame_control_offset] = in[i];
             } else  {
               if (d_plcp.resolve_frame_control(d_frame_control.begin()) == false) {
                 std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
@@ -209,7 +224,7 @@ namespace gr {
 
         case COPY_PAYLOAD: {
           int k = std::min(d_payload_size - d_payload_offset, ninput);
-          std::copy(in2, in2 + k, d_payload.begin() + d_payload_offset);
+          std::copy(in, in + k, d_payload.begin() + d_payload_offset);
           d_payload_offset += k;
           i += k;
           if (d_payload_offset == d_payload_size) {
@@ -219,17 +234,19 @@ namespace gr {
             d_plcp.resolve_payload(d_payload.begin(), mpdu_payload_blob);
             dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.get_mpdu_payload_size() << ", type = " << d_plcp.get_frame_type() << std::endl;
             if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
-              // dict
               pmt::pmt_t dict = pmt::make_dict();
               dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
-              // mpdu
               message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
-            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
-              // dict
+            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
+              pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_plcp.get_sackd_size(), 0);
+              size_t len;              
+              d_plcp.get_sackd((unsigned char*)pmt::u8vector_writable_elements(sackd_pmt, len));
               pmt::pmt_t dict = pmt::make_dict();
-              dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sound"));
-              // mpdu
-              message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
+              dict = pmt::dict_add(dict, pmt::mp("sackd"), sackd_pmt);
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("SACK"), dict));
+            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
+              pmt::pmt_t dict = pmt::make_dict();
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("SOUND"), dict));
             }
             d_receiver_state = HALT;
           }
@@ -249,26 +266,35 @@ namespace gr {
           d_output_datastream_offset = 0;
           d_output_datastream_len = 0;
           d_noise_offset = 0;
+          d_search_corr = 0;
+          d_energy = 0;
+          for (int j=0; j<SYNCP_SIZE; j++) {
+            d_search_corr += in[j] * in[j + SYNCP_SIZE];
+            d_energy += in[j] * in[j];
+            d_preamble[d_preamble_offset++] = in[j * 2];
+            d_preamble[d_preamble_offset++] = in[j * 2 + 1];
+          }
           d_receiver_state = SEARCH;
           break;
 
-        case SENSE:
-          if (d_noise_offset == 0) 
-            d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
-          while (i < ninput) {
-            d_noise[d_noise_offset++] = in2[i];
-            if (d_noise_offset == d_plcp.get_inter_frame_space()) {
-              float noise_var(0);
-              for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
-                noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
-              d_plcp.set_noise_psd(noise_var * 2);
-              dout << "PHY Receiver: state = SENSE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
-              d_noise_offset = 0;
-              d_receiver_state = RESET;
-            }
-            i++;
-          }
+        case SENSE: {
+          d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
+          // Get noise data
+          for (int j = 0; j < d_plcp.get_inter_frame_space(); j++)
+            d_noise[j] = in[j];
+          
+          // Calculate noise PSD
+          float noise_var(0);
+          for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
+            noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
+          d_plcp.set_noise_psd(noise_var * 2);
+          dout << "PHY Receiver: state = SENSE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
+          d_receiver_state = RESET;
           break;
+        }
+
+//        case IDLE:
+//          i = ninput;
 
         case HALT:
             break;

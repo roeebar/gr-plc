@@ -82,7 +82,6 @@
   <sink>
     <name>in</name>
     <type>float</type>
-    <nports>3</nports>
   </sink>
   <sink>
     <name>mac in</name>
