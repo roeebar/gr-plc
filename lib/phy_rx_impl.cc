@@ -50,7 +50,8 @@ namespace gr {
             d_output_datastream_offset(0),
             d_output_datastream_len(0),
             d_noise(0),
-            d_noise_offset(0)
+            d_noise_offset(0),
+            d_inter_frame_space_offset(0)
     {
 
       message_port_register_out(pmt::mp("mac out"));
@@ -87,12 +88,8 @@ namespace gr {
         if (!pmt::is_symbol(car(msg)))
           return;
         std::string cmd = pmt::symbol_to_string(car(msg));
-        if (cmd == "IDLE")
-          d_receiver_state = IDLE;
-        else if (cmd == "RECEIVE")
+        if (cmd == "PHY-SEARCHPPDU")
           d_receiver_state = RESET;         
-        else if (cmd == "SENSE")
-          d_receiver_state = SENSE;
       }
     }
 
@@ -107,7 +104,7 @@ namespace gr {
         ninput_items_required[0] = 2 * SYNCP_SIZE;
         ninput_items_required[1] = 2 * SYNCP_SIZE;
         ninput_items_required[2] = 2 * SYNCP_SIZE;
-      } else if (d_receiver_state == SENSE) {
+      } else if (d_receiver_state == SENSE_SPACE) {
         ninput_items_required[0] = d_plcp.get_inter_frame_space();
         ninput_items_required[1] = d_plcp.get_inter_frame_space();
         ninput_items_required[2] = d_plcp.get_inter_frame_space();
@@ -115,7 +112,6 @@ namespace gr {
         ninput_items_required[0] = noutput_items;
         ninput_items_required[1] = noutput_items;
         ninput_items_required[2] = noutput_items;
-
       }
     }
 
@@ -130,7 +126,6 @@ namespace gr {
 
       switch(d_receiver_state) {
 
-        case IDLE:
         case SEARCH:
           while (i + 2*SYNCP_SIZE < ninput) {
             d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
@@ -228,26 +223,66 @@ namespace gr {
           d_payload_offset += k;
           i += k;
           if (d_payload_offset == d_payload_size) {
-            pmt::pmt_t mpdu_payload_pmt = pmt::make_u8vector(d_plcp.get_mpdu_payload_size(), 0);
+            pmt::pmt_t payload_pmt = pmt::make_u8vector(d_plcp.get_mpdu_payload_size(), 0);
             size_t len;
-            unsigned char *mpdu_payload_blob = (unsigned char*)pmt::u8vector_writable_elements(mpdu_payload_pmt, len);
-            d_plcp.resolve_payload(d_payload.begin(), mpdu_payload_blob);
+            unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
+            d_plcp.resolve_payload(d_payload.begin(), payload_blob);
             dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.get_mpdu_payload_size() << ", type = " << d_plcp.get_frame_type() << std::endl;
             if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
               pmt::pmt_t dict = pmt::make_dict();
-              dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
-              message_port_pub(pmt::mp("mac out"), pmt::cons(dict, mpdu_payload_pmt));
+              //dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
+              dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOF"), dict));
+              //message_port_pub(pmt::mp("mac out"), pmt::cons(dict, payload_pmt));
+              d_receiver_state = CONSUME_SPACE;
             } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
               pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_plcp.get_sackd_size(), 0);
               size_t len;              
               d_plcp.get_sackd((unsigned char*)pmt::u8vector_writable_elements(sackd_pmt, len));
               pmt::pmt_t dict = pmt::make_dict();
               dict = pmt::dict_add(dict, pmt::mp("sackd"), sackd_pmt);
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("SACK"), dict));
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSACK"), dict));
+              d_receiver_state = CONSUME_SPACE;
             } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
               pmt::pmt_t dict = pmt::make_dict();
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("SOUND"), dict));
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOUND"), dict));
+              d_receiver_state = SENSE_SPACE;
+            } else {
+              std::cerr << "PHY Receiver: Error: unsupported frame type" << std::endl;
             }
+          }
+          break;
+        }
+
+        case CONSUME_SPACE: {
+          int j = std::min(d_plcp.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
+          i += j;
+          d_inter_frame_space_offset += j;
+          if (d_inter_frame_space_offset == d_plcp.get_inter_frame_space()) {
+            pmt::pmt_t dict = pmt::make_dict();
+            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
+            d_receiver_state = HALT;
+          }
+          dout << "PHY Receiver: state = CONSUME_SPACE" << std::endl;
+          break;
+        }
+
+        case SENSE_SPACE: {
+          if (d_inter_frame_space_offset == 0)
+            d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
+          int j = std::min(d_plcp.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
+          // Get noise data
+          while (i<j)
+            d_noise[d_inter_frame_space_offset++] = in[i++];
+          if (d_inter_frame_space_offset == d_plcp.get_inter_frame_space()) {
+            // Calculate noise PSD
+            float noise_var(0);
+            for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
+              noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
+            d_plcp.set_noise_psd(noise_var * 2);
+            dout << "PHY Receiver: state = SENSE_SPACE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
+            pmt::pmt_t dict = pmt::make_dict();
+            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
             d_receiver_state = HALT;
           }
           break;
@@ -268,6 +303,7 @@ namespace gr {
           d_noise_offset = 0;
           d_search_corr = 0;
           d_energy = 0;
+          d_inter_frame_space_offset = 0;
           for (int j=0; j<SYNCP_SIZE; j++) {
             d_search_corr += in[j] * in[j + SYNCP_SIZE];
             d_energy += in[j] * in[j];
@@ -277,24 +313,9 @@ namespace gr {
           d_receiver_state = SEARCH;
           break;
 
-        case SENSE: {
-          d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
-          // Get noise data
-          for (int j = 0; j < d_plcp.get_inter_frame_space(); j++)
-            d_noise[j] = in[j];
-          
-          // Calculate noise PSD
-          float noise_var(0);
-          for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
-            noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
-          d_plcp.set_noise_psd(noise_var * 2);
-          dout << "PHY Receiver: state = SENSE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
-          d_receiver_state = RESET;
-          break;
-        }
-
-//        case IDLE:
-//          i = ninput;
+       case IDLE:
+         dout << "PHY Receiver: state = IDLE, ninput = " << ninput << std::endl;       
+         i = ninput;
 
         case HALT:
             break;

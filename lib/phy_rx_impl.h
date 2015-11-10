@@ -27,7 +27,7 @@ namespace gr {
       light_plc::Modulation d_modulation;
       const bool d_debug;
       gr::filter::kernel::fir_filter_fff *d_fir;
-      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, SENSE, IDLE, HALT} d_receiver_state;
+      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
       float d_energy;
       int d_plateau;
@@ -48,6 +48,7 @@ namespace gr {
       std::list<std::pair<double, int>>::iterator d_cor_iter;
       std::vector<float> d_noise;
       int d_noise_offset;
+      int d_inter_frame_space_offset;
 
      public:
       phy_rx_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool debug);

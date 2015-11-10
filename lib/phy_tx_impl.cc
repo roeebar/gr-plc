@@ -134,7 +134,8 @@ namespace gr {
             d_datastream_offset = 0;
             d_datastream_len = 0;
             d_transmitter_state = READY;
-            message_port_pub(pmt::mp("mac out"), pmt::mp("TX_DONE"));
+            pmt::pmt_t dict = pmt::make_dict();
+            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-TXEND"), dict));            
             break;
           }
 
