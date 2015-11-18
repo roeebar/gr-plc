@@ -5,6 +5,7 @@ import numpy
 import binascii
 import sys
 from datetime import datetime, timedelta
+import threading
 from gnuradio import gr
 
 class mac(gr.basic_block):
@@ -46,13 +47,15 @@ class mac(gr.basic_block):
     last_sound_frame = datetime.min # last time a sound frame was transmitted
     last_frame_blocks_error = [] # list of last received frame blocks error
     last_frame_n_blocks = 0 # number of PHY blocks in last send frame
-    sound_frame_rate = 5 # minimum time in seconds between sounds frames
-    state_waiting_for_app, state_sending_sound, state_sending_sof, state_sending_sack, state_waiting_for_sack, state_waiting_for_sof = range(6)
+    sound_frame_rate = 1 # minimum time in seconds between sounds frames
+    sack_timeout = 0.5 # minimum time in seconds to wait for sack
+    state_waiting_for_app, state_sending_sof_sound, state_sending_sack, state_waiting_for_sack, state_waiting_for_sof = range(5)
     transmission_queue_is_full = False
+    sack_timer = None
     """
     docstring for block mac
     """
-    def __init__(self, device_addr, master, debug):
+    def __init__(self, device_addr, master, robo_mode, modulation, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -69,6 +72,8 @@ class mac(gr.basic_block):
         if self.is_master: 
             self.name = "MAC (master)"
             self.state = self.state_waiting_for_app
+            self.modulation = modulation
+            self.robo_mode = robo_mode
         else: 
             self.name = "MAC (slave)"
             self.state = self.state_waiting_for_sof
@@ -111,19 +116,30 @@ class mac(gr.basic_block):
                     self.last_frame_blocks_error = self.parse_mpdu_payload(payload)
                 elif msg_id == "PHY-RXSACK":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXSACK from PHY"
+                    if self.sack_timer:
+                        self.sack_timer.cancel()
+                        self.sack_time = None
                     sackd = dict["sackd"].tolist();
                     n_errors = self.parse_sackd(dict["sackd"])
-                    if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " block errors\n")
+                    if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " blocks error\n")
                 elif msg_id == "PHY-RXSOUND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXSOUND from PHY"
                 elif msg_id == "PHY-TXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-TXEND from PHY"
-                    if self.state == self.state_sending_sof or self.state == self.state_sending_sound:
+                    if self.state == self.state_sending_sof_sound or self.state == self.state_sending_sof_sound:
                         self.state = self.state_waiting_for_sack
-                        #self.send_receive_to_phy()
+                        self.start_sack_timer();
+
                     elif self.state == self.state_sending_sack:
                         self.state = self.state_waiting_for_sof
-                        #self.send_receive_to_phy()
+
+    def sack_timout_callback(self):
+        sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
+        self.send_sof_to_phy()
+
+    def start_sack_timer(self):
+        self.sack_timer = threading.Timer(self.sack_timeout, self.sack_timout_callback)
+        self.sack_timer.start()
 
     def send_sof_to_phy(self):
         # Send sound if timout
@@ -141,14 +157,16 @@ class mac(gr.basic_block):
         # If succeeded, send the SOF frame to Phy
         dict = gr.pmt.make_dict();
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"))
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("modulation"), gr.pmt.from_uint64(self.modulation))
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("robo_mode"), gr.pmt.from_uint64(self.robo_mode))
         mpdu_payload_u8vector = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF) to PHY"
-        self.state = self.state_sending_sof
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF, robo_mode=" + str(self.robo_mode) + ", modulation=" + str(self.modulation) + ") to PHY"
+        self.state = self.state_sending_sof_sound
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(dict, mpdu_payload_u8vector))
 
     def send_sound_to_phy(self):
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
-        self.state = self.state_sending_sound
+        self.state = self.state_sending_sof_sound
         dict = gr.pmt.make_dict();
         self.last_sound_frame = datetime.now();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SOUND"), dict))
@@ -351,6 +369,7 @@ class mac(gr.basic_block):
             if not self.crc32_check(phy_block):
                 sys.stderr.write(self.name + ": state = " + str(self.state) + ", PHY block CRC error\n")
                 phy_blocks_error.append(1)
+                continue
             else:
                 phy_blocks_error.append(0)
 

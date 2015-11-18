@@ -13,21 +13,19 @@ namespace gr {
   namespace plc {
 
     phy_tx::sptr
-    phy_tx::make(int robo_mode, int modulation, bool debug)
+    phy_tx::make(bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new phy_tx_impl((light_plc::RoboMode)robo_mode, (light_plc::Modulation) modulation, debug));
+        (new phy_tx_impl(debug));
     }
 
     /*
      * The private constructor
      */
-    phy_tx_impl::phy_tx_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool debug)
+    phy_tx_impl::phy_tx_impl(bool debug)
       : gr::sync_block("phy_tx",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(float))),
-            d_robo_mode(robo_mode),
-            d_modulation(modulation),
             d_debug (debug),
             d_datastream_offset(0),
             d_datastream_len(0),
@@ -37,8 +35,6 @@ namespace gr {
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_tx_impl::mac_in, this, _1));
       message_port_register_out(pmt::mp("mac out"));
       d_plcp = light_plc::plcp();
-      d_plcp.set_modulation(d_modulation);
-      d_plcp.set_robo_mode(d_robo_mode);
       //d_plcp.debug(d_debug);
     }
 
@@ -79,7 +75,11 @@ namespace gr {
           if (d_transmitter_state == READY) {
             pmt::pmt_t type = pmt::dict_ref(dict, key, pmt::PMT_NIL);
             if (pmt::symbol_to_string(type) == "sof") {
-              dout << "PHY Transmitter: received new MPDU (SOF) from MAC" << std::endl;            
+              uint64_t modulation = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("modulation"), pmt::PMT_NIL));
+              uint64_t robo_mode = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("robo_mode"), pmt::PMT_NIL));
+              dout << "PHY Transmitter: received new MPDU (SOF, robo_mode=" << robo_mode << ", modulation=" << modulation << ") from MAC" << std::endl;            
+              d_plcp.set_modulation((light_plc::Modulation)modulation);
+              d_plcp.set_robo_mode((light_plc::RoboMode)robo_mode);
               size_t mpdu_payload_length = 0;
               const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
               d_datastream = d_plcp.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
@@ -100,11 +100,11 @@ namespace gr {
     {
       int i = 0;
       bool done = false;
+      float *out = (float *) output_items[0];
 
-      while (!done) {
+      //while (!done) {
         switch (d_transmitter_state) {
           case TX: {
-            float *out = (float *) output_items[0];
 
             i = std::min(noutput_items, d_datastream_len - d_datastream_offset);
             if (d_datastream_offset == 0 && i > 0) {
@@ -139,11 +139,18 @@ namespace gr {
             break;
           }
 
-          case READY:
+          case READY: {
+            i = noutput_items;
+            std::memset(out, 0, sizeof(float)*i);            
+            pmt::pmt_t key = pmt::string_to_symbol("packet_len");
+            pmt::pmt_t value = pmt::from_long(i);
+            pmt::pmt_t srcid = pmt::string_to_symbol(alias());
+            add_item_tag(0, nitems_written(0), key, value, srcid);            
             done = true;
             break;
+          }
         }
-      }
+      //}
       // Tell runtime system how many output items we produced.
       return i;
     }

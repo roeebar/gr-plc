@@ -21,21 +21,19 @@ namespace gr {
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE; // minimum autocorrelation plateau
 
     phy_rx::sptr
-    phy_rx::make(int robo_mode, int modulation, bool debug)
+    phy_rx::make(bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new phy_rx_impl((light_plc::RoboMode)robo_mode, (light_plc::Modulation) modulation, debug));
+        (new phy_rx_impl(debug));
     }
 
     /*
      * The private constructor
      */
-    phy_rx_impl::phy_rx_impl(light_plc::RoboMode robo_mode, light_plc::Modulation modulation, bool debug)
+    phy_rx_impl::phy_rx_impl(bool debug)
       : gr::sync_block("phy_rx",
               gr::io_signature::make(1, 1, sizeof(float)),
               gr::io_signature::make(0, 0, 0)),
-            d_robo_mode(robo_mode),
-            d_modulation(modulation),
             d_debug (debug),
             d_receiver_state(RESET),
             d_search_corr(0),
@@ -59,8 +57,6 @@ namespace gr {
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
 
       d_plcp = light_plc::plcp();
-      d_plcp.set_modulation(d_modulation);
-      d_plcp.set_robo_mode(d_robo_mode);      
       //d_plcp.debug(d_debug);
 
       // Set the correlation filter

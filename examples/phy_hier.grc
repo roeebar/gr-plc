@@ -140,7 +140,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(552, 385)</value>
+      <value>(552, 417)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -273,7 +273,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(432, 11)</value>
+      <value>(200, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -298,49 +298,6 @@
     <param>
       <key>value</key>
       <value>False</value>
-    </param>
-  </block>
-  <block>
-    <key>parameter</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(200, 11)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>modulation</value>
-    </param>
-    <param>
-      <key>label</key>
-      <value>Modulation</value>
-    </param>
-    <param>
-      <key>short_id</key>
-      <value></value>
-    </param>
-    <param>
-      <key>type</key>
-      <value></value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>0</value>
     </param>
   </block>
   <block>
@@ -557,14 +514,6 @@
       <key>minoutbuf</key>
       <value>0</value>
     </param>
-    <param>
-      <key>modulation</key>
-      <value>modulation</value>
-    </param>
-    <param>
-      <key>robo_mode</key>
-      <value>robo_mode</value>
-    </param>
   </block>
   <block>
     <key>plc_phy_tx</key>
@@ -606,57 +555,6 @@
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>modulation</key>
-      <value>modulation</value>
-    </param>
-    <param>
-      <key>robo_mode</key>
-      <value>robo_mode</value>
-    </param>
-  </block>
-  <block>
-    <key>parameter</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(312, 11)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>robo_mode</value>
-    </param>
-    <param>
-      <key>label</key>
-      <value>ROBO Mode</value>
-    </param>
-    <param>
-      <key>short_id</key>
-      <value></value>
-    </param>
-    <param>
-      <key>type</key>
-      <value></value>
-    </param>
-    <param>
-      <key>value</key>
       <value>0</value>
     </param>
   </block>
