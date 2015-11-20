@@ -4,7 +4,7 @@
 #define INCLUDED_PLC_PHY_TX_IMPL_H
 
 #include <plc/phy_tx.h>
-#include <lightplc/plcp.h>
+#include <lightplc/phy_service.h>
 
 namespace gr {
   namespace plc {
@@ -12,7 +12,7 @@ namespace gr {
     class phy_tx_impl : public phy_tx
     {
      private:
-      light_plc::plcp d_plcp;
+      light_plc::phy_service d_phy_service;
       const bool d_debug;
       light_plc::vector_float d_datastream;
       int d_datastream_offset;

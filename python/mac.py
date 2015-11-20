@@ -12,13 +12,51 @@ class mac(gr.basic_block):
     # The numbers represents bytes location/width
     MAC_FRAME_MFH_WIDTH = 2
     MAC_FRAME_MFH_OFFSET = 0
+    MAC_FRAME_CONFOUNDER_WIDTH = 4
     MAC_FRAME_ODA_WIDTH = 6
-    MAC_FRAME_ODA_OFFSET = 2
     MAC_FRAME_OSA_WIDTH = 6
-    MAC_FRAME_OSA_OFFSET = 8
     MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH = 2
-    MAC_FRAME_PAYLOAD_OFFSET = MAC_FRAME_MFH_WIDTH + MAC_FRAME_ODA_WIDTH + MAC_FRAME_OSA_WIDTH + MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
     MAC_FRAME_ICV_WIDTH = 4
+    MAC_FRAME_OVERHEAD = MAC_FRAME_MFH_WIDTH + MAC_FRAME_ODA_WIDTH + MAC_FRAME_OSA_WIDTH + MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH + MAC_FRAME_ICV_WIDTH
+
+    MGMT_MMV_WIDTH = 8
+    MGMT_MMV_OFFSET = 0
+    MGMT_MMTYPE_WIDTH = 16
+    MGMT_FMI_WIDTH = 8
+
+    MGMT_MMTYPE_CM_CHAN_EST_ID = 0x6014
+    MGMT_CM_CHAN_EST_MAX_FL_WIDTH = 16
+    MGMT_CM_CHAN_EST_MAX_FL_OFFSET = 0
+    MGMT_CM_CHAN_EST_RIFS_WIDTH = 8
+    MGMT_CM_CHAN_EST_RIFS_OFFSET = 16
+    MGMT_CM_CHAN_EST_RIFS_TWOSYM_WIDTH = 8
+    MGMT_CM_CHAN_EST_RIFS_TWOSYM_OFFSET = 24
+    MGMT_CM_CHAN_EST_G2SYM_WIDTH = 8 
+    MGMT_CM_CHAN_EST_G2SYM_OFFSET = 32
+    MGMT_CM_CHAN_EST_RESPT_WIDTH = 8
+    MGMT_CM_CHAN_EST_RESPT_OFFSET = 40
+    MGMT_CM_CHAN_EST_MAXTM_WIDTH = 8
+    MGMT_CM_CHAN_EST_MAXTM_OFFSET = 48
+    MGMT_CM_CHAN_EST_CP_TMI_WIDTH = 8
+    MGMT_CM_CHAN_EST_CP_TMI_OFFSET = 56
+    MGMT_CM_CHAN_EST_SCL_CP_WIDTH = 8
+    MGMT_CM_CHAN_EST_SCL_CP_OFFSET = 64
+    MGMT_CM_CHAN_EST_SCL_CFP_WIDTH = 8
+    MGMT_CM_CHAN_EST_SCL_CFP_OFFSET = 72
+    MGMT_CM_CHAN_EST_NTMI_WIDTH = 8
+    MGMT_CM_CHAN_EST_NTMI_OFFSET = 80
+    MGMT_CM_CHAN_EST_TMI_WIDTH = 8
+    MGMT_CM_CHAN_EST_NINT_WIDTH = 8
+    MGMT_CM_CHAN_EST_ET_WIDTH = 16
+    MGMT_CM_CHAN_EST_INT_TMI_WIDTH = 8
+    MGMT_CM_CHAN_EST_NEW_TMI_WIDTH = 8
+    MGMT_CM_CHAN_EST_CPF_WIDTH = 8
+    MGMT_CM_CHAN_EST_FECTYPE_WIDTH = 8
+    MGMT_CM_CHAN_EST_GIL_WIDTH = 8
+    MGMT_CM_CHAN_EST_CBD_ENC_WIDTH = 8
+    MGMT_CM_CHAN_EST_CBD_LEN_WIDTH = 16
+    MGMT_CM_CHAN_EST_CBD_WIDTH = 4
+    MGMT_CM_CHAN_EST_PAD_WIDTH = 4
 
     PHY_BLOCK_HEADER_WIDTH = 4
     PHY_BLOCK_BODY_OFFSET = 4
@@ -86,8 +124,8 @@ class mac(gr.basic_block):
                 if self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
                     dict = gr.pmt.to_python(gr.pmt.car(msg))
                     dest = bytearray(dict["dest"])
-                    mac_frame = self.create_mac_frame(dest, payload)
-                    self.submit_mac_frame(mac_frame)
+                    mac_frame = self.create_mac_frame(dest, payload, False)
+                    self.submit_mac_frame(mac_frame, dest)
                     if not self.transmission_queue_is_full:
                         self.send_status_to_app()
                     if self.state == self.state_waiting_for_app: self.send_sof_to_phy()
@@ -213,38 +251,56 @@ class mac(gr.basic_block):
         #self.consume_each(len(input_items[0]))
         return n
 
-    def create_mac_frame(self, dest, payload):
-        overhead_size = self.MAC_FRAME_PAYLOAD_OFFSET + self.MAC_FRAME_ICV_WIDTH
-        mac_frame = bytearray(overhead_size + len(payload))
-        offset = 0
+    def create_mac_frame(self, dest, payload, mgmt):
+        if (not mgmt): 
+            mft = 0b01 # MSDU payload
+            mac_frame = bytearray(self.MAC_FRAME_OVERHEAD + len(payload)) # preallocate the frame
+        else: 
+            mft = 0b11 # management payload
+            mac_frame = bytearray(self.MAC_FRAME_OVERHEAD + self.MAC_FRAME_CONFOUNDER_WIDTH + len(payload)) # preallocate the frame
+
         mfl = len(mac_frame) - self.MAC_FRAME_MFH_WIDTH - self.MAC_FRAME_ICV_WIDTH - 1 # calculate frame length field
         header = bytearray(2) # header is 2 bytes
-        header[0] = (mfl & 0x3F) << 2 | 0b01  # concat frame legnth (14 bits) with frame type (2 bits)
+        header[0] = (mfl & 0x3F) << 2 | mft  # concat frame legnth (14 bits) with frame type (2 bits)
         header[1] = (mfl & 0x3FC0) >> 6
-
-        self.set_bytes_field(mac_frame, header, self.MAC_FRAME_MFH_OFFSET)
-        self.set_bytes_field(mac_frame, self.device_addr, self.MAC_FRAME_OSA_OFFSET)
-        self.set_bytes_field(mac_frame, dest, self.MAC_FRAME_ODA_OFFSET)
-        self.set_bytes_field(mac_frame, payload, self.MAC_FRAME_PAYLOAD_OFFSET)
-        
+        pos = self.set_bytes_field(mac_frame, header, self.MAC_FRAME_MFH_OFFSET, self.MAC_FRAME_MFH_WIDTH)
+        if mgmt:  # only mgmt has confounder field
+            pos = self.set_bytes_field(mac_frame, 0, pos, self.MAC_FRAME_CONFOUNDER_WIDTH)
+        pos = self.set_bytes_field(mac_frame, dest, pos, self.MAC_FRAME_ODA_WIDTH)
+        pos = self.set_bytes_field(mac_frame, self.device_addr, pos, self.MAC_FRAME_OSA_WIDTH)
+        pos += self.MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
+        pos = self.set_bytes_field(mac_frame, payload, pos, len(payload))        
         crc = self.crc32(mac_frame[self.MAC_FRAME_MFH_OFFSET + self.MAC_FRAME_MFH_WIDTH:-self.MAC_FRAME_ICV_WIDTH]) # calculate crc excluding MFH and ICV fields
-        self.set_bytes_field(mac_frame, crc, self.MAC_FRAME_PAYLOAD_OFFSET + len(payload))
+        self.set_bytes_field(mac_frame, crc, pos, self.MAC_FRAME_ICV_WIDTH)
 
         return mac_frame
 
     def parse_mac_frame(self, mac_frame):
-        header = self.get_bytes_field(mac_frame, self.MAC_FRAME_MFH_OFFSET, self.MAC_FRAME_MFH_WIDTH)
+        pos = self.MAC_FRAME_MFH_OFFSET
+        header = self.get_bytes_field(mac_frame, pos, self.MAC_FRAME_MFH_WIDTH)
+        pos += self.MAC_FRAME_MFH_WIDTH
+        mft = header[0] & 0x3
         length = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + self.MAC_FRAME_MFH_WIDTH + self.MAC_FRAME_ICV_WIDTH + 1
-        payload_size = length - self.MAC_FRAME_PAYLOAD_OFFSET - self.MAC_FRAME_ICV_WIDTH
-        source_addr = self.get_bytes_field(mac_frame, self.MAC_FRAME_OSA_OFFSET, self.MAC_FRAME_OSA_WIDTH)
-        dest_addr = self.get_bytes_field(mac_frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
-        payload = self.get_bytes_field(mac_frame, self.MAC_FRAME_PAYLOAD_OFFSET, payload_size)        
+        if mft == 0b11: # determine frame type (management or data)
+            confounder = self.get_bytes_field(mac_frame, pos, self.MAC_FRAME_CONFOUNDER_WIDTH)
+            pos += self.MAC_FRAME_CONFOUNDER_WIDTH
+            mgmt = True
+        elif mft == 0b01:
+            mgmt = False
+        else:
+            sys.stderr.write(self.name + ": state = " + str(self.state) + ", MAC frame type not supported\n")
+            return
+
+        dest_addr = self.get_bytes_field(mac_frame, pos, self.MAC_FRAME_ODA_WIDTH)
+        pos += self.MAC_FRAME_ODA_WIDTH
+        source_addr = self.get_bytes_field(mac_frame, pos, self.MAC_FRAME_OSA_WIDTH)
+        pos += self.MAC_FRAME_OSA_WIDTH + self.MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
+        payload = self.get_bytes_field(mac_frame, pos, length - pos - self.MAC_FRAME_ICV_WIDTH)
         if not self.crc32_check(mac_frame[self.MAC_FRAME_MFH_OFFSET + self.MAC_FRAME_MFH_WIDTH:]):
             sys.stderr.write(self.name + ": state = " + str(self.state) + ", MAC frame CRC error\n")
-        return payload
+        return (payload, mgmt)
 
-    def submit_mac_frame(self, frame):
-        dest = self.get_bytes_field(frame, self.MAC_FRAME_ODA_OFFSET, self.MAC_FRAME_ODA_WIDTH)
+    def submit_mac_frame(self, frame, dest):
         if (str(dest) in self.tx_frames_buffer):
             stream = self.tx_frames_buffer[str(dest)]
         else:
@@ -256,18 +312,16 @@ class mac(gr.basic_block):
         if self.debug: print self.name + ": state = " + str(self.state) + ", added MAC frame to tranmission queue, frame size = " + str(len(frame))
 
     def receive_mac_frame(self, frame):
-        payload = self.parse_mac_frame(frame)
+        payload, mgmt = self.parse_mac_frame(frame)
         if payload:
-            if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
-            # dict
-            pmt_dict = gr.pmt.make_dict();
-            #dict = pmt::dict_add(dict, pmt::mp("crc_included"), pmt::PMT_T);
-
-            # create u8vector        
-            payload_u8vector = gr.pmt.init_u8vector(len(payload), list(payload))
-
-            # mpdu
-            self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(pmt_dict, payload_u8vector));
+            if not mgmt:
+                if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
+                pmt_dict = gr.pmt.make_dict();
+                payload_u8vector = gr.pmt.init_u8vector(len(payload), list(payload))
+                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(pmt_dict, payload_u8vector));
+            else:
+                if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame (management), size = " + str(len(frame))
+                self.process_mgmt_msg(payload)
 
     def init_phy_block(self, size, ssn, mac_boundary_offset, valid_flag, message_queue_flag, mac_boundary_flag, oldest_ssn_flag):
         phy_block = bytearray(size + 8)
@@ -327,9 +381,9 @@ class mac(gr.basic_block):
                 
             # Creating the PHY block
             phy_block = self.init_phy_block(body_size, ssn, mac_boundary_offset, True, False, mac_boundary_flag, False) # Setting header fields
-            self.set_bytes_field(phy_block, segment, self.PHY_BLOCK_BODY_OFFSET) # assigning body
+            pos = self.set_bytes_field(phy_block, segment, self.PHY_BLOCK_BODY_OFFSET, body_size) # assigning body
             crc = self.crc32(phy_block[0:-self.PHY_BLOCK_PBCS_WIDTH]) # calculate CRC
-            self.set_bytes_field(phy_block, crc, self.PHY_BLOCK_BODY_OFFSET + body_size) # assinging CRC field
+            self.set_bytes_field(phy_block, crc, pos, self.PHY_BLOCK_PBCS_WIDTH) # assinging CRC field
             num_segments += 1
             ssn = (ssn + 1) % 65636
             payload += phy_block
@@ -421,8 +475,66 @@ class mac(gr.basic_block):
             n_errors += not (sackd[1 + i/8] & (1 << (i % 8)) == 0)
         return n_errors
 
-    def set_bytes_field(self, frame, bytes, offset):
-        frame[offset:offset+len(bytes)] = bytes
+    def create_mgmt_msg_cm_chan_est(self, bit_loading):
+        mmentry = bytearray(self.MGMT_CM_CHAN_EST_NTMI_OFFSET + # preallocate the mmentry bytearray
+                            self.MGMT_CM_CHAN_EST_NTMI_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_TMI_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_NINT_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_CPF_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_FECTYPE_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_GIL_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH + 
+                            self.MGMT_CM_CHAN_EST_CBD_WIDTH * len(bit_loading)) 
+        pos = self.set_numeric_field(mmentry, 1, self.MGMT_CM_CHAN_EST_NTMI_OFFSET, self.MGMT_CM_CHAN_EST_NTMI_WIDTH)
+        pos = self.set_numeric_field(mmentry, 1, pos, self.MGMT_CM_CHAN_EST_TMI_WIDTH)
+        pos = self.set_numeric_field(mmentry, 0, pos, self.MGMT_CM_CHAN_EST_NINT_WIDTH)
+        pos = self.set_numeric_field(mmentry, 1, pos, self.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH)
+        pos += self.MGMT_CM_CHAN_EST_CPF_WIDTH + self.MGMT_CM_CHAN_EST_FECTYPE_WIDTH + MGMT_CM_CHAN_EST_GIL_WIDTH
+        pos = self.set_numeric_field(mmentry, 0, pos, self.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH)
+        pos = self.set_numeric_field(mmentry, len(bit_loading), pos, self.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH)
+        for i in range(n_carriers):
+            pos = self.set_numeric_field(mmentry, bit_loading[i], pos, self.MGMT_CM_CHAN_EST_CBD_WIDTH)
+        mgmt_msg = create_mgmt_msg(self.MGMT_MMTYPE_CM_CHAN_EST_ID, mmentry)
+        mac_frame = create_mac_frame(dest, mgmt_message, True)
+        return mac_frame
+
+    def process_mgmt_msg_cm_chan_est(self, mmentry):
+        new_tmi_offset = self.MGMT_CM_CHAN_EST_NTMI_OFFSET + \
+                         self.MGMT_CM_CHAN_EST_NTMI_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_TMI_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_NINT_WIDTH
+        new_tmi = self.get_numeric_field(mmentry, new_tmi_offset, self.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH)
+        cbd_len_offset = new_tmi_offset + \
+                         self.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_CPF_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_FECTYPE_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_GIL_WIDTH + \
+                         self.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH
+        cbd_len = self.get_numeric_field(mmentry, cbd_len_offset, self.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH)
+        bit_loading = [0] * cbd_len
+        for i in range(cbd_len):
+            bit_loading[i] = self.get_numeric_field(mmentry, cbd_offset, self.MGMT_CM_CHAN_EST_CBD_WIDTH)
+            cbd_offset += self.MGMT_CM_CHAN_EST_CBD_WIDTH
+        return bit_loading
+
+    def create_mgmt_msg(self, mmtype, mmentry):
+        self.set_numeric_field(mgmt_message, 0x1, self.MGMT_MMV_OFFSET, self.MGMT_MMV_WIDTH)
+        self.set_numeric_field(mgmt_message, mmtype, self.MGMT_MMTYPE_OFFSET, self.MGMT_MMTYPE_WIDTH)
+        self.set_bytes_field(mgmt_message, mmentry, self.MGMT_MMENTRY_OFFSET)
+
+    def process_mgmt_msg(self, mgmt_msg):
+        mmtype = self.get_numeric_field(mgmt_msg, self.MGMT_MMTYPE_OFFSET, self.MGMT_MMTYPE_WIDTH)
+        mmentry = self.get_numeric_field(mgmt_msg, self.MGMT_MMENTRY_OFFSET, len(mgmt_msg) - self.MGMT_MMENTRY_OFFSET)
+        if mmtype == self.MGMT_MMTYPE_CM_CHAN_EST_ID:
+            self.process_mgmt_msg_cm_chan_est(mmentry)
+        else: 
+            sys.stderr.write (self.name + ": state = " + str(self.state) + ", management message (" + str(mmtype) + "not supported\n")
+
+    def set_bytes_field(self, frame, bytes, offset, width):
+        frame[offset:(offset + width)] = bytes
+        return offset + width
 
     def get_bytes_field(self, frame, offset, width):
         return frame[offset:offset+width]
@@ -435,6 +547,7 @@ class mac(gr.basic_block):
             byte = (value & (0xFF << i*8)) >> i*8
             frame[offset/8 + i] |= (byte << shift) & 0xFF | (prev_byte >> (8-shift))
             prev_byte = byte
+        return offset+width
 
     def get_numeric_field(self, frame, offset, width = 1):
         value = 0

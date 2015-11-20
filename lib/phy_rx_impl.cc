@@ -12,10 +12,10 @@
 namespace gr {
   namespace plc {
 
-    const int phy_rx_impl::SYNCP_SIZE = light_plc::plcp::SYNCP_SIZE;
+    const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
     const int phy_rx_impl::SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
-    const int phy_rx_impl::PREAMBLE_SIZE = light_plc::plcp::PREAMBLE_SIZE;
-    const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::plcp::FRAME_CONTROL_SIZE;
+    const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
+    const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
     const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
     const float phy_rx_impl::MIN_ENERGY = 1e-3; // signal minimum energy
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE; // minimum autocorrelation plateau
@@ -56,11 +56,11 @@ namespace gr {
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
 
-      d_plcp = light_plc::plcp();
-      //d_plcp.debug(d_debug);
+      d_phy_service = light_plc::phy_service();
+      //d_phy_service.debug(d_debug);
 
       // Set the correlation filter
-      light_plc::vector_float syncp (d_plcp.preamble() + SYNCP_SIZE * 7.5, d_plcp.preamble() + SYNCP_SIZE * 8.5);
+      light_plc::vector_float syncp (d_phy_service.preamble() + SYNCP_SIZE * 7.5, d_phy_service.preamble() + SYNCP_SIZE * 8.5);
       std::reverse(syncp.begin(), syncp.end());
       d_fir = new gr::filter::kernel::fir_filter_fff(1, syncp);    
       d_correlation = gr::fft::malloc_float(SYNC_LENGTH); 
@@ -101,9 +101,9 @@ namespace gr {
         ninput_items_required[1] = 2 * SYNCP_SIZE;
         ninput_items_required[2] = 2 * SYNCP_SIZE;
       } else if (d_receiver_state == SENSE_SPACE) {
-        ninput_items_required[0] = d_plcp.get_inter_frame_space();
-        ninput_items_required[1] = d_plcp.get_inter_frame_space();
-        ninput_items_required[2] = d_plcp.get_inter_frame_space();
+        ninput_items_required[0] = d_phy_service.get_inter_frame_space();
+        ninput_items_required[1] = d_phy_service.get_inter_frame_space();
+        ninput_items_required[2] = d_phy_service.get_inter_frame_space();
       } else {
         ninput_items_required[0] = noutput_items;
         ninput_items_required[1] = noutput_items;
@@ -186,7 +186,7 @@ namespace gr {
             light_plc::vector_float::iterator preamble_aligned_iter (preamble_aligned.begin());
             preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
             std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
-            d_plcp.resolve_preamble(preamble_aligned.begin(), preamble_aligned.end());
+            d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
             d_receiver_state = COPY_FRAME_CONTROL;
           }
           break;
@@ -197,12 +197,12 @@ namespace gr {
             if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
               d_frame_control[d_frame_control_offset] = in[i];
             } else  {
-              if (d_plcp.resolve_frame_control(d_frame_control.begin()) == false) {
+              if (d_phy_service.process_ppdu_frame_control(d_frame_control.begin()) == false) {
                 std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
                 d_receiver_state = RESET;
               } else {
                 d_receiver_state = COPY_PAYLOAD;
-                d_payload_size = d_plcp.get_ppdu_payload_size();
+                d_payload_size = d_phy_service.get_ppdu_payload_length();
                 dout << "PHY Receiver: Frame control is OK!" << std::endl;
                 d_payload = light_plc::vector_float(d_payload_size);
               }
@@ -219,27 +219,25 @@ namespace gr {
           d_payload_offset += k;
           i += k;
           if (d_payload_offset == d_payload_size) {
-            pmt::pmt_t payload_pmt = pmt::make_u8vector(d_plcp.get_mpdu_payload_size(), 0);
+            pmt::pmt_t payload_pmt = pmt::make_u8vector(d_phy_service.get_mpdu_payload_size(), 0);
             size_t len;
             unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
-            d_plcp.resolve_payload(d_payload.begin(), payload_blob);
-            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_plcp.get_mpdu_payload_size() << ", type = " << d_plcp.get_frame_type() << std::endl;
-            if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
+            d_phy_service.process_ppdu_payload(d_payload.begin(), payload_blob);
+            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << ", type = " << d_phy_service.get_frame_type() << std::endl;
+            if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
               pmt::pmt_t dict = pmt::make_dict();
-              //dict = pmt::dict_add(dict, pmt::mp("type"), pmt::mp("sof"));
               dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
               message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOF"), dict));
-              //message_port_pub(pmt::mp("mac out"), pmt::cons(dict, payload_pmt));
               d_receiver_state = CONSUME_SPACE;
-            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
-              pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_plcp.get_sackd_size(), 0);
+            } else if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
+              pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_phy_service.get_sackd_size(), 0);
               size_t len;              
-              d_plcp.get_sackd((unsigned char*)pmt::u8vector_writable_elements(sackd_pmt, len));
+              d_phy_service.get_sackd((unsigned char*)pmt::u8vector_writable_elements(sackd_pmt, len));
               pmt::pmt_t dict = pmt::make_dict();
               dict = pmt::dict_add(dict, pmt::mp("sackd"), sackd_pmt);
               message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSACK"), dict));
               d_receiver_state = CONSUME_SPACE;
-            } else if (d_plcp.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
+            } else if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
               pmt::pmt_t dict = pmt::make_dict();
               message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOUND"), dict));
               d_receiver_state = SENSE_SPACE;
@@ -251,32 +249,32 @@ namespace gr {
         }
 
         case CONSUME_SPACE: {
-          int j = std::min(d_plcp.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
+          int j = std::min(d_phy_service.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
           i += j;
           d_inter_frame_space_offset += j;
-          if (d_inter_frame_space_offset == d_plcp.get_inter_frame_space()) {
+          dout << "PHY Receiver: state = CONSUME_SPACE" << std::endl;
+          if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
             pmt::pmt_t dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
             d_receiver_state = HALT;
           }
-          dout << "PHY Receiver: state = CONSUME_SPACE" << std::endl;
           break;
         }
 
         case SENSE_SPACE: {
           if (d_inter_frame_space_offset == 0)
-            d_noise = std::vector<float>(d_plcp.get_inter_frame_space());
-          int j = std::min(d_plcp.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
+            d_noise = std::vector<float>(d_phy_service.get_inter_frame_space());
+          int j = std::min(d_phy_service.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
           // Get noise data
           while (i<j)
             d_noise[d_inter_frame_space_offset++] = in[i++];
-          if (d_inter_frame_space_offset == d_plcp.get_inter_frame_space()) {
+          if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
             // Calculate noise PSD
             float noise_var(0);
             for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
-              noise_var += (*iter)*(*iter)/d_plcp.get_inter_frame_space();
-            d_plcp.set_noise_psd(noise_var * 2);
-            dout << "PHY Receiver: state = SENSE_SPACE, length = " << d_plcp.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
+              noise_var += (*iter)*(*iter)/d_phy_service.get_inter_frame_space();
+            d_phy_service.set_noise_psd(noise_var * 2);
+            dout << "PHY Receiver: state = SENSE_SPACE, length = " << d_phy_service.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
             pmt::pmt_t dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
             d_receiver_state = HALT;

@@ -117,7 +117,6 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     ${CPPUNIT_INCLUDE_DIRS}
     ${GNURADIO_ALL_INCLUDE_DIRS}
-    ${LIGHTPLC_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -147,6 +146,7 @@ add_custom_target(uninstall
 ########################################################################
 add_subdirectory(include/plc)
 add_subdirectory(lib)
+add_subdirectory(lib/lightplc)
 add_subdirectory(swig)
 add_subdirectory(python)
 add_subdirectory(grc)

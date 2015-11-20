@@ -4,7 +4,7 @@
 #define INCLUDED_PLC_PHY_RX_IMPL_H
 
 #include <plc/phy_rx.h>
-#include <lightplc/plcp.h>
+#include <lightplc/phy_service.h>
 #include <list>
 #include <gnuradio/filter/fir_filter.h>
 
@@ -22,7 +22,7 @@ namespace gr {
      static const int MIN_PLATEAU;
 
      private:
-      light_plc::plcp d_plcp;
+      light_plc::phy_service d_phy_service;
       const bool d_debug;
       gr::filter::kernel::fir_filter_fff *d_fir;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;

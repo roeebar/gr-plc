@@ -34,8 +34,8 @@ namespace gr {
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_tx_impl::mac_in, this, _1));
       message_port_register_out(pmt::mp("mac out"));
-      d_plcp = light_plc::plcp();
-      //d_plcp.debug(d_debug);
+      d_phy_service = light_plc::phy_service();
+      //d_phy_service.debug(d_debug);
     }
 
     /*
@@ -57,12 +57,12 @@ namespace gr {
             size_t sackd_length = 0;
             pmt::pmt_t sackd_u8vector = pmt::dict_ref(dict, pmt::mp("sackd"), pmt::PMT_NIL);
             const unsigned char * sackd = pmt::u8vector_elements(sackd_u8vector, sackd_length);
-            d_datastream = d_plcp.create_sack_ppdu(sackd, sackd_length);
+            d_datastream = d_phy_service.create_sack_ppdu(sackd, sackd_length);
             d_datastream_len = d_datastream.size();
             d_transmitter_state = TX;
           } else if (cmd == "SOUND") {
             dout << "PHY Transmitter: received new MPDU (Sound) from MAC" << std::endl;            
-            d_datastream = d_plcp.create_sound_ppdu(light_plc::STD_ROBO);
+            d_datastream = d_phy_service.create_sound_ppdu(light_plc::STD_ROBO);
             d_datastream_len = d_datastream.size();
             d_transmitter_state = TX;
           }
@@ -78,11 +78,11 @@ namespace gr {
               uint64_t modulation = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("modulation"), pmt::PMT_NIL));
               uint64_t robo_mode = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("robo_mode"), pmt::PMT_NIL));
               dout << "PHY Transmitter: received new MPDU (SOF, robo_mode=" << robo_mode << ", modulation=" << modulation << ") from MAC" << std::endl;            
-              d_plcp.set_modulation((light_plc::Modulation)modulation);
-              d_plcp.set_robo_mode((light_plc::RoboMode)robo_mode);
+              d_phy_service.set_modulation((light_plc::modulation_type)modulation);
+              d_phy_service.set_robo_mode((light_plc::RoboMode)robo_mode);
               size_t mpdu_payload_length = 0;
               const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
-              d_datastream = d_plcp.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
+              d_datastream = d_phy_service.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
               d_datastream_len = d_datastream.size();
               d_transmitter_state = TX;
             } 

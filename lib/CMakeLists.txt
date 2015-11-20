@@ -22,6 +22,7 @@
 ########################################################################
 include(GrPlatform) #define LIB_SUFFIX
 
+# gnuradio-plc 
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 list(APPEND plc_sources
@@ -39,8 +40,14 @@ if(NOT plc_sources)
 	return()
 endif(NOT plc_sources)
 
+list(APPEND plc_libs
+  lightplc
+  ${GNURADIO_ALL_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
 add_library(gnuradio-plc SHARED ${plc_sources})
-target_link_libraries(gnuradio-plc ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES} lightplc)
+target_link_libraries(gnuradio-plc ${plc_libs})
 set_target_properties(gnuradio-plc PROPERTIES DEFINE_SYMBOL "gnuradio_plc_EXPORTS")
 
 if(UNIX)
@@ -69,23 +76,6 @@ include(GrTest)
 
 include_directories(${CPPUNIT_INCLUDE_DIRS})
 list(APPEND test_plc_sources
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_plc.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_plc.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_in.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_app_out.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_transmitter.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/qa_mac_receiver.cc
     )
 
-add_executable(test-plc ${test_plc_sources})
 
-target_link_libraries(
-  test-plc
-  ${GNURADIO_RUNTIME_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${CPPUNIT_LIBRARIES}
-  lightplc
-  itpp
- )
-
-# GR_ADD_TEST(test_plc test-plc)
