@@ -30,7 +30,7 @@ enum PbSize {
     PB520 = 2,
 };
 
-enum RoboMode {
+enum robo_mode_t {
     NO_ROBO = 0,
     STD_ROBO = 1,
     HS_ROBO = 2,
@@ -38,14 +38,15 @@ enum RoboMode {
 };
 
 enum modulation_type {
-    BPSK  = 0,
-    QPSK  = 1,
-    QAM8  = 2,
-    QAM16 = 3,
-    QAM64 = 4,
-    QAM256 = 5,
-    QAM1024 = 6,
-    QAM4096 = 7
+    NULLED = 0,
+    BPSK  = 1,
+    QPSK  = 2,
+    QAM8  = 3,
+    QAM16 = 4,
+    QAM64 = 5,
+    QAM256 = 6,
+    QAM1024 = 7,
+    QAM4096 = 8
 };
 
 enum MpduType {
@@ -77,18 +78,16 @@ private:
 
     typedef std::array<bool, IEEE1901_NUMBER_OF_CARRIERS+1> carriers_mask;
     typedef std::array<modulation_type, IEEE1901_NUMBER_OF_CARRIERS+1> carriers_modulation;
-    typedef std::array<float, IEEE1901_NUMBER_OF_CARRIERS+1> carriers_response;
     
-    typedef struct Carriers {
-        carriers_mask mask;
+    typedef struct carriers_bitloading_t {
         carriers_modulation modulation;
         unsigned int capacity;
-    } Carriers;
+    } carriers_bitloading_t;
 
     typedef struct channel_response {
         carriers_mask mask;
-        carriers_response phase;
-        carriers_response amplitude;
+        std::array<complex, IEEE1901_NUMBER_OF_CARRIERS+1> carriers;
+        std::array<float, IEEE1901_NUMBER_OF_CARRIERS+1> carriers_gain;
     } channel_response;
 
     typedef struct frame_parameters {
@@ -96,10 +95,10 @@ private:
         bool has_payload;
         unsigned int n_expected_symbols;
         PbSize pb_size;
-        RoboMode robo_mode;
+        robo_mode_t robo_mode;
         modulation_type modulation;
         code_rate rate;
-        Carriers carriers;
+        carriers_bitloading_t carriers_bitloading;
         int encoded_block_size;
         int interleaved_block_size;
         int mpdu_payload_size;
@@ -128,10 +127,10 @@ private:
     static const int GUARD_INTERVAL_FC = IEEE1901_GUARD_INTERVAL_FC;
     static const int SYNCP_CARRIERS_ANGLE_NUMBER[IEEE1901_SYNCP_SIZE / 2 + 1];
     static const bool SYNCP_CARRIERS_MASK [IEEE1901_SYNCP_SIZE / 2 + 1];
-    static const ModulationMap MODULATION_MAP[8];
+    static const ModulationMap MODULATION_MAP[9];
     static const complex ANGLE_NUMBER_TO_VALUE[16];
     static const int N_BROADCAST_CARRIERS;
-    static const Carriers BROADCAST_CARRIERS;
+    static const carriers_bitloading_t BROADCAST_CARRIERS;
     static const std::array<float, NUMBER_OF_CARRIERS*2> HAMMING_WINDOW;
     
 public:
@@ -148,15 +147,16 @@ public:
     vector_float create_sof_ppdu(const vector_int &mpdu_payload);
     vector_float create_sack_ppdu(const unsigned char *sackd_bin, size_t len);
     vector_float create_sack_ppdu(const vector_int sackd);
-    vector_float create_sound_ppdu(RoboMode robo_mode);
+    vector_float create_sound_ppdu(robo_mode_t robo_mode);
     void process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
     bool process_ppdu_frame_control(vector_float::const_iterator iter);
     void process_ppdu_payload(vector_float::const_iterator iter, unsigned char *mpdu_payload_bin);
     vector_int process_ppdu_payload(vector_float::const_iterator iter);
     void process_noise(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
+    vector_int calculate_bitloading(float P_t);    
     void set_modulation(modulation_type modulation);
     void set_code_rate(code_rate rate);
-    void set_robo_mode(RoboMode robo_mode);
+    void set_robo_mode(robo_mode_t robo_mode);
     void set_noise_psd(float n0);
     int get_mpdu_payload_size();
     int get_ppdu_payload_length();
@@ -166,14 +166,14 @@ public:
     int get_sackd_size();
     int get_inter_frame_space();
     vector_float::const_iterator preamble();
-    static int max_blocks (RoboMode robo_mode, code_rate rate, modulation_type modulation = QPSK);
+    static int max_blocks (robo_mode_t robo_mode, code_rate rate, modulation_type modulation = QPSK);
     void debug(bool debug) {d_debug = debug; return;};
 
 private:
-    vector_symbol create_payload_symbols(const vector_int &payload_bits, PbSize pb_size, RoboMode robo_mode, code_rate rate = RATE_1_2, modulation_type modulation = QPSK);
-    vector_symbol_freq create_payload_symbols_freq (const vector_int &bitstream, PbSize pb_size, RoboMode robo_mode, code_rate rate = RATE_1_2, modulation_type modulation = QPSK);
+    vector_symbol create_payload_symbols(const vector_int &payload_bits, PbSize pb_size, robo_mode_t robo_mode, code_rate rate = RATE_1_2, modulation_type modulation = QPSK);
+    vector_symbol_freq create_payload_symbols_freq (const vector_int &bitstream, PbSize pb_size, robo_mode_t robo_mode, code_rate rate = RATE_1_2, modulation_type modulation = QPSK);
     vector_symbol create_frame_control_symbol(const vector_int &bitstream);
-    static vector_int create_sof_frame_control (unsigned int n_symbols, RoboMode robo_mode, modulation_type modulation, PbSize pb_size);
+    static vector_int create_sof_frame_control (unsigned int n_symbols, robo_mode_t robo_mode, modulation_type modulation, PbSize pb_size);
     static vector_int create_sack_frame_control (const vector_int sackd);
     vector_int create_sound_frame_control (unsigned int n_symbols, PbSize pb_size);
     static void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value);
@@ -187,11 +187,11 @@ private:
     vector_int tc_encoder(const vector_int &bitstream, PbSize pb_size, code_rate rate);
     vector_int tc_decoder(const vector_float &received_info, const vector_float &received_parity, PbSize pb_size, code_rate rate);
     static vector_int channel_interleaver(const vector_int& bitstream, const vector_int& parity, PbSize pb_size, code_rate rate);
-    static vector_int robo_interleaver(const vector_int& bitstream, RoboMode robo_mode);
-    static Carriers calc_robo_carriers (RoboMode robo_mode);
-    static void calc_robo_parameters (RoboMode robo_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad);
+    static vector_int robo_interleaver(const vector_int& bitstream, robo_mode_t robo_mode);
+    static carriers_bitloading_t calc_robo_carriers (robo_mode_t robo_mode);
+    static void calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad);
     static vector_int copier(const vector_int& bitstream, int n_carriers, int offset, int start = 0);
-    vector_symbol_freq modulate(const vector_int& bits, const Carriers& carriers);
+    vector_symbol_freq modulate(const vector_int& bits, const carriers_bitloading_t& carriers_bitloading);
     static void cyclic_prefix_and_window(vector_symbol& symbols, int gi_length, float gain);
     static itpp::bvec to_bvec (const vector_int in);
     static itpp::ivec to_ivec (const vector_int in);
@@ -210,33 +210,34 @@ private:
     static vector_float symbols_to_datastream (const vector_symbol &symbols, int ifs);
     static unsigned int count_non_masked_carriers(carriers_mask::const_iterator begin, carriers_mask::const_iterator end);
     static unsigned int count_non_masked_carriers(bool *begin, bool *end);
-    static void update_carriers_capacity(Carriers& carriers);
+    static void update_carriers_capacity(carriers_bitloading_t& carriers_bitloading);
     vector_int resolve_frame_control_symbol (const vector_float& fc_data);
     bool parse_frame_control (const vector_int &fc_bits, frame_parameters &frame_control);
     static bool crc24_check(const vector_int &bit_vector);
     static unsigned long get_field(const vector_int &bit_vector, int bit_offset, int bit_width);
-    vector_float symbol_demodulate (vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end, const Carriers& carriers, const channel_response &channel_response);
+    vector_float symbol_demodulate (vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end, const carriers_bitloading_t& carriers_bitloading, const channel_response &channel_response);
     vector_float::iterator demodulate_helper(int n_bits, float r, float scale, float n0, vector_float::iterator iter);
     vector_float::iterator demodulate(const complex &value, modulation_type modulation, vector_float::iterator iter);
     int qam_demodulate(int v, int l);
     static vector_float combine_copies(vector_float& bitstream, int offset, int n_bits);
     static vector_float channel_deinterleaver(const vector_float& bitstream, vector_float& parity_bitstream, PbSize pb_size, code_rate rate);
     static bool channel_deinterleaver_row(vector_float::const_iterator& iter, vector_float& out, int step_size, int& row_no, int& rows_done, int& nibble_no, bool wrap = false);
-    static vector_float robo_deinterleaver(const vector_float& bitstream, int n_raw, RoboMode robo_mode);
+    static vector_float robo_deinterleaver(const vector_float& bitstream, int n_raw, robo_mode_t robo_mode);
     inline int calc_block_size(PbSize pb_size);
-    static int calc_interleaved_block_size(RoboMode robo_mode, code_rate rate, PbSize pb_size);
+    static int calc_interleaved_block_size(robo_mode_t robo_mode, code_rate rate, PbSize pb_size);
     static int calc_encoded_block_size(code_rate rate, PbSize pb_size);
-    static Carriers build_broadcast_carriers(modulation_type modulation = QPSK);
+    static carriers_bitloading_t build_broadcast_carriers(modulation_type modulation = QPSK);
     void create_fftw_vars ();
     vector_complex fft_real_syncp(const vector_float& data);
-    void estimate_channel_amplitude (vector_symbol_freq::const_iterator iter, vector_symbol_freq::const_iterator iter_end, vector_symbol_freq::const_iterator ref_iter, channel_response &channel_response);
+    void estimate_channel_gain (vector_symbol_freq::const_iterator iter, vector_symbol_freq::const_iterator iter_end, vector_symbol_freq::const_iterator ref_iter, channel_response &channel_response);
     void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, const bool cm[], channel_response &channel_response);
     static std::array<float, NUMBER_OF_CARRIERS*2> create_hamming_window();
+    vector_float calculate_snr();
     std::vector<SplineSet> spline(vector_float &x, vector_float &y);
     bool d_debug;
     modulation_type d_modulation;
     code_rate d_code_rate;
-    RoboMode d_robo_mode;
+    robo_mode_t d_robo_mode;
     float d_n0;
     fftwf_complex *d_ifft_input, *d_fft_output, *d_fft_syncp_output;
     float *d_ifft_output, *d_fft_input, *d_fft_syncp_input;

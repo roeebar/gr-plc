@@ -27,8 +27,6 @@
 
 #define ECHO(x) (std::cout << x << std::endl);
 
-
-
 #ifndef NDEBUG
 #  define DEBUG_VAR(x) if (d_debug) {PRINT_VAR(x)}
 #  define DEBUG_VECTOR(x) if (d_debug) {PRINT_VECTOR(x)}

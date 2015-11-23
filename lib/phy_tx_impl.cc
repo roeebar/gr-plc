@@ -79,7 +79,7 @@ namespace gr {
               uint64_t robo_mode = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("robo_mode"), pmt::PMT_NIL));
               dout << "PHY Transmitter: received new MPDU (SOF, robo_mode=" << robo_mode << ", modulation=" << modulation << ") from MAC" << std::endl;            
               d_phy_service.set_modulation((light_plc::modulation_type)modulation);
-              d_phy_service.set_robo_mode((light_plc::RoboMode)robo_mode);
+              d_phy_service.set_robo_mode((light_plc::robo_mode_t)robo_mode);
               size_t mpdu_payload_length = 0;
               const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
               d_datastream = d_phy_service.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
@@ -156,4 +156,3 @@ namespace gr {
     }
   } /* namespace plc */
 } /* namespace gr */
-

@@ -21,9 +21,10 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 int main(int argc, char * argv[]) {
     unsigned int seed = 1444438709;
     bool debug_ = false;
-    light_plc::RoboMode robo_mode = light_plc::NO_ROBO;
+    light_plc::robo_mode_t robo_mode = light_plc::NO_ROBO;
     light_plc::modulation_type modulation = light_plc::QPSK;
     int nblocks = 1;
+    float snr = 30;
     bool encode_only = false;
     if(cmdOptionExists(argv, argv+argc, "-help")) {
         std::cout << "Options:\n" 
@@ -35,6 +36,8 @@ int main(int argc, char * argv[]) {
         << "                      Default to 0 (NO_ROBO)\n\n"
         << "  -nblocks NUMBER     Set number of blocks to encode in SOF or SOFFILE modes\n"
         << "                      Default = 1\n\n"
+        << "  -snr NUMBER         Set noise according to SNR number in db\n"
+        << "                      Default = 30db\n\n"
         << "  -encode_only        Do not try to process the recevied stream\n\n"
         << "  -in_filename NAME   Input file name is SOFFILE mode\n\n" 
         << "  -out_filename NAME  Output file name is SOFFILE mode\n\n"
@@ -53,13 +56,13 @@ int main(int argc, char * argv[]) {
 
     char* seed_str = getCmdOption(argv, argv + argc, "-seed");
     if (seed_str != NULL)
-        seed = (light_plc::RoboMode)atoi(seed_str);
+        seed = (light_plc::robo_mode_t)atoi(seed_str);
 
     phy_service_qa tester(debug_, seed);
 
     char* robo_mode_str = getCmdOption(argv, argv + argc, "-robo-mode");
     if (robo_mode_str != NULL)
-        robo_mode = (light_plc::RoboMode)atoi(robo_mode_str);
+        robo_mode = (light_plc::robo_mode_t)atoi(robo_mode_str);
 
     char* modulation_str = getCmdOption(argv, argv + argc, "-modulation");
     if (modulation_str != NULL)
@@ -68,6 +71,10 @@ int main(int argc, char * argv[]) {
     char* nblocks_str = getCmdOption(argv, argv + argc, "-nblocks");
     if (nblocks_str != NULL)
         nblocks = atoi(nblocks_str);
+
+    char* snr_str = getCmdOption(argv, argv + argc, "-snr");
+    if (snr_str != NULL)
+        snr = atoi(snr_str);
 
     if(cmdOptionExists(argv, argv+argc, "-encode_only"))
         encode_only = true;
@@ -79,9 +86,9 @@ int main(int argc, char * argv[]) {
     if (mode_str == NULL)
         tester.random_test(100, encode_only);
     else if (std::string(mode_str) == "SOF")
-        tester.test_sof(RATE_1_2, robo_mode, modulation, nblocks, encode_only);
+        tester.test_sof(RATE_1_2, robo_mode, modulation, nblocks, snr, encode_only);
     else if (std::string(mode_str) == "SOUND")
-        tester.test_sound(robo_mode, encode_only);
+        tester.test_sound(robo_mode, snr, encode_only);
     else if (std::string(mode_str) == "SOFFILE")
         tester.encode_to_file(RATE_1_2, robo_mode, modulation, 1, in_filename, out_filename);
     else if (std::string(mode_str) == "SACK")

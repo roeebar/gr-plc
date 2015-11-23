@@ -22,7 +22,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     // First send sounding
     std::cout << "Test 1 (Sound):" << std::endl;
     
-    test_sound(STD_ROBO, encode_only);
+    test_sound(STD_ROBO);
 
     // Send the rest of the random tests
     for (int i=2; i<=number_of_tests; i++) {
@@ -31,12 +31,12 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
 
         if (test_type < 10) { // sound test
             std::cout << "Test " << i << " (Sound): " << std::endl;           
-            RoboMode robo_mode;
+            robo_mode_t robo_mode;
             if (integer_random(1) == 0)
                 robo_mode = STD_ROBO;
             else
                 robo_mode = MINI_ROBO;
-            if (!test_sound(robo_mode, encode_only))
+            if (!test_sound(robo_mode))
                 return false;
         } else if (test_type < 30) {  // sack test
             std::cout << "Test " << i << " (SACK): " << std::endl;
@@ -45,16 +45,16 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
         } else if (test_type < 100) { // sof test
             //code_rate rate = (code_rate) integer_random(2);
             code_rate rate = RATE_1_2;
-            RoboMode robo_mode = (RoboMode) integer_random(3);
+            robo_mode_t robo_mode = (robo_mode_t) integer_random(3);
             modulation_type modulation;
             if (robo_mode == NO_ROBO)
-                modulation = (modulation_type) integer_random(7);
+                modulation = (modulation_type) (integer_random(7)+1);
             else 
                 modulation = QPSK;
             int number_of_blocks = integer_random(encoder.max_blocks(robo_mode, rate, modulation));
             std::cout << "Test " << i << " (SOF): " << std::endl;
             
-            if (!test_sof(rate, robo_mode, modulation, number_of_blocks, encode_only))
+            if (!test_sof(rate, robo_mode, modulation, number_of_blocks))
                 return false;
         }
     }
@@ -63,7 +63,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     return true;
 }
 
-bool phy_service_qa::test_sof(code_rate rate, RoboMode robo_mode, modulation_type modulation, int number_of_blocks, bool encode_only) {
+bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, modulation_type modulation, int number_of_blocks, float SNRdb, bool encode_only) {
 
     vector_int payload(520*8*number_of_blocks);
 
@@ -77,27 +77,10 @@ bool phy_service_qa::test_sof(code_rate rate, RoboMode robo_mode, modulation_typ
     encoder.set_robo_mode(robo_mode);
     vector_float datastream = encoder.create_sof_ppdu(payload);
 
-    // Calculating signal variance    
-    float datastream_var = 0;
-    for (vector_float::const_iterator iter = datastream.begin(); iter != datastream.end(); iter++)
-        datastream_var += (*iter)*(*iter)/datastream.size();
-
-    // Adding the desired noise based on SNR requirements
-    float SNRdb = 30;
-    float SNR = std::pow(10,SNRdb/10);
-    float var = datastream_var/SNR;
-    std::normal_distribution<float> n(0,std::sqrt(var));
-    std::default_random_engine g;
-    float x = 0;
-    for (vector_float::iterator iter = datastream.begin(); iter != datastream.end(); iter++) {
-        float y = n(g);
-        x += y*y / datastream.size();
-        *iter = *iter + y;
-    }
+    float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
     encoder.set_noise_psd(var*2);
 
     std::cout << "Datastream length = " << datastream.size() << std::endl;
-    std::cout << "SNR = " << SNRdb << std::endl;
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
         encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
@@ -119,13 +102,13 @@ bool phy_service_qa::test_sof(code_rate rate, RoboMode robo_mode, modulation_typ
     }
 }
 
-bool phy_service_qa::test_sack(bool encode_only) {
+bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
     vector_int sackd(80);
     std::generate(sackd.begin(), sackd.end(), binary_random);
     vector_float datastream = encoder.create_sack_ppdu(sackd);
     std::cout << "Datastream length = " << datastream.size() << std::endl;
 
-    float var = add_noise(datastream.begin(), datastream.end());
+    float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
     encoder.set_noise_psd(var*2);
 
     if (!encode_only) {
@@ -149,13 +132,13 @@ bool phy_service_qa::test_sack(bool encode_only) {
     }
 }
 
-bool phy_service_qa::test_sound(RoboMode robo_mode, bool encode_only) {
+bool phy_service_qa::test_sound(robo_mode_t robo_mode, float SNRdb, bool encode_only) {
     std::cout << "ROBO mode = " << robo_mode << std::endl;
    
     vector_float datastream = encoder.create_sound_ppdu(robo_mode);
     std::cout << "Datastream length = " << datastream.size() << std::endl;
 
-    add_noise(datastream.begin(), datastream.end());
+    add_noise(datastream.begin(), datastream.end(), SNRdb);
 
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
@@ -168,7 +151,7 @@ bool phy_service_qa::test_sound(RoboMode robo_mode, bool encode_only) {
         vector_int return_payload = encoder.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += encoder.get_ppdu_payload_length();
         encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
-
+        encoder.calculate_bitloading(0.001);
         std::cout << "Passed." << std::endl << std::endl;
         return true;
     } else {
@@ -176,8 +159,7 @@ bool phy_service_qa::test_sound(RoboMode robo_mode, bool encode_only) {
     }
 }
 
-bool phy_service_qa::encode_to_file (code_rate rate, RoboMode robo_mode, modulation_type modulation, int number_of_blocks, std::string input_filename, std::string output_filename) {
-
+bool phy_service_qa::encode_to_file (code_rate rate, robo_mode_t robo_mode, modulation_type modulation, int number_of_blocks, std::string input_filename, std::string output_filename) {
     vector_int payload(520*8*number_of_blocks);
 
     std::cout << "Testing parameters: " << std::endl;
@@ -216,7 +198,7 @@ bool phy_service_qa::encode_to_file (code_rate rate, RoboMode robo_mode, modulat
     return true;
 }
 
-float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end) {
+float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb) {
     // Calculating signal variance    
     float datastream_var = 0;
     int size = iter_end - iter_begin;
@@ -224,15 +206,12 @@ float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float:
         datastream_var += (*iter)*(*iter)/size;
 
     // Adding the desired noise based on SNR requirements
-    float SNRdb = 30;
     float SNR = std::pow(10,SNRdb/10);
     float var = datastream_var/SNR;
     std::normal_distribution<float> n(0,std::sqrt(var));
     std::default_random_engine g;
-    float x = 0;
     for (vector_float::iterator iter = iter_begin; iter != iter_end; iter++) {
         float y = n(g);
-        x += y*y / size;
         *iter = *iter + y;
     }
     std::cout << "SNR = " << SNRdb << std::endl;
