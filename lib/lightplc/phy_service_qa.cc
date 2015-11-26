@@ -6,8 +6,8 @@
 
 using namespace light_plc;
 
-phy_service_qa::phy_service_qa (bool debug_, unsigned int seed) {
-    encoder = phy_service(debug_);
+phy_service_qa::phy_service_qa (bool d_debug, unsigned int seed) {
+    encoder = phy_service(d_debug);
     if (seed == 0)
         seed = time(NULL);
     std::cout << "Seed = " << seed << std::endl;
@@ -46,15 +46,10 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             //code_rate rate = (code_rate) integer_random(2);
             code_rate rate = RATE_1_2;
             robo_mode_t robo_mode = (robo_mode_t) integer_random(3);
-            modulation_type modulation;
-            if (robo_mode == NO_ROBO)
-                modulation = (modulation_type) (integer_random(7)+1);
-            else 
-                modulation = QPSK;
-            int number_of_blocks = integer_random(encoder.max_blocks(robo_mode, rate, modulation));
+            int number_of_blocks = integer_random(encoder.max_blocks(robo_mode, rate));
             std::cout << "Test " << i << " (SOF): " << std::endl;
             
-            if (!test_sof(rate, robo_mode, modulation, number_of_blocks))
+            if (!test_sof(rate, robo_mode, number_of_blocks))
                 return false;
         }
     }
@@ -63,18 +58,17 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     return true;
 }
 
-bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, modulation_type modulation, int number_of_blocks, float SNRdb, bool encode_only) {
+bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, int number_of_blocks, float SNRdb, bool encode_only) {
 
     vector_int payload(520*8*number_of_blocks);
 
     std::cout << "Encoding rate = " << rate << std::endl;
     std::cout << "ROBO mode = " << robo_mode << std::endl;
-    std::cout << "Modulation = " << modulation << std::endl;
     std::cout << "number of blocks = " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
-    encoder.set_modulation(modulation);
     encoder.set_code_rate(rate);
     encoder.set_robo_mode(robo_mode);
+    encoder.set_tone_map(d_tone_map);
     vector_float datastream = encoder.create_sof_ppdu(payload);
 
     float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
@@ -90,6 +84,7 @@ bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, modulation_
             return false;
         }
         vector_int return_payload = encoder.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
+        encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
         if (std::equal(payload.begin(), payload.end(), return_payload.begin())) {
             std::cout << "Passed." << std::endl << std::endl;
             return true;
@@ -151,7 +146,7 @@ bool phy_service_qa::test_sound(robo_mode_t robo_mode, float SNRdb, bool encode_
         vector_int return_payload = encoder.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += encoder.get_ppdu_payload_length();
         encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
-        encoder.calculate_bitloading(0.001);
+        d_tone_map = encoder.calculate_tone_map(0.001);
         std::cout << "Passed." << std::endl << std::endl;
         return true;
     } else {
@@ -159,17 +154,15 @@ bool phy_service_qa::test_sound(robo_mode_t robo_mode, float SNRdb, bool encode_
     }
 }
 
-bool phy_service_qa::encode_to_file (code_rate rate, robo_mode_t robo_mode, modulation_type modulation, int number_of_blocks, std::string input_filename, std::string output_filename) {
+bool phy_service_qa::encode_to_file (code_rate rate, robo_mode_t robo_mode, int number_of_blocks, std::string input_filename, std::string output_filename) {
     vector_int payload(520*8*number_of_blocks);
 
     std::cout << "Testing parameters: " << std::endl;
     std::cout << "Encoding rate = " << rate << std::endl;
     std::cout << "ROBO mode = " << robo_mode << std::endl;
-    std::cout << "modulation_type = " << modulation << std::endl;
     std::cout << "number of blocks = " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
     
-    encoder.set_modulation(modulation);
     encoder.set_code_rate(rate);
     encoder.set_robo_mode(robo_mode);
     vector_float datastream = encoder.create_sof_ppdu(payload);

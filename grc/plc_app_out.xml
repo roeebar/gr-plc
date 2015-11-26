@@ -4,13 +4,7 @@
   <key>plc_app_out</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.app_out($dest, $debug)</make>
-  <param>
-    <name>Destination</name>
-    <key>dest</key>
-    <value>[0x23, 0x23, 0x23, 0x23, 0x23, 0x23]</value>
-    <type>int_vector</type>
-  </param>
+  <make>plc.app_out($debug)</make>
   <param>
     <name>Debug</name>
     <key>debug</key>

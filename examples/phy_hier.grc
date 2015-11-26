@@ -46,7 +46,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>Phy</value>
+      <value>PHY</value>
     </param>
     <param>
       <key>max_nouts</key>
@@ -70,7 +70,7 @@
     </param>
     <param>
       <key>title</key>
-      <value>Phy</value>
+      <value>PHY</value>
     </param>
   </block>
   <block>

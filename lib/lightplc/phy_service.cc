@@ -29,7 +29,7 @@ const float phy_service::ROLLOFF_WINDOW_FALL[ROLLOFF_INTERVAL] = {IEEE1901_ROLLO
 const float phy_service::SCALE_FACTOR_PAYLOAD = IEEE1901_SCALE_FACTOR_PAYLOAD;
 const float phy_service::SCALE_FACTOR_FC = IEEE1901_SCALE_FACTOR_FC;
 
-const phy_service::ModulationMap phy_service::MODULATION_MAP[9] = { 
+const phy_service::modulation_map_t phy_service::MODULATION_MAP[9] = { 
                          {0,NULL,0},
                          {MAP_BPSK_NBITS, MAP_BPSK, MAP_BPSK_SCALE}, 
                          {MAP_QPSK_NBITS, MAP_QPSK, MAP_QPSK_SCALE}, 
@@ -40,7 +40,7 @@ const phy_service::ModulationMap phy_service::MODULATION_MAP[9] = {
                          {MAP_QAM1024_NBITS, MAP_QAM1024, MAP_QAM1024_SCALE},
                          {MAP_QAM4096_NBITS, MAP_QAM4096, MAP_QAM4096_SCALE} };
 
-const complex phy_service::ANGLE_NUMBER_TO_VALUE[16] = {   complex(1.000000000000000,0.000000000000000),
+const complex phy_service::ANGLE_NUMBER_TO_VALUE[16] = {complex(1.000000000000000,0.000000000000000),
                                                     complex(0.923879532511287,0.382683432365090),
                                                     complex(0.707106781186548,0.707106781186547),
                                                     complex(0.382683432365090,0.923879532511287),
@@ -61,10 +61,10 @@ const int phy_service::SYNCP_CARRIERS_ANGLE_NUMBER [SYNCP_SIZE / 2 + 1] = {IEEE1
 const bool phy_service::SYNCP_CARRIERS_MASK [SYNCP_SIZE / 2 + 1] = {IEEE1901_SYNCP_CARRIERS_MASK};
 
 const std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::HAMMING_WINDOW = phy_service::create_hamming_window();
-const phy_service::carriers_bitloading_t phy_service::BROADCAST_CARRIERS = phy_service::build_broadcast_carriers();
+const phy_service::tone_info_t phy_service::BROADCAST_CARRIERS = phy_service::build_broadcast_tone_map();
 const int phy_service::N_BROADCAST_CARRIERS = phy_service::count_non_masked_carriers(CARRIERS_BROADCAST_MASK.begin(), CARRIERS_BROADCAST_MASK.end());
 
-phy_service::phy_service (bool debug) : d_debug(debug), d_modulation(QPSK), d_code_rate(RATE_1_2), d_robo_mode(NO_ROBO), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
+phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadcast_tone_map()), d_code_rate(RATE_1_2), d_robo_mode(NO_ROBO), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
     static_assert(BPSK==1 && QPSK==2 && QAM8==3 && QAM16==4 && QAM64==5 && QAM256==6 && QAM1024==7 && QAM4096==8, "Mapping parameters error");
     create_fftw_vars();
     init_turbo_codec();
@@ -78,7 +78,7 @@ phy_service::phy_service (bool debug) : d_debug(debug), d_modulation(QPSK), d_co
 
 phy_service::phy_service (const phy_service &obj) : 
         d_debug(obj.d_debug),
-        d_modulation(obj.d_modulation),
+        d_tone_info(obj.d_tone_info),
         d_code_rate(obj.d_code_rate),
         d_robo_mode(obj.d_robo_mode),
         d_n0(obj.d_n0),
@@ -89,7 +89,9 @@ phy_service::phy_service (const phy_service &obj) :
         SOUND_PB520(obj.SOUND_PB520),
         SOUND_PB136_FREQ(obj.SOUND_PB136_FREQ),
         SOUND_PB520_FREQ(obj.SOUND_PB520_FREQ),
-        d_broadcast_channel_response(obj.d_broadcast_channel_response) {
+        d_broadcast_channel_response(obj.d_broadcast_channel_response),
+        d_noise_psd(obj.d_noise_psd),
+        d_snr(obj.d_snr) {
     create_fftw_vars();
     init_turbo_codec();
 }
@@ -106,9 +108,11 @@ phy_service& phy_service::operator=(const phy_service& rhs) {
     std::swap(d_fft_syncp_output, tmp.d_fft_syncp_output);
     std::swap(d_fftw_syncp_fwd_plan, tmp.d_fftw_syncp_fwd_plan);
     std::swap(d_broadcast_channel_response, tmp.d_broadcast_channel_response);
+    std::swap(d_noise_psd, tmp.d_noise_psd);
+    std::swap(d_snr, tmp.d_snr);
     std::swap(d_robo_mode, tmp.d_robo_mode);
     std::swap(d_code_rate, tmp.d_code_rate);
-    std::swap(d_modulation, tmp.d_modulation);
+    std::swap(d_tone_info, tmp.d_tone_info);
     std::swap(d_n0, tmp.d_n0);
     std::swap(d_debug, tmp.d_debug);
     return *this;
@@ -137,15 +141,15 @@ vector_float phy_service::create_sof_ppdu(const vector_int &mpdu_payload) {
     DEBUG_VECTOR(mpdu_payload);
 
     // Determine PB size according to number of payload bits
-    PbSize pb_size;
+    pb_size_t pb_size;
     (mpdu_payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
 
     // Encode payload blocks
-    vector_symbol payload_symbols = create_payload_symbols(mpdu_payload, pb_size, d_robo_mode, d_code_rate, d_modulation);
+    vector_symbol payload_symbols = create_payload_symbols(mpdu_payload, pb_size, d_robo_mode, d_tone_info, d_code_rate);
 
     DEBUG_ECHO("Encoding frame control (SOF)...")
     // Encode frame control
-    vector_int mpdu_fc = create_sof_frame_control(payload_symbols.size(), d_robo_mode, d_modulation, pb_size);
+    vector_int mpdu_fc = create_sof_frame_control(payload_symbols.size(), d_robo_mode, pb_size);
     DEBUG_VECTOR(mpdu_fc);
     vector_symbol fc_symbols = create_frame_control_symbol(mpdu_fc);
 
@@ -195,7 +199,7 @@ vector_float phy_service::create_sound_ppdu(robo_mode_t robo_mode) {
     // Encode payload blocks
     assert (robo_mode == MINI_ROBO || robo_mode == STD_ROBO); // Only robo mode is supported in sound mpdu
     vector_symbol payload_symbols;
-    PbSize pb_size = PB520;
+    pb_size_t pb_size = PB520;
     if (robo_mode == MINI_ROBO) {
         payload_symbols = SOUND_PB136;
         pb_size = PB136;
@@ -225,7 +229,7 @@ vector_float phy_service::create_sound_ppdu(robo_mode_t robo_mode) {
     return datastream;
 }    
 
-vector_int phy_service::create_sof_frame_control (unsigned int n_symbols, robo_mode_t robo_mode, modulation_type modulation, PbSize pb_size)  {
+vector_int phy_service::create_sof_frame_control (unsigned int n_symbols, robo_mode_t robo_mode, pb_size_t pb_size)  {
     vector_int frame_control(FRAME_CONTROL_NBITS,0);
 
     // Set the pbsz bit
@@ -250,19 +254,7 @@ vector_int phy_service::create_sof_frame_control (unsigned int n_symbols, robo_m
         case STD_ROBO: tmi=0; break;
         case HS_ROBO: tmi=1; break;
         case MINI_ROBO: tmi=2; break;
-        case NO_ROBO: 
-            switch (modulation) {
-                case BPSK: tmi = 3; break;
-                case QPSK: tmi = 4; break;
-                case QAM8: tmi = 5; break;
-                case QAM16: tmi = 6; break;
-                case QAM64: tmi = 7; break;
-                case QAM256: tmi = 8; break;
-                case QAM1024: tmi = 9; break;
-                case QAM4096: tmi = 10; break;
-            }
-            break;
-        default: tmi=0; break;
+        case NO_ROBO: tmi=4; break;
     }
     set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH, tmi);
     
@@ -300,7 +292,7 @@ vector_int phy_service::create_sack_frame_control (const vector_int sackd)  {
 }
 
 
-vector_int phy_service::create_sound_frame_control (unsigned int n_symbols, PbSize pb_size)  {
+vector_int phy_service::create_sound_frame_control (unsigned int n_symbols, pb_size_t pb_size)  {
     vector_int frame_control(FRAME_CONTROL_NBITS,0);
 
     // Set the pbsz bit
@@ -491,7 +483,7 @@ unsigned long phy_service::crc24(const vector_int &bit_vector) {
     return (crc ^ 0xffffff);
 }    
 
-vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &payload_bits, PbSize pb_size, robo_mode_t robo_mode, code_rate rate, modulation_type modulation) {
+vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &payload_bits, pb_size_t pb_size, robo_mode_t robo_mode, phy_service::tone_info_t tone_info, code_rate rate) {
     // Determine number of blocks and blocks size
     int block_n_bits = (pb_size == PB520) ? 520*8 : 136*8;
     assert (pb_size == PB520 || pb_size == PB136); // Cannot have payload blocks of 16 octets
@@ -501,11 +493,8 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
 
     int block_size = calc_interleaved_block_size(robo_mode, rate, pb_size);
     // Encode blocks
-    phy_service::carriers_bitloading_t carriers_bitloading;
-    if (robo_mode == NO_ROBO)
-        carriers_bitloading = build_broadcast_carriers(modulation);
-    else {
-        carriers_bitloading = calc_robo_carriers(robo_mode);
+    if (robo_mode != NO_ROBO) {
+        tone_info = calc_robo_carriers(robo_mode);
         rate = RATE_1_2;
     }
 
@@ -537,11 +526,11 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
     }
 
     // Mapping and split to symbols
-    return modulate(encoded_payload_bits, carriers_bitloading);
+    return modulate(encoded_payload_bits, tone_info);
 }
 
-vector_symbol phy_service::create_payload_symbols(const vector_int &payload_bits, PbSize pb_size, robo_mode_t robo_mode, code_rate rate, modulation_type modulation) {
-    vector_symbol_freq symbols_freq = create_payload_symbols_freq(payload_bits, pb_size, robo_mode, rate, modulation);
+vector_symbol phy_service::create_payload_symbols(const vector_int &payload_bits, pb_size_t pb_size, robo_mode_t robo_mode, phy_service::tone_info_t tone_info, code_rate rate) {
+    vector_symbol_freq symbols_freq = create_payload_symbols_freq(payload_bits, pb_size, robo_mode, tone_info, rate);
 
     // Perform IFFT to get a time domain symbol
     vector_symbol symbols(symbols_freq.size());
@@ -608,7 +597,7 @@ void phy_service::init_turbo_codec() {
     d_turbo_codec.set_parameters(gen, gen, 4, interleaver_sequence_bvec, puncture_matrix, 4, "LOGMAX", 1.0, true,  itpp::LLR_calc_unit());
 }
 
-vector_int phy_service::tc_encoder(const vector_int &bitstream, PbSize pb_size, code_rate rate) {
+vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_size, code_rate rate) {
     itpp::bmat puncture_matrix;
     assert (rate == RATE_1_2); // Only Rate = 1/2 is supported in the encoder/decoder
     if (rate == RATE_1_2)
@@ -658,7 +647,7 @@ vector_int phy_service::tc_encoder(const vector_int &bitstream, PbSize pb_size, 
     return parity; */
 }
 
-vector_int phy_service::tc_decoder(const vector_float &received_info, const vector_float &received_parity, PbSize pb_size, code_rate rate) {
+vector_int phy_service::tc_decoder(const vector_float &received_info, const vector_float &received_parity, pb_size_t pb_size, code_rate rate) {
     itpp::bmat puncture_matrix;
     assert (rate == RATE_1_2); // Only Rate = 1/2 is supported in the encoder/decoder
     if (rate == RATE_1_2)
@@ -712,7 +701,7 @@ vector_int phy_service::to_vector_int (const itpp::bvec in) {
     return out;
 }
 
-vector_int phy_service::consistuent_encoder(const vector_int& in, PbSize pb_size) {
+vector_int phy_service::consistuent_encoder(const vector_int& in, pb_size_t pb_size) {
     int s1 = 0;
     int s2 = 0;
     int s3 = 0;
@@ -824,7 +813,7 @@ std::array<vector_int, 3>  phy_service::calc_turbo_interleaver_sequence(){
 }
 
 
-vector_int phy_service::turbo_interleaver(const vector_int &bitstream, PbSize pb_size){
+vector_int phy_service::turbo_interleaver(const vector_int &bitstream, pb_size_t pb_size){
 
     int N, L, I, x;
     const int *S;
@@ -855,7 +844,7 @@ vector_int phy_service::turbo_interleaver(const vector_int &bitstream, PbSize pb
     return out;
 }
 
-vector_int phy_service::channel_interleaver(const vector_int& bitstream, const vector_int& parity_bitstream, PbSize pb_size, code_rate rate) {
+vector_int phy_service::channel_interleaver(const vector_int& bitstream, const vector_int& parity_bitstream, pb_size_t pb_size, code_rate rate) {
     int step_size = CHANNEL_INTERLEAVER_STEPSIZE[pb_size][rate];
     int offset = CHANNEL_INTERLEAVER_OFFSET[pb_size][rate];
     int info_row_no = 0;
@@ -962,9 +951,9 @@ vector_int phy_service::robo_interleaver(const vector_int& bitstream, robo_mode_
     return robo_bitstream;
 }
 
-phy_service::carriers_bitloading_t phy_service::calc_robo_carriers (robo_mode_t robo_mode) {
+phy_service::tone_info_t phy_service::calc_robo_carriers (robo_mode_t robo_mode) {
     // Create basic ROBO carriers consists of broadcast mask and QPSK
-    phy_service::carriers_bitloading_t carriers_bitloading = BROADCAST_CARRIERS;
+    tone_info_t tone_info = BROADCAST_CARRIERS;
 
     int n_copies = 0;
 
@@ -981,17 +970,17 @@ phy_service::carriers_bitloading_t phy_service::calc_robo_carriers (robo_mode_t 
     unsigned int n_carriers_robo = n_copies * (n_carriers / n_copies);
 
     // Mark the unused carriers as masked
-    unsigned int j = 0, i = carriers_bitloading.modulation.size()-1;
+    unsigned int j = 0, i = tone_info.tone_map.size()-1;
     while (j<(n_carriers-n_carriers_robo)) {
-        if (carriers_bitloading.modulation[i] != NULLED ) {
-            carriers_bitloading.modulation[i] = NULLED;
+        if (tone_info.tone_map[i] != NULLED ) {
+            tone_info.tone_map[i] = NULLED;
             j++;
         }
         i--;
     }
-    update_carriers_capacity(carriers_bitloading);
+    update_tone_info_capacity(tone_info);
 
-    return carriers_bitloading; 
+    return tone_info; 
 }
 
 void phy_service::calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad) {
@@ -1023,9 +1012,9 @@ void phy_service::calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_ra
     return;
 }
 
-vector_symbol_freq phy_service::modulate(const vector_int& bits, const phy_service::carriers_bitloading_t& carriers_bitloading) {
+vector_symbol_freq phy_service::modulate(const vector_int& bits, const phy_service::tone_info_t& tone_info) {
     // Calculate number of symbols needed
-    int n_symbols = (bits.size() % carriers_bitloading.capacity) ? bits.size() / carriers_bitloading.capacity + 1 : bits.size() / carriers_bitloading.capacity;
+    int n_symbols = (bits.size() % tone_info.capacity) ? bits.size() / tone_info.capacity + 1 : bits.size() / tone_info.capacity;
     vector_symbol_freq symbols_freq(n_symbols);
     // Perform mapping
     vector_int::const_iterator it = bits.cbegin();
@@ -1035,8 +1024,8 @@ vector_symbol_freq phy_service::modulate(const vector_int& bits, const phy_servi
         for (int i=0; i<=NUMBER_OF_CARRIERS; i++) {
             if (!TRANSMIT_MASK[i]) // if regulations do not allow the carrier to transmit
                 continue;
-            else if (carriers_bitloading.modulation[i] != NULLED) {  // If carrier is ON
-                ModulationMap modulation_map = MODULATION_MAP[carriers_bitloading.modulation[i]];
+            else if (tone_info.tone_map[i] != NULLED) {  // If carrier is ON
+                modulation_map_t modulation_map = MODULATION_MAP[tone_info.tone_map[i]];
                 int n_bits = modulation_map.n_bits;
                 int decimal = 0;
                 int bit_no = 0;
@@ -1270,7 +1259,7 @@ vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) 
     // Resolve frame control symbol
     iter += GUARD_INTERVAL_PAYLOAD;
     
-    // Resolve payload symbols    
+    // Slice to symbols    
     vector_symbol symbols(d_frame_parameters.n_expected_symbols);
     for (unsigned int i = 0; i < d_frame_parameters.n_expected_symbols; i++) {
         vector_float payload_symbol(NUMBER_OF_CARRIERS*2);
@@ -1282,18 +1271,27 @@ vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) 
         iter += NUMBER_OF_CARRIERS * 2 + GUARD_INTERVAL_PAYLOAD;
     }
 
+    // Calc the freq domain symbols
+    vector_symbol_freq symbols_freq(symbols.size());
+    vector_symbol_freq::iterator symbols_freq_iter = symbols_freq.begin();
+    for (vector_symbol::const_iterator symbols_iter = symbols.begin(); symbols_iter != symbols.end(); symbols_iter++, symbols_freq_iter++) {
+        // Perform FFT to get the freq domain of the received signal
+        *symbols_freq_iter = fft_real(symbols_iter->begin(), symbols_iter->end());
+        DEBUG_VECTOR((*symbols_freq_iter));
+    }
+
     switch (d_frame_parameters.type) {
-        case (MPDU_TYPE_SOF): {
+        case (MPDU_TYPE_SOF):
+        case (MPDU_TYPE_SOUND): {
             // Determine the decoded blocks size
             int pb_n_bits = (d_frame_parameters.pb_size == PB520) ? 520*8 : 136*8;
             assert (d_frame_parameters.pb_size == PB520 || d_frame_parameters.pb_size == PB136); // Cannot have payload blocks of 16 octets
 
-            vector_float blocks_bits(d_frame_parameters.carriers_bitloading.capacity * symbols.size());
+            vector_float blocks_bits(d_frame_parameters.tone_info.capacity * symbols.size());
             vector_float::iterator blocks_bits_iter = blocks_bits.begin();
-            for (vector_symbol::iterator symbol_iter = symbols.begin(); symbol_iter != symbols.end(); symbol_iter++) {
-                DEBUG_VECTOR((*symbol_iter));
+            for (vector_symbol_freq::iterator symbol_freq_iter = symbols_freq.begin(); symbol_freq_iter != symbols_freq.end(); symbol_freq_iter++) {
                 // Demodulate 
-                vector_float new_bits = symbol_demodulate(symbol_iter->begin(), symbol_iter->end(), d_frame_parameters.carriers_bitloading, d_broadcast_channel_response);
+                vector_float new_bits = symbol_demodulate(symbol_freq_iter->begin(), d_frame_parameters.tone_info, d_broadcast_channel_response);
                 blocks_bits_iter = std::copy(new_bits.begin(), new_bits.end(), blocks_bits_iter);
             }
             DEBUG_VECTOR(blocks_bits);
@@ -1331,32 +1329,18 @@ vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) 
                 blocks_bits_iter += d_frame_parameters.interleaved_block_size;
             }
             DEBUG_VECTOR(payload_bits);
+
+            vector_symbol_freq symbols_freq_ref = create_payload_symbols_freq(payload_bits, d_frame_parameters.pb_size, d_frame_parameters.robo_mode, d_frame_parameters.tone_info, d_frame_parameters.rate);
+            estimate_channel_gain(symbols_freq.begin(), symbols_freq.end(), symbols_freq_ref.begin(), d_broadcast_channel_response);
+            DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
             return payload_bits;
             break;
         }
-        case (MPDU_TYPE_SOUND): {
-            vector_symbol_freq symbols_freq(symbols.size());
-            vector_symbol_freq::iterator symbols_freq_iter = symbols_freq.begin();
-            for (vector_symbol::iterator symbols_iter = symbols.begin(); symbols_iter != symbols.end(); symbols_iter++, symbols_freq_iter++) {
-                // Perform FFT to get the freq domain of the received signal
-                *symbols_freq_iter = fft_real(symbols_iter->begin(), symbols_iter->end());
-                DEBUG_VECTOR((*symbols_freq_iter));
-            }
-            // Get the expected sound symbol
-            vector_symbol_freq ref;
-            if (d_frame_parameters.pb_size == PB520) {
-                ref = SOUND_PB520_FREQ;
-            } else if (d_frame_parameters.pb_size == PB136) {
-                ref = SOUND_PB136_FREQ;
-            }
 
-            estimate_channel_gain(symbols_freq.begin(), symbols_freq.end(), ref.begin(), d_broadcast_channel_response);
-            DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
-            break;
-        }
         default:
             break;
     }
+
     return vector_int(0);
 }
 
@@ -1385,7 +1369,7 @@ void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_
     int K = (N - M) / R + 1; // number of overlapping windows fits in signal
     vector_float w(M); // signal segment multiplied by hamming window
     vector_complex fft;
-    d_noise_psd = vector_float(M/2 + 1); // init vector to zero
+    d_noise_psd.fill(0); // init vector to zero
     for (int k=0; k<K; k++) {
         vector_float::const_iterator iter = iter_begin + k*R;
         for (int i=0; i<M; i++)
@@ -1396,26 +1380,27 @@ void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_
            d_noise_psd[i] = d_noise_psd[i] + std::norm(fft[i]) / K;
    }
    DEBUG_VECTOR(d_noise_psd);
-   return;
-}
 
-vector_float phy_service::calculate_snr() {
-    vector_float snr(d_noise_psd.size());
+    // SNR calculation:
     // Payload carrier transmit average power: T = (N/2 * p)^2  (p is the transmitter amplifier)
     // Payload carrier received power is (H*N/2)^2 where H is the carrier (estimated) gain which implicetly includes the transmitted amplifer p
     // Payload carrier SNR = (H*T)^2 / (noise_var)^2 where noise_var is the estimated noise variance for that carrier
     for (int i=0; i<NUMBER_OF_CARRIERS+1; i++)
         if (d_broadcast_channel_response.mask[i])
-            snr[i] = std::norm(d_broadcast_channel_response.carriers_gain[i] * (float)NUMBER_OF_CARRIERS) / d_noise_psd[i];
-    return snr;
+            d_snr[i] = std::norm(d_broadcast_channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS) / d_noise_psd[i];
+        else
+            d_snr[i] = 0;
+   DEBUG_VECTOR(d_snr);
+    
+    return;
 }
 
-vector_int phy_service::calculate_bitloading(float P_t) {
+tone_map_t phy_service::calculate_tone_map(float P_t) {
     typedef std::pair<float,int> carrier_ber_t;
 
-    vector_float snr(calculate_snr());
+    tone_map_t tone_map;
+    tone_map.fill(NULLED);
     // Init all carriers bitloading to QAM4096
-    vector_int carriers_bitloading(NUMBER_OF_CARRIERS+1, NULLED);
     std::priority_queue<carrier_ber_t> bitloadings_set;
     modulation_type m = QAM4096;
     int b = MODULATION_MAP[m].n_bits;
@@ -1425,14 +1410,14 @@ vector_int phy_service::calculate_bitloading(float P_t) {
     int P_bar_denom = 0;
     for (int i=0; i<NUMBER_OF_CARRIERS+1; i++) {
         if (d_broadcast_channel_response.mask[i]) {
-            float erfc_result = std::erfc(sqrt(3 * snr[i] / (M - 1) / 2));
+            float erfc_result = std::erfc(sqrt(3 * d_snr[i] / (M - 1) / 2));
             float ser = 2 * A * erfc_result * (1 - A * erfc_result / 2); // calculate symbol error rate (SER) for the carrier
             P_bar_nom += ser;   // sum(P[i]*b[i]) 
             P_bar_denom += b;   // sum(b[i])
             carrier_ber_t carrier_ber;
             carrier_ber = std::make_pair(ser/b, i); // ser/b is the bit error rate
             bitloadings_set.push(carrier_ber);
-            carriers_bitloading[i] = m;
+            tone_map[i] = m;
         }
     }
 
@@ -1441,9 +1426,9 @@ vector_int phy_service::calculate_bitloading(float P_t) {
         carrier_ber_t carrier_ber = bitloadings_set.top(); // get the bitloading of the worst carrier
         float ber = carrier_ber.first;
         int i = carrier_ber.second;
-        float new_ser;
+        float new_ser = 0;
         bitloadings_set.pop(); // remove it from the set
-        m = (modulation_type)carriers_bitloading[i];
+        m = tone_map[i];
         b = MODULATION_MAP[m].n_bits;
         P_bar_nom -= b * ber; // substract the removed SER from the sum
         P_bar_denom -= b;
@@ -1453,14 +1438,14 @@ vector_int phy_service::calculate_bitloading(float P_t) {
             M = 1 << b;
             switch (m) {
                 case BPSK: {
-                    float f = std::erfc(sqrt(snr[i])); 
+                    float f = std::erfc(sqrt(d_snr[i])); 
                     new_ser = f / 2; 
                     break;
                 }
                 case QAM8:
                 {
-                    float f1 = std::erfc(sqrt(snr[i]) * MODULATION_MAP[m].scale); 
-                    float f2 = std::erfc(sqrt(snr[i]) * MODULATION_MAP[m].scale * 1.29); 
+                    float f1 = std::erfc(sqrt(d_snr[i]) * MODULATION_MAP[m].scale); 
+                    float f2 = std::erfc(sqrt(d_snr[i]) * MODULATION_MAP[m].scale * 1.29); 
                     new_ser = 3 / 4 * f1 * (1 - f2) + f2 / 2;
                     break;
                 }
@@ -1470,7 +1455,7 @@ vector_int phy_service::calculate_bitloading(float P_t) {
                 case QAM256:
                 case QAM1024:
                 case QAM4096: {
-                    float f = std::erfc(sqrt(snr[i])*MODULATION_MAP[m].scale); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2) 
+                    float f = std::erfc(sqrt(d_snr[i])*MODULATION_MAP[m].scale); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2) 
                     A = 1 - 1 / sqrt(M);
                     new_ser = 2 * A * f * (1 - A * f / 2); // calculate symbol error rate (SER) for the carrier
                     break;
@@ -1482,19 +1467,18 @@ vector_int phy_service::calculate_bitloading(float P_t) {
             bitloadings_set.push(carrier_ber); // add the bitloading back to the set
             P_bar_nom += new_ser; // add the new BER to the sum
             P_bar_denom += b;
-            carriers_bitloading[i] = m;
+            tone_map[i] = m;
         } else {
-            carriers_bitloading[i] = NULLED;
+            tone_map[i] = NULLED;
         }
     }
-    DEBUG_VECTOR(carriers_bitloading);
-    DEBUG_VAR(P_bar_denom);
-    return carriers_bitloading;
+    DEBUG_VECTOR(tone_map);
+    return tone_map;
 }
 
-void phy_service::set_modulation(modulation_type modulation) {
-    assert(modulation != NULLED);
-    d_modulation = modulation;
+void phy_service::set_tone_map(tone_map_t tone_map) {
+    d_tone_info.tone_map = tone_map;
+    update_tone_info_capacity(d_tone_info);
 }
 
 void phy_service::set_code_rate(code_rate rate) {
@@ -1513,8 +1497,12 @@ int phy_service::get_ppdu_payload_length() {
     return d_frame_parameters.ppdu_payload_size;
 }
 
-MpduType phy_service::get_frame_type() {
+mpdu_type_t phy_service::get_frame_type() {
     return d_frame_parameters.type;
+}
+
+vector_float phy_service::get_snr() {
+    return vector_float(d_snr.begin(), d_snr.end());
 }
 
 vector_int phy_service::get_sackd() {
@@ -1548,8 +1536,8 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
 
             int pbsz = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH);
             switch (pbsz) {
-                case 0: frame_parameters.pb_size = PB520; DEBUG_ECHO("PbSize = PB520"); break;
-                case 1: frame_parameters.pb_size = PB136; DEBUG_ECHO("PbSize = PB136"); break;
+                case 0: frame_parameters.pb_size = PB520; DEBUG_ECHO("pb_size_t = PB520"); break;
+                case 1: frame_parameters.pb_size = PB136; DEBUG_ECHO("pb_size_t = PB136"); break;
             }
 
             int numsym = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_OFFSET, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_WIDTH);
@@ -1564,15 +1552,7 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
                 case 0: frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("Robo Mode = STD_ROBO"); break;
                 case 1: frame_parameters.robo_mode = HS_ROBO; DEBUG_ECHO("Robo Mode = HS_ROBO"); break;
                 case 2: frame_parameters.robo_mode = MINI_ROBO; DEBUG_ECHO("Robo Mode = MINI_ROBO"); break;
-                case 3: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=BPSK; break;
-                case 4: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QPSK; break;
-                case 5: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM8; break;
-                case 6: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM16; break;
-                case 7: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM64; break;
-                case 8: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM256; break;
-                case 9: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM1024; break;
-                case 10: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QAM4096; break;
-                default: frame_parameters.robo_mode = NO_ROBO; frame_parameters.modulation=QPSK; break;
+                default: frame_parameters.robo_mode = NO_ROBO; frame_parameters.tone_info = d_tone_info; break;
             }
 
             int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH);
@@ -1602,8 +1582,8 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
 
             int pbsz = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH);
             switch (pbsz) {
-                case 0: frame_parameters.pb_size = PB520; frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("PbSize = PB520"); break;
-                case 1: frame_parameters.pb_size = PB136; frame_parameters.robo_mode = MINI_ROBO; DEBUG_ECHO("PbSize = PB136"); break;
+                case 0: frame_parameters.pb_size = PB520; frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("pb_size_t = PB520"); break;
+                case 1: frame_parameters.pb_size = PB136; frame_parameters.robo_mode = MINI_ROBO; DEBUG_ECHO("pb_size_t = PB136"); break;
             }
 
             int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH);
@@ -1626,13 +1606,11 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
     // If this frame contains a payload, calculate these parameters
     if (frame_parameters.has_payload) {
         if (frame_parameters.robo_mode != NO_ROBO)
-            frame_parameters.carriers_bitloading = calc_robo_carriers(frame_parameters.robo_mode);
-        else 
-            frame_parameters.carriers_bitloading = build_broadcast_carriers(frame_parameters.modulation);
+            frame_parameters.tone_info = calc_robo_carriers(frame_parameters.robo_mode);
         frame_parameters.rate = d_code_rate;
         frame_parameters.encoded_block_size = calc_encoded_block_size(frame_parameters.rate, frame_parameters.pb_size);
         frame_parameters.interleaved_block_size = calc_interleaved_block_size(frame_parameters.robo_mode, frame_parameters.rate, frame_parameters.pb_size);
-        int number_of_blocks = (frame_parameters.n_expected_symbols * frame_parameters.carriers_bitloading.capacity) / frame_parameters.interleaved_block_size;
+        int number_of_blocks = (frame_parameters.n_expected_symbols * frame_parameters.tone_info.capacity) / frame_parameters.interleaved_block_size;
         frame_parameters.mpdu_payload_size =  number_of_blocks * calc_block_size(frame_parameters.pb_size);
         frame_parameters.ppdu_payload_size = frame_parameters.n_expected_symbols * (NUMBER_OF_CARRIERS * 2 + GUARD_INTERVAL_PAYLOAD);
     } else {
@@ -1645,8 +1623,10 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
 vector_int phy_service::resolve_frame_control_symbol (const vector_float& fc_data) {
     vector_float fc_descaled(fc_data);
 
+    vector_complex symbol = fft_real(fc_data.begin(), fc_data.end());
+
     // Demodulate
-    vector_float demodulated = symbol_demodulate(fc_data.begin(), fc_data.end(), BROADCAST_CARRIERS, d_broadcast_channel_response);
+    vector_float demodulated = symbol_demodulate(symbol.begin(), BROADCAST_CARRIERS, d_broadcast_channel_response);
     DEBUG_VECTOR(demodulated);
 
     // Undo the diversity copy
@@ -1676,20 +1656,18 @@ unsigned long phy_service::get_field(const vector_int &bit_vector, int bit_offse
     return value;
 }
 
-vector_float phy_service::symbol_demodulate (vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end, const carriers_bitloading_t& carriers_bitloading, const channel_response &channel_response) {
-    vector_float soft_bits(carriers_bitloading.capacity);
+vector_float phy_service::symbol_demodulate (vector_complex::const_iterator iter, const phy_service::tone_info_t& tone_info, const channel_response &channel_response) {
+    vector_float soft_bits(tone_info.capacity);
     vector_float::iterator soft_bits_iter = soft_bits.begin();
-    vector_complex ofdm_symbol = fft_real(iter_begin, iter_end); // Perform FFT to get a freq domain signal
-    DEBUG_VECTOR (ofdm_symbol);
-    //int j = 0;
     for (int i=0; i<=NUMBER_OF_CARRIERS; i++) { 
-        if (carriers_bitloading.modulation[i] != NULLED) {  // If carrier is ON
-            complex r = ofdm_symbol[i] / channel_response.carriers[i] / (float)NUMBER_OF_CARRIERS;
+        if (tone_info.tone_map[i] != NULLED) {  // If carrier is ON
+            complex r = *iter / channel_response.carriers[i] / (float)NUMBER_OF_CARRIERS;
             complex p = ANGLE_NUMBER_TO_VALUE[CARRIERS_ANGLE_NUMBER[i]*2]; // Convert the angle number to its value
             complex mapped_value(r.real() * p.real() + r.imag() * p.imag(), 
                                              -r.real() * p.imag() + r.imag() * p.real()); // Rotate channel value by minus angel_number to get the original mapped value
-            soft_bits_iter = demodulate(mapped_value, carriers_bitloading.modulation[i], soft_bits_iter);
+            soft_bits_iter = demodulate(mapped_value, tone_info.tone_map[i], 2 * d_noise_psd[i] / channel_response.carriers_gain[i] / (float)NUMBER_OF_CARRIERS / channel_response.carriers_gain[i] / (float)NUMBER_OF_CARRIERS, soft_bits_iter);
         }
+        iter++;
     }
     DEBUG_VECTOR(soft_bits);
     return soft_bits;
@@ -1697,30 +1675,30 @@ vector_float phy_service::symbol_demodulate (vector_float::const_iterator iter_b
 
 
 // Calculate number of bits per symbol
-void phy_service::update_carriers_capacity(phy_service::carriers_bitloading_t& carriers_bitloading) {
-    carriers_bitloading.capacity = 0;
+void phy_service::update_tone_info_capacity(tone_info_t& tone_info) {
+    tone_info.capacity = 0;
     for (unsigned int i = 0; i< NUMBER_OF_CARRIERS+1; i++)
-        carriers_bitloading.capacity += MODULATION_MAP[carriers_bitloading.modulation[i]].n_bits;
+        tone_info.capacity += MODULATION_MAP[tone_info.tone_map[i]].n_bits;
 }
 
-vector_float::iterator phy_service::demodulate(const complex &value, modulation_type modulation, vector_float::iterator iter) {
-    ModulationMap modulation_map = MODULATION_MAP[modulation];
+vector_float::iterator phy_service::demodulate(const complex &value, modulation_type modulation, float n0, vector_float::iterator iter) {
+    modulation_map_t modulation_map = MODULATION_MAP[modulation];
     switch (modulation) {
         case NULLED: {
             break;
         }
         case BPSK: {
-            *iter++ = -4 * std::real(value) * modulation_map.scale / d_n0;        
+            *iter++ = -4 * std::real(value) * modulation_map.scale / n0;        
             break;
         }
         case QPSK: {
-            *iter++ = -4 * std::real(value) * modulation_map.scale / d_n0;
-            *iter++ = -4 * std::imag(value) * modulation_map.scale / d_n0;
+            *iter++ = -4 * std::real(value) * modulation_map.scale / n0;
+            *iter++ = -4 * std::imag(value) * modulation_map.scale / n0;
             break;
         }
         case QAM8: {
-            iter = demodulate_helper(modulation_map.n_bits-1, std::real(value), modulation_map.scale, d_n0, iter);
-            *iter++ = -4 * std::imag(value) * 1.29 * modulation_map.scale / d_n0;
+            iter = demodulate_helper(modulation_map.n_bits-1, std::real(value), modulation_map.scale, n0, iter);
+            *iter++ = -4 * std::imag(value) * 1.29 * modulation_map.scale / n0;
             break;
         }
         case QAM16: 
@@ -1738,14 +1716,14 @@ vector_float::iterator phy_service::demodulate(const complex &value, modulation_
             //     symbols(i) = modulation_map.map[i] * modulation_map.scale;
             // }
             // qam16.set(symbols,bits2symbols);
-            // itpp::vec b = qam16.demodulate_soft_bits(s, d_n0, itpp::APPROX);
+            // itpp::vec b = qam16.demodulate_soft_bits(s, n0, itpp::APPROX);
             // for (int i = b.size() - 1; i >= 0; i--) {
             //     *iter = b(i);
             //     iter++;
             // }
             // std::cout << "s: " << s << ", b: " << b << std::endl;
-            iter = demodulate_helper(modulation_map.n_bits/2, std::real(value), modulation_map.scale, d_n0, iter);
-            iter = demodulate_helper(modulation_map.n_bits/2, std::imag(value), modulation_map.scale, d_n0, iter);
+            iter = demodulate_helper(modulation_map.n_bits/2, std::real(value), modulation_map.scale, n0, iter);
+            iter = demodulate_helper(modulation_map.n_bits/2, std::imag(value), modulation_map.scale, n0, iter);
             break;           
         }
     }
@@ -1820,7 +1798,7 @@ vector_float phy_service::combine_copies(vector_float& bitstream, int offset, in
     return decopier_output;
 }
 
-vector_float phy_service::channel_deinterleaver(const vector_float& bitstream, vector_float& parity_bitstream, PbSize pb_size, code_rate rate) {
+vector_float phy_service::channel_deinterleaver(const vector_float& bitstream, vector_float& parity_bitstream, pb_size_t pb_size, code_rate rate) {
     int step_size = CHANNEL_INTERLEAVER_STEPSIZE[pb_size][rate];
     int offset = CHANNEL_INTERLEAVER_OFFSET[pb_size][rate];
     int info_row_no = 0;
@@ -1949,9 +1927,7 @@ vector_float phy_service::robo_deinterleaver(const vector_float& bitstream, int 
     return combined_copy;
 }
 
-
-
-int phy_service::calc_interleaved_block_size(robo_mode_t robo_mode, code_rate rate, PbSize pb_size) {
+int phy_service::calc_interleaved_block_size(robo_mode_t robo_mode, code_rate rate, pb_size_t pb_size) {
     int encoded_pb_n_bits = calc_encoded_block_size(rate, pb_size);
 
     // Determine parameters for ROBO mode
@@ -1963,14 +1939,14 @@ int phy_service::calc_interleaved_block_size(robo_mode_t robo_mode, code_rate ra
     return encoded_pb_n_bits;
 }
 
-inline int phy_service::calc_block_size(PbSize pb_size) {
+inline int phy_service::calc_block_size(pb_size_t pb_size) {
     if (pb_size == PB520) 
         return 520*8;
     else if (pb_size == PB136)
         return 136*8;
     else return 16*8;
 }
-int phy_service::calc_encoded_block_size(code_rate rate, PbSize pb_size) {
+int phy_service::calc_encoded_block_size(code_rate rate, pb_size_t pb_size) {
     // Determine number of bits in original block
     int block_n_bits = (pb_size == PB520) ? 520*8 : 136*8;
     assert (pb_size == PB520 || pb_size == PB136); // Cannot have payload blocks of 16 octets
@@ -1991,15 +1967,15 @@ int phy_service::max_blocks (robo_mode_t robo_mode, code_rate rate, modulation_t
     float symbol_durarion = NUMBER_OF_CARRIERS * 2.0 / SAMPLE_RATE; // one symbol duration (microseconds)
     float max_frame_duration = (((1 << IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH) - 1) * 1.28 - IEEE1901_RIFS_DEFAULT); // maximum of all symbols duration allowed (microseconds)
     int max_n_symbols = max_frame_duration / symbol_durarion; // maximum number of symbols
-    int max_n_bits = max_n_symbols * build_broadcast_carriers(modulation).capacity; // maximum number of bits
+    int max_n_bits = max_n_symbols * build_broadcast_tone_map(modulation).capacity; // maximum number of bits
     return max_n_bits / encoded_pb_n_bits; // maximum number of PB520 blocks
 }
 
-phy_service::carriers_bitloading_t phy_service::build_broadcast_carriers(modulation_type modulation) {
-    phy_service::carriers_bitloading_t broadcast_carriers;
+phy_service::tone_info_t phy_service::build_broadcast_tone_map(modulation_type modulation) {
+    tone_info_t broadcast_carriers;
     for (size_t i=0; i<CARRIERS_BROADCAST_MASK.size(); i++)
-        broadcast_carriers.modulation[i] = CARRIERS_BROADCAST_MASK[i] ? modulation : NULLED;
-    update_carriers_capacity(broadcast_carriers);
+        broadcast_carriers.tone_map[i] = CARRIERS_BROADCAST_MASK[i] ? modulation : NULLED;
+    update_tone_info_capacity(broadcast_carriers);
     return broadcast_carriers;
 }
 
@@ -2050,7 +2026,8 @@ void phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vecto
 
 void phy_service::estimate_channel_gain(vector_symbol_freq::const_iterator iter, vector_symbol_freq::const_iterator iter_end, vector_symbol_freq::const_iterator ref_iter, channel_response &channel_response) {
     int nsymbols = iter_end - iter;
-    channel_response.carriers_gain.fill(0); // zero the carriers_gain array
+    if (nsymbols) 
+        channel_response.carriers_gain.fill(0); // zero the carriers_gain array
     while (iter != iter_end) {
         assert (iter->end() - iter->begin() == (unsigned int)channel_response.carriers_gain.size());
         int i = 0;
@@ -2090,13 +2067,13 @@ void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, v
     DEBUG_VECTOR(x);
     DEBUG_VECTOR(y);
 
-    std::vector<SplineSet> splineSet = spline(x,y);
+    std::vector<spline_set_t> spline_set = spline(x,y);
     for (unsigned int i = 0, j = 0; i < channel_response.carriers.size(); i++) {
         if (channel_response.mask[i]) {
-            while (j < splineSet.size()-1 && splineSet[j+1].x <= i) j++;
-            float dx = i - splineSet[j].x;
-            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0,splineSet[j].a + splineSet[j].b * dx + splineSet[j].c * dx * dx +
-                                                      splineSet[j].d * dx * dx * dx));
+            while (j < spline_set.size()-1 && spline_set[j+1].x <= i) j++;
+            float dx = i - spline_set[j].x;
+            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0,spline_set[j].a + spline_set[j].b * dx + spline_set[j].c * dx * dx +
+                                                      spline_set[j].d * dx * dx * dx));
         }
     } 
 }
@@ -2110,7 +2087,7 @@ std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming
     return window;
 }
 
-std::vector<phy_service::SplineSet> phy_service::spline(vector_float &x, vector_float &y)
+std::vector<phy_service::spline_set_t> phy_service::spline(vector_float &x, vector_float &y)
 {
     int n = x.size()-1;
     vector_float a;
@@ -2152,7 +2129,7 @@ std::vector<phy_service::SplineSet> phy_service::spline(vector_float &x, vector_
         d[j] = (c[j+1]-c[j])/(float)3/h[j];
     }
 
-    std::vector<SplineSet> output_set(n);
+    std::vector<spline_set_t> output_set(n);
     for(int i = 0; i < n; ++i)
     {
         output_set[i].a = a[i];

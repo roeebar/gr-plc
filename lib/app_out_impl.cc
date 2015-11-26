@@ -14,16 +14,16 @@ namespace gr {
   namespace plc {
 
     app_out::sptr
-    app_out::make(std::vector<uint8_t> dest, bool debug)
+    app_out::make(bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new app_out_impl(dest, debug));
+        (new app_out_impl(debug));
     }
 
     /*
      * The private constructor
      */
-    app_out_impl::app_out_impl(std::vector<uint8_t> dest, bool debug)
+    app_out_impl::app_out_impl(bool debug)
       : gr::block("app_out",
               gr::io_signature::make(1, 1, sizeof(unsigned char)),
               gr::io_signature::make(0, 0, 0)),
@@ -35,9 +35,6 @@ namespace gr {
         message_port_register_in(pmt::mp("mac in"));
 
         d_mac_payload_pmt = pmt::make_u8vector(PAYLOAD_SIZE, 0);
-
-        assert (dest.size() == 6);
-        d_dest_pmt = pmt::mp(std::string((char *)dest.data(),dest.size()));
     }
 
     /*
@@ -70,7 +67,6 @@ namespace gr {
     void app_out_impl::send_payload() {
       // dict
       pmt::pmt_t dict = pmt::make_dict();
-      dict = pmt::dict_add(dict, pmt::mp("dest"), d_dest_pmt);
       // payload
       d_mac_payload_pmt = pmt::init_u8vector(d_mac_payload_offset, d_mac_payload);
 

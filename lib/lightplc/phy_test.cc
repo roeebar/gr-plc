@@ -22,7 +22,6 @@ int main(int argc, char * argv[]) {
     unsigned int seed = 1444438709;
     bool debug_ = false;
     light_plc::robo_mode_t robo_mode = light_plc::NO_ROBO;
-    light_plc::modulation_type modulation = light_plc::QPSK;
     int nblocks = 1;
     float snr = 30;
     bool encode_only = false;
@@ -64,10 +63,6 @@ int main(int argc, char * argv[]) {
     if (robo_mode_str != NULL)
         robo_mode = (light_plc::robo_mode_t)atoi(robo_mode_str);
 
-    char* modulation_str = getCmdOption(argv, argv + argc, "-modulation");
-    if (modulation_str != NULL)
-        modulation = (light_plc::modulation_type)atoi(modulation_str);
-
     char* nblocks_str = getCmdOption(argv, argv + argc, "-nblocks");
     if (nblocks_str != NULL)
         nblocks = atoi(nblocks_str);
@@ -85,12 +80,14 @@ int main(int argc, char * argv[]) {
     char* mode_str = getCmdOption(argv, argv + argc, "-mode");
     if (mode_str == NULL)
         tester.random_test(100, encode_only);
-    else if (std::string(mode_str) == "SOF")
-        tester.test_sof(RATE_1_2, robo_mode, modulation, nblocks, snr, encode_only);
+    else if (std::string(mode_str) == "SOF") {
+        tester.test_sound(STD_ROBO, snr, encode_only);
+        tester.test_sof(RATE_1_2, robo_mode, nblocks, snr, encode_only);
+    }
     else if (std::string(mode_str) == "SOUND")
         tester.test_sound(robo_mode, snr, encode_only);
     else if (std::string(mode_str) == "SOFFILE")
-        tester.encode_to_file(RATE_1_2, robo_mode, modulation, 1, in_filename, out_filename);
+        tester.encode_to_file(RATE_1_2, robo_mode, 1, in_filename, out_filename);
     else if (std::string(mode_str) == "SACK")
         tester.test_sack();
 

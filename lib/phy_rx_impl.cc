@@ -84,8 +84,19 @@ namespace gr {
         if (!pmt::is_symbol(car(msg)))
           return;
         std::string cmd = pmt::symbol_to_string(car(msg));
-        if (cmd == "PHY-SEARCHPPDU")
-          d_receiver_state = RESET;         
+        if (cmd == "PHY-CALCTONEMAP.request") {
+          dout << "PHY Receiver: calculating tone map" << std::endl;
+          light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(0.01);
+          d_phy_service.set_tone_map(tone_map);
+          pmt::pmt_t tone_map_pmt = pmt::make_u8vector(tone_map.size(), 0);
+          size_t len;
+          uint8_t *tone_map_blob = (uint8_t*)pmt::u8vector_writable_elements(tone_map_pmt, len);
+          for (size_t j=0; j<len; j++)
+            tone_map_blob[j] = (uint8_t)tone_map[j];
+          pmt::pmt_t dict = pmt::make_dict();
+          dict = pmt::dict_add(dict, pmt::mp("tone_map"), tone_map_pmt);
+          message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-CALCTONEMAP.response"), dict));
+        }
       }
     }
 
@@ -228,7 +239,7 @@ namespace gr {
               pmt::pmt_t dict = pmt::make_dict();
               dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
               message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOF"), dict));
-              d_receiver_state = CONSUME_SPACE;
+              d_receiver_state = SENSE_SPACE;
             } else if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
               pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_phy_service.get_sackd_size(), 0);
               size_t len;              
@@ -256,7 +267,7 @@ namespace gr {
           if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
             pmt::pmt_t dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
-            d_receiver_state = HALT;
+            d_receiver_state = RESET;
           }
           break;
         }
@@ -270,14 +281,20 @@ namespace gr {
             d_noise[d_inter_frame_space_offset++] = in[i++];
           if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
             // Calculate noise PSD
+            d_phy_service.process_noise(d_noise.begin(), d_noise.end());
+            light_plc::vector_float snr = d_phy_service.get_snr();
+            pmt::pmt_t snr_pmt = pmt::init_f32vector(snr.size(), snr);
+            pmt::pmt_t dict = pmt::make_dict();
+            dict = pmt::dict_add(dict, pmt::mp("snr"), snr_pmt);
+            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSNR"), dict)); // send SNR values to MAC
             float noise_var(0);
             for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
               noise_var += (*iter)*(*iter)/d_phy_service.get_inter_frame_space();
             d_phy_service.set_noise_psd(noise_var * 2);
             dout << "PHY Receiver: state = SENSE_SPACE, length = " << d_phy_service.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
-            pmt::pmt_t dict = pmt::make_dict();
+            dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
-            d_receiver_state = HALT;
+            d_receiver_state = RESET;
           }
           break;
         }

@@ -97,7 +97,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>10e6</value>
+      <value>0</value>
     </param>
   </block>
   <block>
@@ -133,6 +133,49 @@
     <param>
       <key>id</key>
       <value>function_probe_ber</value>
+    </param>
+    <param>
+      <key>poll_rate</key>
+      <value>10</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_function_probe</key>
+    <param>
+      <key>block_id</key>
+      <value>plc_mac_0</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>function_args</key>
+      <value></value>
+    </param>
+    <param>
+      <key>function_name</key>
+      <value>capacity</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(936, 91)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>function_probe_capacity</value>
     </param>
     <param>
       <key>poll_rate</key>
@@ -386,7 +429,50 @@
     </param>
   </block>
   <block>
-    <key>Phy</key>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_capacity</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1088, 91)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value>4,1</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0_1_0</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Capacity (bits per symbol)</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>real</value>
+    </param>
+  </block>
+  <block>
+    <key>PHY</key>
     <param>
       <key>alias</key>
       <value></value>
@@ -405,11 +491,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(417, 232)</value>
+      <value>(673, 656)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -417,7 +503,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>Phy_0</value>
+      <value>PHY_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -429,7 +515,7 @@
     </param>
   </block>
   <block>
-    <key>Phy</key>
+    <key>PHY</key>
     <param>
       <key>alias</key>
       <value></value>
@@ -448,11 +534,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(673, 664)</value>
+      <value>(417, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -460,7 +546,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>Phy_0_0</value>
+      <value>PHY_0_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -475,7 +561,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>0</value>
+      <value>0.01</value>
     </param>
     <param>
       <key>alias</key>
@@ -610,6 +696,57 @@
     <param>
       <key>id</key>
       <value>blocks_add_xx_0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>complex</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>num_inputs</key>
+      <value>2</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_add_xx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(577, 480)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>270</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_add_xx_0_0</value>
     </param>
     <param>
       <key>type</key>
@@ -915,11 +1052,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(48, 459)</value>
+      <value>(163, 456)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>0</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -939,7 +1076,7 @@
     </param>
     <param>
       <key>samples_per_second</key>
-      <value>40e3</value>
+      <value>20e3</value>
     </param>
     <param>
       <key>type</key>
@@ -1055,10 +1192,6 @@
       <value>False</value>
     </param>
     <param>
-      <key>dest</key>
-      <value>[0x23, 0x23, 0x23, 0x23, 0x23, 0x23]</value>
-    </param>
-    <param>
       <key>_enabled</key>
       <value>1</value>
     </param>
@@ -1106,6 +1239,10 @@
       <value>False</value>
     </param>
     <param>
+      <key>dest_addr</key>
+      <value>[0x23, 0x23, 0x23, 0x23, 0x23, 0x23]</value>
+    </param>
+    <param>
       <key>_enabled</key>
       <value>1</value>
     </param>
@@ -1128,10 +1265,6 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
-    </param>
-    <param>
-      <key>modulation</key>
-      <value>modulation</value>
     </param>
     <param>
       <key>robo_mode</key>
@@ -1162,7 +1295,11 @@
     </param>
     <param>
       <key>debug</key>
-      <value>True</value>
+      <value>False</value>
+    </param>
+    <param>
+      <key>dest_addr</key>
+      <value>[0x45, 0x45, 0x45, 0x45, 0x45, 0x45]</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1186,10 +1323,6 @@
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>modulation</key>
       <value>0</value>
     </param>
     <param>
@@ -2057,7 +2190,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -2872,7 +3005,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3024,38 +3157,38 @@
     </param>
   </block>
   <connection>
-    <source_block_id>Phy_0</source_block_id>
-    <sink_block_id>plc_mac_0</sink_block_id>
-    <source_key>mac out</source_key>
-    <sink_key>phy in</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>Phy_0</source_block_id>
-    <sink_block_id>Phy_0_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>Phy_0</source_block_id>
-    <sink_block_id>blocks_file_sink_2</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>Phy_0</source_block_id>
-    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>Phy_0_0</source_block_id>
+    <source_block_id>PHY_0</source_block_id>
     <sink_block_id>plc_mac_0_0</sink_block_id>
     <source_key>mac out</source_key>
     <sink_key>phy in</sink_key>
   </connection>
   <connection>
-    <source_block_id>Phy_0_0</source_block_id>
+    <source_block_id>PHY_0</source_block_id>
     <sink_block_id>blocks_add_xx_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>plc_mac_0</sink_block_id>
+    <source_key>mac out</source_key>
+    <sink_key>phy in</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>1</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>blocks_file_sink_2</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3066,6 +3199,12 @@
     <sink_key>1</sink_key>
   </connection>
   <connection>
+    <source_block_id>analog_fastnoise_source_x_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
     <source_block_id>blks2_error_rate_0</source_block_id>
     <sink_block_id>probe_ber</sink_block_id>
     <source_key>0</source_key>
@@ -3073,7 +3212,13 @@
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0</source_block_id>
-    <sink_block_id>Phy_0</sink_block_id>
+    <sink_block_id>PHY_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_add_xx_0_0</source_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3133,7 +3278,7 @@
   </connection>
   <connection>
     <source_block_id>plc_mac_0</source_block_id>
-    <sink_block_id>Phy_0</sink_block_id>
+    <sink_block_id>PHY_0_0</sink_block_id>
     <source_key>phy out</source_key>
     <sink_key>mac in</sink_key>
   </connection>
@@ -3145,13 +3290,13 @@
   </connection>
   <connection>
     <source_block_id>plc_mac_0_0</source_block_id>
-    <sink_block_id>Phy_0_0</sink_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>phy out</source_key>
     <sink_key>mac in</sink_key>
   </connection>
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
-    <sink_block_id>Phy_0_0</sink_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

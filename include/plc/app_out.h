@@ -27,7 +27,7 @@ namespace gr {
        * class. plc::app_out::make is the public interface for
        * creating new instances.
        */
-      static sptr make(std::vector<uint8_t> dest, bool debug);
+      static sptr make(bool debug);
     };
 
   } // namespace plc
