@@ -51,78 +51,41 @@ namespace gr {
           std::string cmd = pmt::symbol_to_string(pmt::car(msg));
           pmt::pmt_t dict = pmt::cdr(msg);
           
-          if (cmd == "SACK") {
-            if (!pmt::dict_has_key(dict, pmt::mp("sackd")))
-              return;
-            dout << "PHY Transmitter: received new MPDU (SACK) from MAC" << std::endl;            
-            size_t sackd_length = 0;
-            pmt::pmt_t sackd_u8vector = pmt::dict_ref(dict, pmt::mp("sackd"), pmt::PMT_NIL);
-            const unsigned char * sackd = pmt::u8vector_elements(sackd_u8vector, sackd_length);
-            d_datastream = d_phy_service.create_sack_ppdu(sackd, sackd_length);
-            d_datastream_len = d_datastream.size();
-            d_transmitter_state = TX;
-          } 
+          if (cmd == "PHY-TXSETTONEMAP") {
+            dout << "PHY Transmitter: setting custom tx tone map" << std::endl;
+            // Get tone map
+            pmt::pmt_t tone_map_pmt = pmt::dict_ref(dict, pmt::mp("tone_map"), pmt::PMT_NIL);
+            size_t tone_map_len = 0;
+            const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
+            light_plc::tone_map_t tone_map;
+            for (size_t j = 0; j<tone_map_len; j++)
+              tone_map[j] = (light_plc::modulation_type)tone_map_blob[j];
+            d_phy_service.set_tone_map(tone_map);
+          }        
 
-          else if (cmd == "SOUND") {
-            dout << "PHY Transmitter: received new MPDU (Sound) from MAC" << std::endl;            
-            d_datastream = d_phy_service.create_sound_ppdu(light_plc::STD_ROBO);
-            d_datastream_len = d_datastream.size();
-            d_transmitter_state = TX;
-          } 
-
-          else if (cmd == "TXSTART") {
-            if (!pmt::dict_has_key(dict,pmt::mp("type")))
-              return;
+          else if (cmd == "PHY-TXSTART") {
             if (d_transmitter_state == READY) {
-              pmt::pmt_t type = pmt::dict_ref(dict, pmt::mp("type"), pmt::PMT_NIL);
-              if (pmt::symbol_to_string(type) == "sof") {
-                // Get ROBO mode
-                uint64_t robo_mode = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("robo_mode"), pmt::PMT_NIL));
-                d_phy_service.set_robo_mode((light_plc::robo_mode_t)robo_mode);
-                // Get tone map
-                pmt::pmt_t tone_map_pmt = pmt::dict_ref(dict, pmt::mp("tone_map"), pmt::PMT_NIL);
-                size_t tone_map_len = 0;
-                const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
-                light_plc::tone_map_t tone_map;
-                for (size_t j = 0; j<tone_map_len; j++)
-                  tone_map[j] = (light_plc::modulation_type)tone_map_blob[j];
-                d_phy_service.set_tone_map(tone_map);
-                // Get payload
+              // Get frame control
+              pmt::pmt_t mpdu_fc_pmt = pmt::dict_ref(dict, pmt::mp("frame_control"), pmt::PMT_NIL);
+              size_t mpdu_fc_length = 0;
+              const unsigned char *mpdu_fc = pmt::u8vector_elements(mpdu_fc_pmt, mpdu_fc_length);
+              // Get payload
+              size_t mpdu_payload_length = 0;
+              const unsigned char *mpdu_payload = NULL;
+              if (pmt::dict_has_key(dict,pmt::mp("payload"))) {
                 pmt::pmt_t mpdu_payload_pmt = pmt::dict_ref(dict, pmt::mp("payload"), pmt::PMT_NIL);
-                size_t mpdu_payload_length = 0;
-                const unsigned char *mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
-                dout << "PHY Transmitter: received new MPDU (SOF, robo_mode=" << robo_mode <<") from MAC" << std::endl;
-                d_datastream = d_phy_service.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
-                d_datastream_len = d_datastream.size();
-                d_transmitter_state = TX;
-              } 
+                mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
+              }
+              dout << "PHY Transmitter: received new MPDU from MAC" << std::endl;
+              d_datastream = d_phy_service.create_ppdu(mpdu_fc, mpdu_fc_length, mpdu_payload, mpdu_payload_length);
+              d_datastream_len = d_datastream.size();
+              d_transmitter_state = TX;
+            
             } else {
               std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
             }            
           }
         }   
-        if (pmt::is_u8vector(pmt::cdr(msg)) && pmt::is_dict(pmt::car(msg))) {
-          pmt::pmt_t dict = pmt::car(msg);
-          pmt::pmt_t key = pmt::mp("type");
-          if (!pmt::dict_has_key(dict,key))
-            return;
-          if (d_transmitter_state == READY) {
-            pmt::pmt_t type = pmt::dict_ref(dict, key, pmt::PMT_NIL);
-            if (pmt::symbol_to_string(type) == "sof") {
-              uint64_t robo_mode = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("robo_mode"), pmt::PMT_NIL));
-              uint64_t tmi = pmt::to_uint64(pmt::dict_ref(dict, pmt::mp("tmi"), pmt::PMT_NIL));
-              dout << "PHY Transmitter: received new MPDU (SOF, robo_mode=" << robo_mode << ", tmi="<< tmi << ") from MAC" << std::endl;
-              d_phy_service.set_robo_mode((light_plc::robo_mode_t)robo_mode);
-              size_t mpdu_payload_length = 0;
-              const unsigned char * mpdu_payload = pmt::u8vector_elements(pmt::cdr(msg), mpdu_payload_length);
-              d_datastream = d_phy_service.create_sof_ppdu(mpdu_payload, mpdu_payload_length);
-              d_datastream_len = d_datastream.size();
-              d_transmitter_state = TX;
-            } 
-          } else {
-            std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
-          }
-        }
       }
     }
 

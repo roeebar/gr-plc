@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <fstream>
 #include "phy_service_qa.h"
+#include "ieee1901.inc"
 
 using namespace light_plc;
 
 phy_service_qa::phy_service_qa (bool d_debug, unsigned int seed) {
-    encoder = phy_service(d_debug);
+    encoder = phy_service();
+    encoder.debug(d_debug);
     if (seed == 0)
         seed = time(NULL);
     std::cout << "Seed = " << seed << std::endl;
@@ -67,9 +69,11 @@ bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, int number_
     std::cout << "number of blocks = " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
     encoder.set_code_rate(rate);
-    encoder.set_robo_mode(robo_mode);
     encoder.set_tone_map(d_tone_map);
-    vector_float datastream = encoder.create_sof_ppdu(payload);
+    pb_size_t pb_size;
+    (payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
+    vector_int fc = create_sof_frame_control(robo_mode, pb_size);
+    vector_float datastream = encoder.create_ppdu(fc, payload);
 
     float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
     encoder.set_noise_psd(var*2);
@@ -78,7 +82,7 @@ bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, int number_
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
         encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == -1)
+        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
@@ -100,7 +104,8 @@ bool phy_service_qa::test_sof(code_rate rate, robo_mode_t robo_mode, int number_
 bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
     vector_int sackd(80);
     std::generate(sackd.begin(), sackd.end(), binary_random);
-    vector_float datastream = encoder.create_sack_ppdu(sackd);
+    vector_int fc = create_sack_frame_control(sackd);
+    vector_float datastream = encoder.create_ppdu(fc);
     std::cout << "Datastream length = " << datastream.size() << std::endl;
 
     float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
@@ -109,17 +114,20 @@ bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
         encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == -1)
+        vector_int frame_control;
+        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE, frame_control) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
         }
-        vector_int return_sackd = encoder.get_sackd();
+        vector_int return_sackd(IEEE1901_FRAME_CONTROL_SACK_SACKD_WIDTH);
+        for (int i=0; i<IEEE1901_FRAME_CONTROL_SACK_SACKD_WIDTH; i++)
+            return_sackd[i] = frame_control[IEEE1901_FRAME_CONTROL_SACK_SACKD_OFFSET + i];
         if (std::equal(sackd.begin(), sackd.end(), return_sackd.begin())) {
             std::cout << "Passed." << std::endl << std::endl;
             return true;
         } else {
-            std::cout << "Failed!" << std::endl;
+            std::cout << "Failed sackd!" << std::endl;
             return false;
         }
     } else {
@@ -129,8 +137,13 @@ bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
 
 bool phy_service_qa::test_sound(robo_mode_t robo_mode, float SNRdb, bool encode_only) {
     std::cout << "ROBO mode = " << robo_mode << std::endl;
-   
-    vector_float datastream = encoder.create_sound_ppdu(robo_mode);
+    vector_int mpdu_payload;
+    if (robo_mode == STD_ROBO)
+        mpdu_payload = vector_int(520*8);
+    else
+        mpdu_payload = vector_int(136*8);
+    vector_int fc = create_sound_frame_control(robo_mode);
+    vector_float datastream = encoder.create_ppdu(fc, mpdu_payload);
     std::cout << "Datastream length = " << datastream.size() << std::endl;
 
     add_noise(datastream.begin(), datastream.end(), SNRdb);
@@ -138,7 +151,7 @@ bool phy_service_qa::test_sound(robo_mode_t robo_mode, float SNRdb, bool encode_
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
         encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == -1)
+        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
@@ -162,10 +175,11 @@ bool phy_service_qa::encode_to_file (code_rate rate, robo_mode_t robo_mode, int 
     std::cout << "ROBO mode = " << robo_mode << std::endl;
     std::cout << "number of blocks = " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
-    
+    pb_size_t pb_size;
+    (payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
     encoder.set_code_rate(rate);
-    encoder.set_robo_mode(robo_mode);
-    vector_float datastream = encoder.create_sof_ppdu(payload);
+    vector_int fc = create_sof_frame_control(robo_mode, pb_size);
+    vector_float datastream = encoder.create_ppdu(fc, payload);    
     std::cout << "Datastream length = " << datastream.size() << std::endl;
 
     std::ofstream in(input_filename,std::ios_base::binary);
@@ -209,4 +223,63 @@ float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float:
     }
     std::cout << "SNR = " << SNRdb << std::endl;
     return var;
+}
+
+vector_int phy_service_qa::create_sof_frame_control (robo_mode_t robo_mode, pb_size_t pb_size)  {
+    vector_int frame_control(IEEE1901_FRAME_CONTROL_NBITS,0);
+
+    // Set the pbsz bit
+    if (pb_size == PB520)
+        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH, 0);
+    else
+        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH, 1);
+
+    // Set delimiter type to SOF    
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 1);
+    
+    // Set tone map index
+    int tmi = 0;
+    switch (robo_mode) {
+        case STD_ROBO: tmi=0; break;
+        case HS_ROBO: tmi=1; break;
+        case MINI_ROBO: tmi=2; break;
+        case NO_ROBO: tmi=3; break;
+    }
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH, tmi);
+    
+    return frame_control;
+}
+
+vector_int phy_service_qa::create_sound_frame_control (robo_mode_t robo_mode)  {
+    vector_int frame_control(IEEE1901_FRAME_CONTROL_NBITS,0);
+
+    // Set the pbsz bit
+    if (robo_mode == STD_ROBO)
+        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 0);
+    else
+        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 1);
+
+    // Set delimiter type to Sound    
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 4);
+    
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_CFS_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_CFS_WIDTH, 1);
+
+    return frame_control;
+}
+
+vector_int phy_service_qa::create_sack_frame_control (const vector_int &sackd)  {
+    vector_int frame_control(IEEE1901_FRAME_CONTROL_NBITS,0);
+
+    // Set delimiter type to SACK
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 2);
+
+    // SACK version number
+    set_field(frame_control, IEEE1901_FRAME_CONTROL_SACK_SVN_OFFSET, IEEE1901_FRAME_CONTROL_SACK_SVN_WIDTH, 0);
+
+    // Assign the SACK data bits
+    int j = 0;
+    for (vector_int::const_iterator iter = sackd.begin(); iter != sackd.end(); iter++)
+        frame_control[IEEE1901_FRAME_CONTROL_SACK_SACKD_OFFSET + j++] = *iter;
+
+    return frame_control;
 }

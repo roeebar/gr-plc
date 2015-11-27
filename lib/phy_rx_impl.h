@@ -35,6 +35,7 @@ namespace gr {
       light_plc::vector_float d_preamble;
       light_plc::vector_float d_frame_control;
       light_plc::vector_float d_payload;
+      pmt::pmt_t d_frame_control_pmt;
       int d_sync_offset;
       int d_frame_control_offset;
       int d_preamble_offset;

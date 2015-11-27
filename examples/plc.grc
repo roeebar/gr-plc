@@ -734,11 +734,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(577, 480)</value>
+      <value>(553, 488)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1236,7 +1236,7 @@
     </param>
     <param>
       <key>debug</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>dest_addr</key>
@@ -1267,12 +1267,12 @@
       <value>0</value>
     </param>
     <param>
-      <key>robo_mode</key>
-      <value>robo_mode</value>
-    </param>
-    <param>
       <key>master</key>
       <value>True</value>
+    </param>
+    <param>
+      <key>tmi</key>
+      <value>4</value>
     </param>
   </block>
   <block>
@@ -1295,7 +1295,7 @@
     </param>
     <param>
       <key>debug</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>dest_addr</key>
@@ -1326,12 +1326,12 @@
       <value>0</value>
     </param>
     <param>
-      <key>robo_mode</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>master</key>
       <value>False</value>
+    </param>
+    <param>
+      <key>tmi</key>
+      <value>0</value>
     </param>
   </block>
   <block>
@@ -2190,7 +2190,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3005,7 +3005,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>

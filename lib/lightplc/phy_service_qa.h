@@ -15,6 +15,10 @@ public:
     phy_service encoder;
 
 private: 
+    vector_int create_sof_frame_control (robo_mode_t robo_mode, pb_size_t pb_size);
+    vector_int create_sound_frame_control (robo_mode_t robo_mode);
+    vector_int create_sack_frame_control (const vector_int &sackd);
+
     int integer_random(int max);
     bool d_debug;
     tone_map_t d_tone_map;

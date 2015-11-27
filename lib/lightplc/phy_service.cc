@@ -64,31 +64,23 @@ const std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::HAMMING_
 const phy_service::tone_info_t phy_service::BROADCAST_CARRIERS = phy_service::build_broadcast_tone_map();
 const int phy_service::N_BROADCAST_CARRIERS = phy_service::count_non_masked_carriers(CARRIERS_BROADCAST_MASK.begin(), CARRIERS_BROADCAST_MASK.end());
 
-phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadcast_tone_map()), d_code_rate(RATE_1_2), d_robo_mode(NO_ROBO), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
+phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadcast_tone_map()), d_code_rate(RATE_1_2), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
     static_assert(BPSK==1 && QPSK==2 && QAM8==3 && QAM16==4 && QAM64==5 && QAM256==6 && QAM1024==7 && QAM4096==8, "Mapping parameters error");
     create_fftw_vars();
     init_turbo_codec();
-    SOUND_PB136 = create_payload_symbols(vector_int(136*8), PB136, MINI_ROBO);
-    SOUND_PB520 = create_payload_symbols(vector_int(520*8), PB520, STD_ROBO);
-    SOUND_PB136_FREQ = create_payload_symbols_freq(vector_int(136*8), PB136, MINI_ROBO);
-    SOUND_PB520_FREQ = create_payload_symbols_freq(vector_int(520*8), PB520, STD_ROBO);
     d_broadcast_channel_response.mask = CARRIERS_BROADCAST_MASK;
     d_broadcast_channel_response.carriers_gain.fill(1);
+    d_noise_psd.fill(0);
 }
 
 phy_service::phy_service (const phy_service &obj) : 
         d_debug(obj.d_debug),
         d_tone_info(obj.d_tone_info),
         d_code_rate(obj.d_code_rate),
-        d_robo_mode(obj.d_robo_mode),
         d_n0(obj.d_n0),
         PREAMBLE(obj.PREAMBLE), 
         SYNCP_FREQ(obj.SYNCP_FREQ), 
         TURBO_INTERLEAVER_SEQUENCE(obj.TURBO_INTERLEAVER_SEQUENCE),
-        SOUND_PB136(obj.SOUND_PB136),
-        SOUND_PB520(obj.SOUND_PB520),
-        SOUND_PB136_FREQ(obj.SOUND_PB136_FREQ),
-        SOUND_PB520_FREQ(obj.SOUND_PB520_FREQ),
         d_broadcast_channel_response(obj.d_broadcast_channel_response),
         d_noise_psd(obj.d_noise_psd),
         d_snr(obj.d_snr) {
@@ -110,7 +102,6 @@ phy_service& phy_service::operator=(const phy_service& rhs) {
     std::swap(d_broadcast_channel_response, tmp.d_broadcast_channel_response);
     std::swap(d_noise_psd, tmp.d_noise_psd);
     std::swap(d_snr, tmp.d_snr);
-    std::swap(d_robo_mode, tmp.d_robo_mode);
     std::swap(d_code_rate, tmp.d_code_rate);
     std::swap(d_tone_info, tmp.d_tone_info);
     std::swap(d_n0, tmp.d_n0);
@@ -130,92 +121,32 @@ phy_service::~phy_service (void){
     fftwf_destroy_plan(d_fftw_syncp_fwd_plan);
 }
 
-vector_float phy_service::create_sof_ppdu(const unsigned char *mpdu_payload_bin, size_t len) {
-    vector_int mpdu_payload_int(unpack_into_bitvector(mpdu_payload_bin, len));
-    return create_sof_ppdu(mpdu_payload_int);
+vector_float phy_service::create_ppdu(const unsigned char *mpdu_fc_bin, size_t mpdu_fc_len, const unsigned char *mpdu_payload_bin, size_t mpdu_payload_len) {
+    vector_int mpdu_payload_int(unpack_into_bitvector(mpdu_payload_bin, mpdu_payload_len));
+    vector_int mpdu_fc_int(unpack_into_bitvector(mpdu_fc_bin, mpdu_fc_len));
+    return create_ppdu(mpdu_fc_int, mpdu_payload_int);
 }
 
-vector_float phy_service::create_sof_ppdu(const vector_int &mpdu_payload) {
-    DEBUG_ECHO("Encoding payload blocks (SOF)...")
+vector_float phy_service::create_ppdu(vector_int &mpdu_fc_int, const vector_int &mpdu_payload_int) {
+    assert(mpdu_fc_int.size() == FRAME_CONTROL_NBITS);
+    ppdu_mode_t ppdu_mode = get_mode(mpdu_fc_int);
+    update_frame_control(mpdu_fc_int, ppdu_mode, mpdu_payload_int.size());
 
-    DEBUG_VECTOR(mpdu_payload);
-
-    // Determine PB size according to number of payload bits
-    pb_size_t pb_size;
-    (mpdu_payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
+    // Encode frame control
+    DEBUG_ECHO("Encoding frame control...")
+    DEBUG_VECTOR(mpdu_fc_int);
+    vector_symbol fc_symbols = create_frame_control_symbol(mpdu_fc_int);
 
     // Encode payload blocks
-    vector_symbol payload_symbols = create_payload_symbols(mpdu_payload, pb_size, d_robo_mode, d_tone_info, d_code_rate);
-
-    DEBUG_ECHO("Encoding frame control (SOF)...")
-    // Encode frame control
-    vector_int mpdu_fc = create_sof_frame_control(payload_symbols.size(), d_robo_mode, pb_size);
-    DEBUG_VECTOR(mpdu_fc);
-    vector_symbol fc_symbols = create_frame_control_symbol(mpdu_fc);
-
-    DEBUG_ECHO("Creating final data stream...")
-    // Create the final symbols array
-    vector_symbol symbols;
-    symbols.reserve(fc_symbols.size() + payload_symbols.size() + 1);
-    symbols.push_back(PREAMBLE);
-    symbols.insert(symbols.end(), fc_symbols.begin(), fc_symbols.end());
-    symbols.insert(symbols.end(), payload_symbols.begin(), payload_symbols.end());
-
-    // Concatenate the symbols into a continuous stream
-    vector_float datastream = symbols_to_datastream(symbols, IEEE1901_RIFS_DEFAULT * SAMPLE_RATE);
-    DEBUG_VECTOR(datastream);
-    DEBUG_ECHO("Done.")
-    return datastream;
-}
-
-vector_float phy_service::create_sack_ppdu(const unsigned char *sackd_bin, size_t len) {
-    vector_int sackd_int(unpack_into_bitvector(sackd_bin, len));
-    return create_sack_ppdu(sackd_int);
-}
-
-vector_float phy_service::create_sack_ppdu(const vector_int sackd) {
-    DEBUG_ECHO("Encoding frame control (SACK)...")
-    // Encode frame control
-    vector_int fc = create_sack_frame_control(sackd);
-    DEBUG_VECTOR(fc);
-    vector_symbol fc_symbols = create_frame_control_symbol(fc);
-
-    DEBUG_ECHO("Creating final data stream...")
-    // Create the final symbols array
-    vector_symbol symbols;
-    symbols.reserve(fc_symbols.size());
-    symbols.push_back(PREAMBLE);
-    symbols.insert(symbols.end(), fc_symbols.begin(), fc_symbols.end());
-
-    // Concatenate the symbols into a continuous stream
-    vector_float datastream = symbols_to_datastream(symbols, IEEE1901_RIFS_DEFAULT * SAMPLE_RATE);
-    DEBUG_VECTOR(datastream);
-    DEBUG_ECHO("Done.")
-    return datastream;
-}
-
-vector_float phy_service::create_sound_ppdu(robo_mode_t robo_mode) {
-    DEBUG_ECHO("Encoding payload blocks (Sound)...")
-    // Encode payload blocks
-    assert (robo_mode == MINI_ROBO || robo_mode == STD_ROBO); // Only robo mode is supported in sound mpdu
     vector_symbol payload_symbols;
-    pb_size_t pb_size = PB520;
-    if (robo_mode == MINI_ROBO) {
-        payload_symbols = SOUND_PB136;
-        pb_size = PB136;
-    } else if (robo_mode == STD_ROBO) {
-        payload_symbols = SOUND_PB520;
-        pb_size = PB520;
+    if (ppdu_mode.has_payload) {
+        DEBUG_ECHO("Encoding payload blocks...")
+        DEBUG_VECTOR(mpdu_payload_int);
+        payload_symbols = create_payload_symbols(mpdu_payload_int, ppdu_mode.pb_size, ppdu_mode.robo_mode, d_tone_info, d_code_rate);
     }
 
-    DEBUG_ECHO("Encoding frame control (Sound) ...")
-    // Encode frame control
-    vector_int mpdu_fc = create_sound_frame_control(payload_symbols.size(), pb_size);
-    DEBUG_VECTOR(mpdu_fc);
-    vector_symbol fc_symbols = create_frame_control_symbol(mpdu_fc);
-
-    DEBUG_ECHO("Creating final data stream...")
     // Create the final symbols array
+    DEBUG_ECHO("Creating final data stream...")
     vector_symbol symbols;
     symbols.reserve(fc_symbols.size() + payload_symbols.size() + 1);
     symbols.push_back(PREAMBLE);
@@ -227,98 +158,86 @@ vector_float phy_service::create_sound_ppdu(robo_mode_t robo_mode) {
     DEBUG_VECTOR(datastream);
     DEBUG_ECHO("Done.")
     return datastream;
-}    
+}
 
-vector_int phy_service::create_sof_frame_control (unsigned int n_symbols, robo_mode_t robo_mode, pb_size_t pb_size)  {
-    vector_int frame_control(FRAME_CONTROL_NBITS,0);
+phy_service::ppdu_mode_t phy_service::get_mode (const vector_int &mpdu_fc_int) {  
+    ppdu_mode_t ppdu_mode;
+    mpdu_type_t dt = (mpdu_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
+    switch (dt) {
+        case MPDU_TYPE_SOF: {
+            int tmi = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH);
+            switch (tmi) {
+                case 0: ppdu_mode.robo_mode = STD_ROBO; break;
+                case 1: ppdu_mode.robo_mode = HS_ROBO; break;
+                case 2: ppdu_mode.robo_mode = MINI_ROBO; break;
+                default: ppdu_mode.robo_mode = NO_ROBO; break;
+            }
+            int pbsz = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH);
+            switch (pbsz) {
+                case 0: ppdu_mode.pb_size = PB520; break;
+                case 1: ppdu_mode.pb_size = PB136; break;
+            }
+            ppdu_mode.has_payload = true;
+            break;
+        }
+        case MPDU_TYPE_SOUND: {
+            int pbsz = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH);
+            switch (pbsz) {
+                case 0: ppdu_mode.pb_size = PB520; ppdu_mode.robo_mode = STD_ROBO; break;
+                case 1: ppdu_mode.pb_size = PB136; ppdu_mode.robo_mode = MINI_ROBO; break;
+            }
+            ppdu_mode.has_payload = true;
+            break;
+        }
+        case MPDU_TYPE_SACK:
+            ppdu_mode.has_payload = false;
+            break;
 
-    // Set the pbsz bit
-    if (pb_size == PB520)
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH, 0);
-    else
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH, 1);
-
-    // Set delimiter type to SOF    
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 1);
-    
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_CFS_OFFSET, IEEE1901_FRAME_CONTROL_SOF_CFS_WIDTH, 1);
-
-    if (n_symbols<=2)
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_OFFSET, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_WIDTH, n_symbols);
-    else 
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_OFFSET, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_WIDTH, 3);
-    
-    // Set tone map index
-    int tmi = 0;
-    switch (robo_mode) {
-        case STD_ROBO: tmi=0; break;
-        case HS_ROBO: tmi=1; break;
-        case MINI_ROBO: tmi=2; break;
-        case NO_ROBO: tmi=4; break;
+        default:
+            break;
     }
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH, tmi);
-    
-    // Calculate and set frame width
-    int fl_width = std::ceil((n_symbols * (NUMBER_OF_CARRIERS*2.0/SAMPLE_RATE) + IEEE1901_RIFS_DEFAULT)/1.28);
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH, fl_width);
-
-    // Calculate and set CRC24
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_FCCS_OFFSET, IEEE1901_FRAME_CONTROL_FCCS_WIDTH, crc24(vector_int(frame_control.begin(),frame_control.end()-24))); 
-
-    return frame_control;
+    return ppdu_mode;
 }
 
-vector_int phy_service::create_sack_frame_control (const vector_int sackd)  {
-    vector_int frame_control(FRAME_CONTROL_NBITS,0);
-
-    // Set delimiter type to SACK
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 2);
-
-    // Contention free session bit
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SACK_CFS_OFFSET, IEEE1901_FRAME_CONTROL_SACK_CFS_WIDTH, 1);
-
-    // SACK version number
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SACK_SVN_OFFSET, IEEE1901_FRAME_CONTROL_SACK_SVN_WIDTH, 0);
-
-    // Assign the SACK data bits
-    int j = 0;
-    for (vector_int::const_iterator iter = sackd.begin(); iter != sackd.end(); iter++)
-        frame_control[IEEE1901_FRAME_CONTROL_SACK_SACKD_OFFSET + j++] = *iter;
-
-    // Calculate and set CRC24
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_FCCS_OFFSET, IEEE1901_FRAME_CONTROL_FCCS_WIDTH, crc24(vector_int(frame_control.begin(),frame_control.end()-24))); 
-
-    return frame_control;
-}
-
-
-vector_int phy_service::create_sound_frame_control (unsigned int n_symbols, pb_size_t pb_size)  {
-    vector_int frame_control(FRAME_CONTROL_NBITS,0);
-
-    // Set the pbsz bit
-    if (pb_size == PB520)
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 0);
-    else
-        set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 1);
-
-    // Set delimiter type to Sound    
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 4);
-    
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_CFS_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_CFS_WIDTH, 1);
-
-    // Calculate and set frame width
-    int fl_width = std::ceil((n_symbols * (NUMBER_OF_CARRIERS*2.0/SAMPLE_RATE) + IEEE1901_RIFS_DEFAULT)/1.28);
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH, fl_width);
+void phy_service::update_frame_control (vector_int &mpdu_fc_int, ppdu_mode_t ppdu_mode, size_t payload_size) {  
+    mpdu_type_t dt = (mpdu_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
+    int fl_width = 0;
+    if (ppdu_mode.has_payload) {
+        // Calculate frame length
+        tone_info_t tone_info = calc_tone_info(ppdu_mode.robo_mode);
+        int n_blocks = ppdu_mode.pb_size == PB520 ? payload_size / (520*8) : payload_size / (136*8);
+        int interleaved_block_size = calc_interleaved_block_size(ppdu_mode.robo_mode, d_code_rate, ppdu_mode.pb_size);
+        int n_bits = n_blocks * interleaved_block_size;
+        int n_symbols = (n_bits % tone_info.capacity) ? n_bits / tone_info.capacity + 1 : n_bits / tone_info.capacity;
+        fl_width = std::ceil((n_symbols * (NUMBER_OF_CARRIERS*2.0/SAMPLE_RATE) + IEEE1901_RIFS_DEFAULT)/1.28);
+    }
+    switch (dt) {
+        case MPDU_TYPE_SOF:
+            set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH, fl_width);
+            break;
+        case MPDU_TYPE_SOUND: 
+            set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH, fl_width);
+            break;
+        default:
+            break;
+    }
 
     // Calculate and set CRC24
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_FCCS_OFFSET, IEEE1901_FRAME_CONTROL_FCCS_WIDTH, crc24(vector_int(frame_control.begin(),frame_control.end()-24))); 
+    unsigned long crc = crc24(vector_int(mpdu_fc_int.begin(),mpdu_fc_int.end()-24));
+    set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_FCCS_OFFSET + 16, 8, crc & 0xFF); 
+    set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_FCCS_OFFSET + 8, 8, (crc >> 8) & 0xFF); 
+    set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_FCCS_OFFSET, 8, (crc >> 16) & 0xFF); 
 
-    return frame_control;
+    return;
 }
 
-void phy_service::set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value) {
-    for (int i=0; i<bit_width; i++) 
-        bit_vector[bit_offset + bit_width - i - 1] = (new_value & (1<<i)) >> i;
+void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value) {
+    for (int i=0; i<bit_width; i++) {
+        int j = bit_offset + i;
+        int calc_offset = 8 * (j/8) + 7 - j % 8;
+        bit_vector[calc_offset] = new_value & 0x1;
+        new_value >>= 1;
+    }
     return;
 }
 
@@ -347,87 +266,6 @@ vector_int phy_service::unpack_into_bitvector (const unsigned char *data, size_t
     }
     return bit_vector;
 }
-
-unsigned long phy_service::crc32(unsigned char *icp, int icnt) {
-    //C704DD7B
-
-    //crc32 table for polynom=04C11DB7
-    static unsigned long crc32tab[256] = {
-        0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9,
-        0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
-        0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
-        0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd,
-        0x4c11db70, 0x48d0c6c7, 0x4593e01e, 0x4152fda9,
-        0x5f15adac, 0x5bd4b01b, 0x569796c2, 0x52568b75,
-        0x6a1936c8, 0x6ed82b7f, 0x639b0da6, 0x675a1011,
-        0x791d4014, 0x7ddc5da3, 0x709f7b7a, 0x745e66cd,
-        0x9823b6e0, 0x9ce2ab57, 0x91a18d8e, 0x95609039,
-        0x8b27c03c, 0x8fe6dd8b, 0x82a5fb52, 0x8664e6e5,
-        0xbe2b5b58, 0xbaea46ef, 0xb7a96036, 0xb3687d81,
-        0xad2f2d84, 0xa9ee3033, 0xa4ad16ea, 0xa06c0b5d,
-        0xd4326d90, 0xd0f37027, 0xddb056fe, 0xd9714b49,
-        0xc7361b4c, 0xc3f706fb, 0xceb42022, 0xca753d95,
-        0xf23a8028, 0xf6fb9d9f, 0xfbb8bb46, 0xff79a6f1,
-        0xe13ef6f4, 0xe5ffeb43, 0xe8bccd9a, 0xec7dd02d,
-        0x34867077, 0x30476dc0, 0x3d044b19, 0x39c556ae,
-        0x278206ab, 0x23431b1c, 0x2e003dc5, 0x2ac12072,
-        0x128e9dcf, 0x164f8078, 0x1b0ca6a1, 0x1fcdbb16,
-        0x018aeb13, 0x054bf6a4, 0x0808d07d, 0x0cc9cdca,
-        0x7897ab07, 0x7c56b6b0, 0x71159069, 0x75d48dde,
-        0x6b93dddb, 0x6f52c06c, 0x6211e6b5, 0x66d0fb02,
-        0x5e9f46bf, 0x5a5e5b08, 0x571d7dd1, 0x53dc6066,
-        0x4d9b3063, 0x495a2dd4, 0x44190b0d, 0x40d816ba,
-        0xaca5c697, 0xa864db20, 0xa527fdf9, 0xa1e6e04e,
-        0xbfa1b04b, 0xbb60adfc, 0xb6238b25, 0xb2e29692,
-        0x8aad2b2f, 0x8e6c3698, 0x832f1041, 0x87ee0df6,
-        0x99a95df3, 0x9d684044, 0x902b669d, 0x94ea7b2a,
-        0xe0b41de7, 0xe4750050, 0xe9362689, 0xedf73b3e,
-        0xf3b06b3b, 0xf771768c, 0xfa325055, 0xfef34de2,
-        0xc6bcf05f, 0xc27dede8, 0xcf3ecb31, 0xcbffd686,
-        0xd5b88683, 0xd1799b34, 0xdc3abded, 0xd8fba05a,
-        0x690ce0ee, 0x6dcdfd59, 0x608edb80, 0x644fc637,
-        0x7a089632, 0x7ec98b85, 0x738aad5c, 0x774bb0eb,
-        0x4f040d56, 0x4bc510e1, 0x46863638, 0x42472b8f,
-        0x5c007b8a, 0x58c1663d, 0x558240e4, 0x51435d53,
-        0x251d3b9e, 0x21dc2629, 0x2c9f00f0, 0x285e1d47,
-        0x36194d42, 0x32d850f5, 0x3f9b762c, 0x3b5a6b9b,
-        0x0315d626, 0x07d4cb91, 0x0a97ed48, 0x0e56f0ff,
-        0x1011a0fa, 0x14d0bd4d, 0x19939b94, 0x1d528623,
-        0xf12f560e, 0xf5ee4bb9, 0xf8ad6d60, 0xfc6c70d7,
-        0xe22b20d2, 0xe6ea3d65, 0xeba91bbc, 0xef68060b,
-        0xd727bbb6, 0xd3e6a601, 0xdea580d8, 0xda649d6f,
-        0xc423cd6a, 0xc0e2d0dd, 0xcda1f604, 0xc960ebb3,
-        0xbd3e8d7e, 0xb9ff90c9, 0xb4bcb610, 0xb07daba7,
-        0xae3afba2, 0xaafbe615, 0xa7b8c0cc, 0xa379dd7b,
-        0x9b3660c6, 0x9ff77d71, 0x92b45ba8, 0x9675461f,
-        0x8832161a, 0x8cf30bad, 0x81b02d74, 0x857130c3,
-        0x5d8a9099, 0x594b8d2e, 0x5408abf7, 0x50c9b640,
-        0x4e8ee645, 0x4a4ffbf2, 0x470cdd2b, 0x43cdc09c,
-        0x7b827d21, 0x7f436096, 0x7200464f, 0x76c15bf8,
-        0x68860bfd, 0x6c47164a, 0x61043093, 0x65c52d24,
-        0x119b4be9, 0x155a565e, 0x18197087, 0x1cd86d30,
-        0x029f3d35, 0x065e2082, 0x0b1d065b, 0x0fdc1bec,
-        0x3793a651, 0x3352bbe6, 0x3e119d3f, 0x3ad08088,
-        0x2497d08d, 0x2056cd3a, 0x2d15ebe3, 0x29d4f654,
-        0xc5a92679, 0xc1683bce, 0xcc2b1d17, 0xc8ea00a0,
-        0xd6ad50a5, 0xd26c4d12, 0xdf2f6bcb, 0xdbee767c,
-        0xe3a1cbc1, 0xe760d676, 0xea23f0af, 0xeee2ed18,
-        0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
-        0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0,
-        0x9abc8bd5, 0x9e7d9662, 0x933eb0bb, 0x97ffad0c,
-        0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
-        0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4,
-    };
-
-    unsigned long crc = -1; // init value to all ones
-    unsigned char *cp = icp;
-    int cnt = icnt;
-
-    while(cnt--)
-        crc=((crc<<8)&0xffffff00)^crc32tab[((crc>>24)&0xff)^*cp++];
-    
-    return(crc ^ 0xffffffff);
-}    
 
 unsigned long phy_service::crc24(const vector_int &bit_vector) {
     //800FE3
@@ -494,7 +332,7 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
     int block_size = calc_interleaved_block_size(robo_mode, rate, pb_size);
     // Encode blocks
     if (robo_mode != NO_ROBO) {
-        tone_info = calc_robo_carriers(robo_mode);
+        tone_info = calc_tone_info(robo_mode);
         rate = RATE_1_2;
     }
 
@@ -951,7 +789,7 @@ vector_int phy_service::robo_interleaver(const vector_int& bitstream, robo_mode_
     return robo_bitstream;
 }
 
-phy_service::tone_info_t phy_service::calc_robo_carriers (robo_mode_t robo_mode) {
+phy_service::tone_info_t phy_service::calc_tone_info (robo_mode_t robo_mode) {
     // Create basic ROBO carriers consists of broadcast mask and QPSK
     tone_info_t tone_info = BROADCAST_CARRIERS;
 
@@ -962,7 +800,7 @@ phy_service::tone_info_t phy_service::calc_robo_carriers (robo_mode_t robo_mode)
         case STD_ROBO: n_copies = 4; break;
         case HS_ROBO: n_copies = 2; break;
         case MINI_ROBO: n_copies = 5; break;
-        case NO_ROBO: break; 
+        case NO_ROBO: return d_tone_info; break; 
     }
     assert (robo_mode == STD_ROBO || robo_mode == HS_ROBO || robo_mode == MINI_ROBO); // ROBO mode should be only one of these
 
@@ -1014,7 +852,7 @@ void phy_service::calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_ra
 
 vector_symbol_freq phy_service::modulate(const vector_int& bits, const phy_service::tone_info_t& tone_info) {
     // Calculate number of symbols needed
-    int n_symbols = (bits.size() % tone_info.capacity) ? bits.size() / tone_info.capacity + 1 : bits.size() / tone_info.capacity;
+    int n_symbols = (bits.size() && (bits.size() % tone_info.capacity)) ? bits.size() / tone_info.capacity + 1 : bits.size() / tone_info.capacity;
     vector_symbol_freq symbols_freq(n_symbols);
     // Perform mapping
     vector_int::const_iterator it = bits.cbegin();
@@ -1255,6 +1093,7 @@ void phy_service::process_ppdu_payload(vector_float::const_iterator iter, unsign
     return;
 }
 
+
 vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) {
     // Resolve frame control symbol
     iter += GUARD_INTERVAL_PAYLOAD;
@@ -1348,18 +1187,28 @@ void phy_service::set_noise_psd(float n0) {
     d_n0 = n0;
 }
 
-bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter) {
+bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, unsigned char* mpdu_fc_bin) {
+    vector_int mpdu_fc_int;
+    if (process_ppdu_frame_control(iter, mpdu_fc_int) == true) {
+        if (mpdu_fc_bin != NULL)
+            pack_bitvector(mpdu_fc_int.begin(), mpdu_fc_int.end(), mpdu_fc_bin);
+        return true;
+    }
+    return false;
+}
+
+bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, vector_int &mpdu_fc_int) {
     // Resolve frame control symbol
     iter += GUARD_INTERVAL_FC;
     vector_float fc_symbol_data(NUMBER_OF_CARRIERS * 2);
     vector_float::iterator fc_symbol_data_iter = fc_symbol_data.begin();
     fc_symbol_data_iter = std::copy(iter, iter + (NUMBER_OF_CARRIERS * 2 - ROLLOFF_INTERVAL), fc_symbol_data_iter);
     fc_symbol_data_iter = std::copy(iter - ROLLOFF_INTERVAL, iter, fc_symbol_data_iter);
-    vector_int fc_bits = resolve_frame_control_symbol (fc_symbol_data);
+    mpdu_fc_int = resolve_frame_control_symbol (fc_symbol_data);
 
     // Determine parameters
     d_frame_parameters = frame_parameters();
-    return parse_frame_control(fc_bits, d_frame_parameters);
+    return parse_frame_control(mpdu_fc_int, d_frame_parameters);
 }
 
 void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end) {
@@ -1485,38 +1334,12 @@ void phy_service::set_code_rate(code_rate rate) {
     d_code_rate = rate;
 }
 
-void phy_service::set_robo_mode(robo_mode_t robo_mode) {
-    d_robo_mode = robo_mode;
-}
-
 int phy_service::get_mpdu_payload_size() {
     return d_frame_parameters.mpdu_payload_size/8;
 }
 
 int phy_service::get_ppdu_payload_length() {
     return d_frame_parameters.ppdu_payload_size;
-}
-
-mpdu_type_t phy_service::get_frame_type() {
-    return d_frame_parameters.type;
-}
-
-vector_float phy_service::get_snr() {
-    return vector_float(d_snr.begin(), d_snr.end());
-}
-
-vector_int phy_service::get_sackd() {
-    return d_frame_parameters.sackd;
-}
-
-void phy_service::get_sackd(unsigned char *sackd_bin) {
-    vector_int sackd_bits(get_sackd());
-    pack_bitvector(sackd_bits.begin(), sackd_bits.end(), sackd_bin);
-    return;
-}
-
-int phy_service::get_sackd_size() {
-    return d_frame_parameters.sackd.size()/8;
 }
 
 int phy_service::get_inter_frame_space() {
@@ -1540,13 +1363,6 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
                 case 1: frame_parameters.pb_size = PB136; DEBUG_ECHO("pb_size_t = PB136"); break;
             }
 
-            int numsym = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_OFFSET, IEEE1901_FRAME_CONTROL_SOF_NUMSYM_WIDTH);
-            switch (numsym) {
-                case 0: frame_parameters.n_expected_symbols = 0; break;
-                case 1: frame_parameters.n_expected_symbols = 1; break;
-                case 2: frame_parameters.n_expected_symbols = 2; break;
-            }
-
             int tmi = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH);
             switch (tmi) {
                 case 0: frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("Robo Mode = STD_ROBO"); break;
@@ -1567,10 +1383,6 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
         case 2: {
             frame_parameters.type = MPDU_TYPE_SACK;
             DEBUG_VAR(frame_parameters.type);
-
-            frame_parameters.sackd = vector_int(IEEE1901_FRAME_CONTROL_SACK_SACKD_WIDTH);
-            for (int i=0; i<IEEE1901_FRAME_CONTROL_SACK_SACKD_WIDTH; i++)
-                frame_parameters.sackd[i] = fc_bits[IEEE1901_FRAME_CONTROL_SACK_SACKD_OFFSET + i];
             frame_parameters.has_payload = false;           
             break;
         }
@@ -1606,7 +1418,7 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
     // If this frame contains a payload, calculate these parameters
     if (frame_parameters.has_payload) {
         if (frame_parameters.robo_mode != NO_ROBO)
-            frame_parameters.tone_info = calc_robo_carriers(frame_parameters.robo_mode);
+            frame_parameters.tone_info = calc_tone_info(frame_parameters.robo_mode);
         frame_parameters.rate = d_code_rate;
         frame_parameters.encoded_block_size = calc_encoded_block_size(frame_parameters.rate, frame_parameters.pb_size);
         frame_parameters.interleaved_block_size = calc_interleaved_block_size(frame_parameters.robo_mode, frame_parameters.rate, frame_parameters.pb_size);
@@ -1651,8 +1463,11 @@ bool phy_service::crc24_check(const vector_int &bit_vector) {
 
 unsigned long phy_service::get_field(const vector_int &bit_vector, int bit_offset, int bit_width) {
     unsigned long value = 0;
-    for (int i=0; i<bit_width; i++) 
-        value |= bit_vector[bit_offset + i] << (bit_width - i - 1);
+    for (int i=0; i<bit_width; i++)  {
+        int j = bit_offset + i;
+        int calc_offset = 8 * (j/8) + 7 - j % 8;
+        value |= bit_vector[calc_offset] << i;
+    }
     return value;
 }
 

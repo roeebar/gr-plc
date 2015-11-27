@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $robo_mode, $dest_addr, $debug)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $debug)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -32,25 +32,25 @@
     <type>int_vector</type>
   </param>
   <param>
-    <name>ROBO Mode</name>
-    <key>robo_mode</key>
+    <name>Tone Mode</name>
+    <key>tmi</key>
     <value>0</value>
     <type>int</type>
     <option>
-      <name>NO ROBO</name>
+      <name>STD_ROBO</name>
       <key>0</key>
     </option>
     <option>
-      <name>STD_ROBO</name>
+      <name>HS_ROBO</name>
       <key>1</key>
     </option>
     <option>
-      <name>HS_ROBO</name>
+      <name>MINI_ROBO</name>
       <key>2</key>
     </option>
     <option>
-      <name>MINI_ROBO</name>
-      <key>3</key>
+      <name>NO ROBO</name>
+      <key>4</key>
     </option>
   </param>
   <param>

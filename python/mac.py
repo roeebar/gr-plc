@@ -44,7 +44,7 @@ class mac(gr.basic_block):
     """
     docstring for block mac
     """
-    def __init__(self, device_addr, master, robo_mode, dest, debug):
+    def __init__(self, device_addr, master, tmi, dest, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -58,8 +58,8 @@ class mac(gr.basic_block):
         self.device_addr = bytearray(''.join(chr(x) for x in device_addr))
         self.dest = bytearray(''.join(chr(x) for x in dest))
         self.debug = debug
-        self.is_master = master;
-        self.robo_mode = robo_mode
+        self.is_master = master
+        self.tmi = tmi
         if self.is_master: 
             self.name = "MAC (master)"
             self.state = self.state_waiting_for_app
@@ -81,7 +81,7 @@ class mac(gr.basic_block):
                     self.submit_mac_frame(mac_frame)
                     if not self.transmission_queue_is_full:
                         self.send_status_to_app()
-                    if self.state == self.state_waiting_for_app: self.send_sof_to_phy()
+                    if self.state == self.state_waiting_for_app: self.transmit_sof()
                 else :
                     sys.stderr.write (self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP\n")
                     if self.debug: print self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP"
@@ -93,46 +93,40 @@ class mac(gr.basic_block):
             if gr.pmt.is_symbol(car) and gr.pmt.is_dict(cdr):
                 msg_id = gr.pmt.to_python(car)
                 dict = gr.pmt.to_python(cdr)
+                if msg_id == "PHY-RXSTART":
+                    frame_control = bytearray(dict["frame_control"])
+                    dt = self.get_frame_type(frame_control)
+                    self.last_received_frame_type = dt
+                    if dt == "SOF":
+                        if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
+                        payload = bytearray(dict["payload"].tolist())
+                        self.last_frame_blocks_error = self.parse_mpdu_payload(payload)                        
+                    elif dt == "SOUND":
+                        if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (Sound) from PHY"
+                    elif dt == "SACK":
+                        if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SACK) from PHY"
+                        if self.sack_timer:
+                            self.sack_timer.cancel()
+                            self.sack_time = None
+                        sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
+                        n_errors = self.parse_sackd(sackd)
+                        if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " blocks error\n")
+               
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
                     if self.state == self.state_waiting_for_sack and self.last_received_frame_type == "SACK":
-                        self.send_sof_to_phy()
+                        self.transmit_sof()
                     elif self.state ==  self.state_waiting_for_sof_sound and self.last_received_frame_type == "SOF":
-                        self.send_sack_to_phy()
+                        self.transmit_sack()
                         self.state = self.state_sending_sack
                     elif self.state ==  self.state_waiting_for_sof_sound and self.last_received_frame_type == "SOUND":
                         self.send_calc_tone_info_to_phy()
                         self.state = self.state_waiting_for_tone_map
                     elif self.state ==  self.state_waiting_for_soundack and self.last_received_frame_type == "SACK":
                         self.state = self.state_waiting_for_mgmtmsg
-                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_received_frame_type == "MGMT":
-                        self.send_sof_to_phy()
+                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_received_frame_type == "SOF":
+                        self.transmit_sof()
 
-                elif msg_id == "PHY-CALCTONEMAP.response":
-                    if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY_CALCTONEMAP.respond from PHY"
-                    if self.state == self.state_waiting_for_tone_map:
-                        self.rx_tone_map = bytearray(dict["tone_map"].tolist())
-                        self.send_sack_to_phy()
-                        self.state = self.state_sending_soundack
-
-                elif msg_id == "PHY-RXSOF":
-                    if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
-                    payload = bytearray(dict["payload"].tolist())
-                    self.last_frame_blocks_error = self.parse_mpdu_payload(payload)
-
-                elif msg_id == "PHY-RXSACK":
-                    if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXSACK from PHY"
-                    if self.sack_timer:
-                        self.sack_timer.cancel()
-                        self.sack_time = None
-                    n_errors = self.parse_sackd(dict["sackd"])
-                    if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " blocks error\n")
-                    self.last_received_frame_type = "SACK"
-                
-                elif msg_id == "PHY-RXSOUND":
-                    if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXSOUND from PHY"
-                    self.last_received_frame_type = "SOUND"
-                
                 elif msg_id == "PHY-TXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-TXEND from PHY"
                     if self.state == self.state_sending_sof:
@@ -144,26 +138,30 @@ class mac(gr.basic_block):
                     elif self.state == self.state_sending_sack:
                         self.state = self.state_waiting_for_sof_sound
                     elif self.state == self.state_sending_soundack:
-                        self.send_mgmtmsg_to_phy()
+                        self.transmit_mgmtmsg()
                         self.state = self.state_sending_mgmtmsg
                     elif self.state == self.state_sending_mgmtmsg:
                         self.state = self.state_waiting_for_sof_sound
 
-                elif msg_id == "PHY-RXSNR":
-                    snr = dict["snr"]
+                elif msg_id == "PHY-RXCALCTONEMAP.response":
+                    if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXCALCTONEMAP.respond from PHY"
+                    if self.state == self.state_waiting_for_tone_map:
+                        self.rx_tone_map = bytearray(dict["tone_map"].tolist())
+                        self.transmit_sack()
+                        self.state = self.state_sending_soundack
 
     def sack_timout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
-        self.send_sof_to_phy()
+        self.transmit_sof()
 
     def start_sack_timer(self):
         self.sack_timer = threading.Timer(self.sack_timeout, self.sack_timout_callback)
         self.sack_timer.start()
 
-    def send_sof_to_phy(self):
+    def transmit_sof(self):
         # Send sound if timout
         if self.sound_timout():
-            self.send_sound_to_phy()
+            self.transmit_sound()
             return
 
         # Else, try to get a new MAC frame from transmission queue
@@ -172,57 +170,80 @@ class mac(gr.basic_block):
             self.state = self.state_waiting_for_app
             if self.debug: print self.name + ": state = " + str(self.state) + ", no more data"
             return
-
-        # If succeeded, send the SOF frame to Phy
-        dict = gr.pmt.make_dict();
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"))
-        tone_map_pmt = gr.pmt.init_u8vector(len(self.tx_tone_map), list(self.tx_tone_map))
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("tone_map"), tone_map_pmt)
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("robo_mode"), gr.pmt.from_uint64(self.robo_mode))
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF, robo_mode=" + str(self.robo_mode) + ") to PHY"
-        self.state = self.state_sending_sof
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("TXSTART"), dict))
 
-    def send_sound_to_phy(self):
+        # Create frame control
+        mpdu_fc = self.create_sof_frame_control(self.tmi, mpdu_payload)
+        mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
+
+        # Send the SOF frame to PHY
+        dict = gr.pmt.make_dict();
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF, tmi=" + str(self.tmi) + ") to PHY"
+        self.state = self.state_sending_sof
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
+
+    def transmit_sound(self):
+        # Create zeros payload
+        mpdu_payload = bytearray(520)
+        mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
+
+        # Create frame control
+        mpdu_fc = self.create_sound_frame_control("PB520")
+        mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
+
+        # Send SOUND frame to PHY
+        dict = gr.pmt.make_dict();
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
         self.state = self.state_sending_sound
-        dict = gr.pmt.make_dict();
         self.last_sound_frame = datetime.now();
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SOUND"), dict))
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
-    def send_sack_to_phy(self):
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SACK) to PHY"
+    def transmit_sack(self):
+        # Preparing SACK frame control
         sackd = bytearray(((len(self.last_frame_blocks_error) - 1) / 8) + 1 + 1)
         sackd[0] = 0b00010101
         for i in range(len(self.last_frame_blocks_error)):
             sackd[1 + i/8] = sackd[1 + i/8] | (self.last_frame_blocks_error[i] << (i % 8))
         sackd_u8vector = gr.pmt.init_u8vector(len(sackd), list(sackd))
-        dict = gr.pmt.make_dict()
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sackd"), sackd_u8vector)
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("SACK"), dict))
+        mpdu_fc = self.create_sack_frame_control(sackd)
+        mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
 
-    def send_mgmtmsg_to_phy(self):
+        dict = gr.pmt.make_dict()
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SACK) to PHY"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
+
+    def transmit_mgmtmsg(self):
+        # Creating the management MAC frame
         mpdu_payload, self.last_frame_n_blocks = self.create_mpdu_payload(self.create_mgmt_msg_cm_chan_est(self.rx_tone_map))
-        dict = gr.pmt.make_dict();
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("type"), gr.pmt.to_pmt("sof"))
-        tone_map_pmt = gr.pmt.init_u8vector(len(self.rx_tone_map), list(self.rx_tone_map))
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("tone_map"), tone_map_pmt)
-        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("robo_mode"), gr.pmt.from_uint64(1))
+
+        # Create frame control
+        mpdu_fc = self.create_sof_frame_control(0, mpdu_payload)
+        mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
+
+        # Sending the frame to PHY
+        dict = gr.pmt.make_dict();
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, robo_mode=" + str(1) + ") to PHY"
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("TXSTART"), dict))        
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=0) to PHY"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))        
 
     def send_calc_tone_info_to_phy(self):
         dict = gr.pmt.make_dict();
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-CALCTONEMAP.request"), dict))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", requesting CALCTONEMAP"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXCALCTONEMAP.request"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", requesting PHY-RXCALCTONEMAP"
 
-    def send_idle_to_phy(self):
+    def send_set_tx_tone_map(self):
+        tone_map_pmt = gr.pmt.init_u8vector(len(self.tx_tone_map), list(self.tx_tone_map))
         dict = gr.pmt.make_dict()
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXIDLE"), dict))
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("tone_map"), tone_map_pmt)
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSETTONEMAP"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXSETTONEMAP"
 
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"))
@@ -310,13 +331,11 @@ class mac(gr.basic_block):
         payload, mgmt = self.parse_mac_frame(frame)
         if payload:
             if not mgmt:
-                self.last_received_frame_type = "SOF"
                 if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
                 pmt_dict = gr.pmt.make_dict();
                 payload_u8vector = gr.pmt.init_u8vector(len(payload), list(payload))
                 self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(pmt_dict, payload_u8vector));
             else:
-                self.last_received_frame_type = "MGMT"
                 if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame (management), size = " + str(len(frame))
                 self.process_mgmt_msg(payload)
 
@@ -436,6 +455,9 @@ class mac(gr.basic_block):
             if not self.crc32_check(phy_block):
                 sys.stderr.write(self.name + ": state = " + str(self.state) + ", PHY block CRC error\n")
                 phy_blocks_error.append(1)
+                print "crc error:"
+                print binascii.hexlify(phy_block)
+                print self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_SSN_OFFSET, ieee1901.PHY_BLOCK_HEADER_SSN_WIDTH)
                 continue
             else:
                 phy_blocks_error.append(0)
@@ -533,6 +555,7 @@ class mac(gr.basic_block):
             self.tx_tone_map[i] = self.get_numeric_field(mmentry, cbd_offset, ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH)
             self.tx_capacity += ieee1901.BITLOADING_NBITS[self.tx_tone_map[i]]
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
+        self.send_set_tx_tone_map()
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)
@@ -548,6 +571,66 @@ class mac(gr.basic_block):
             self.process_mgmt_msg_cm_chan_est(mmentry)
         else: 
             sys.stderr.write (self.name + ": state = " + str(self.state) + ", management message (" + str(mmtype) + "not supported\n")
+
+    def create_sof_frame_control(self, tmi, mpdu_payload):
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+
+        # Set the pbsz bit
+        if len(mpdu_payload) > 136/8: 
+            self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
+        else:
+            self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
+
+        # Set delimiter type to SOF    
+        self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
+        
+        # Set tone map index
+        self.set_numeric_field(frame_control, tmi, ieee1901.FRAME_CONTROL_SOF_TMI_OFFSET, ieee1901.FRAME_CONTROL_SOF_TMI_WIDTH)
+        
+        return frame_control
+
+    def create_sack_frame_control(self, sackd):
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+
+        # Set delimiter type to SACK
+        self.set_numeric_field(frame_control, 2, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+
+        # SACK version number
+        self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SACK_SVN_OFFSET, ieee1901.FRAME_CONTROL_SACK_SVN_WIDTH);
+
+        # Assign the SACK data bits
+        sackd_padded = bytearray(ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
+        sackd_padded[0:len(sackd)] = sackd;
+        self.set_bytes_field(frame_control, sackd_padded, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
+
+        return frame_control;
+
+    def create_sound_frame_control(self, pb_size):
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+
+        # Set delimiter type to Sound    
+        self.set_numeric_field(frame_control, 4, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+
+        # Set the pbsz bit
+        if pb_size == "PB520":
+            self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH);
+        else:
+            self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH);
+
+        return frame_control;
+
+    def get_frame_type(self, frame_control):
+        # Get delimiter type
+        dt = self.get_numeric_field(frame_control, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+        if (dt == 2):
+            return "SACK"
+        elif (dt == 1):
+            return "SOF"
+        elif (dt == 4):
+            return "SOUND"
+        else:
+            sys.stderr.write (self.name + ": state = " + str(self.state) + ", unsupported frame type\n")
+            return ""
 
     def set_bytes_field(self, frame, bytes, offset, width):
         frame[offset:(offset + width)] = bytes

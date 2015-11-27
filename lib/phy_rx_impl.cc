@@ -84,9 +84,9 @@ namespace gr {
         if (!pmt::is_symbol(car(msg)))
           return;
         std::string cmd = pmt::symbol_to_string(car(msg));
-        if (cmd == "PHY-CALCTONEMAP.request") {
-          dout << "PHY Receiver: calculating tone map" << std::endl;
-          light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(0.01);
+        if (cmd == "PHY-RXCALCTONEMAP.request") {
+          dout << "PHY Receiver: recalculating tone map" << std::endl;
+          light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(0.001);
           d_phy_service.set_tone_map(tone_map);
           pmt::pmt_t tone_map_pmt = pmt::make_u8vector(tone_map.size(), 0);
           size_t len;
@@ -95,7 +95,7 @@ namespace gr {
             tone_map_blob[j] = (uint8_t)tone_map[j];
           pmt::pmt_t dict = pmt::make_dict();
           dict = pmt::dict_add(dict, pmt::mp("tone_map"), tone_map_pmt);
-          message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-CALCTONEMAP.response"), dict));
+          message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXCALCTONEMAP.response"), dict));
         }
       }
     }
@@ -208,7 +208,10 @@ namespace gr {
             if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
               d_frame_control[d_frame_control_offset] = in[i];
             } else  {
-              if (d_phy_service.process_ppdu_frame_control(d_frame_control.begin()) == false) {
+              d_frame_control_pmt = pmt::make_u8vector(light_plc::phy_service::FRAME_CONTROL_SIZE, 0);
+              size_t len;
+              unsigned char *fc_blob = (unsigned char*)pmt::u8vector_writable_elements(d_frame_control_pmt, len);
+              if (d_phy_service.process_ppdu_frame_control(d_frame_control.begin(), fc_blob) == false) {
                 std::cerr << "PHY Receiver: state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
                 d_receiver_state = RESET;
               } else {
@@ -233,28 +236,13 @@ namespace gr {
             pmt::pmt_t payload_pmt = pmt::make_u8vector(d_phy_service.get_mpdu_payload_size(), 0);
             size_t len;
             unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
-            d_phy_service.process_ppdu_payload(d_payload.begin(), payload_blob);
-            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << ", type = " << d_phy_service.get_frame_type() << std::endl;
-            if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SOF) {
-              pmt::pmt_t dict = pmt::make_dict();
-              dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOF"), dict));
-              d_receiver_state = SENSE_SPACE;
-            } else if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SACK) {
-              pmt::pmt_t sackd_pmt = pmt::make_u8vector(d_phy_service.get_sackd_size(), 0);
-              size_t len;              
-              d_phy_service.get_sackd((unsigned char*)pmt::u8vector_writable_elements(sackd_pmt, len));
-              pmt::pmt_t dict = pmt::make_dict();
-              dict = pmt::dict_add(dict, pmt::mp("sackd"), sackd_pmt);
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSACK"), dict));
-              d_receiver_state = CONSUME_SPACE;
-            } else if (d_phy_service.get_frame_type() == light_plc::MPDU_TYPE_SOUND) {
-              pmt::pmt_t dict = pmt::make_dict();
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSOUND"), dict));
-              d_receiver_state = SENSE_SPACE;
-            } else {
-              std::cerr << "PHY Receiver: Error: unsupported frame type" << std::endl;
-            }
+            d_phy_service.process_ppdu_payload(d_payload.begin(), payload_blob);      // get payload data
+            dout << "PHY Receiver: payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << std::endl;
+            pmt::pmt_t dict = pmt::make_dict();
+            dict = pmt::dict_add(dict, pmt::mp("frame_control"), d_frame_control_pmt);  // add frame control information  
+            dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
+            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSTART"), dict));
+            d_receiver_state = SENSE_SPACE;
           }
           break;
         }
@@ -282,17 +270,12 @@ namespace gr {
           if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
             // Calculate noise PSD
             d_phy_service.process_noise(d_noise.begin(), d_noise.end());
-            light_plc::vector_float snr = d_phy_service.get_snr();
-            pmt::pmt_t snr_pmt = pmt::init_f32vector(snr.size(), snr);
-            pmt::pmt_t dict = pmt::make_dict();
-            dict = pmt::dict_add(dict, pmt::mp("snr"), snr_pmt);
-            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSNR"), dict)); // send SNR values to MAC
             float noise_var(0);
             for (std::vector<float>::const_iterator iter = d_noise.begin(); iter != d_noise.end(); iter++)
               noise_var += (*iter)*(*iter)/d_phy_service.get_inter_frame_space();
             d_phy_service.set_noise_psd(noise_var * 2);
             dout << "PHY Receiver: state = SENSE_SPACE, length = " << d_phy_service.get_inter_frame_space() << ", estimated noise psd = " << noise_var*2 << std::endl;
-            dict = pmt::make_dict();
+            pmt::pmt_t dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
             d_receiver_state = RESET;
           }

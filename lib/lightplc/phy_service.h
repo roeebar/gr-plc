@@ -59,11 +59,18 @@ enum mpdu_type_t {
 };
 
 typedef std::array<modulation_type, IEEE1901_NUMBER_OF_CARRIERS+1> tone_map_t;
+void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value);
 
 class phy_service
 {
 
 private:
+    struct ppdu_mode_t {
+        robo_mode_t robo_mode;
+        pb_size_t pb_size;
+        bool has_payload;
+    };
+
     struct spline_set_t{
         float a;
         float b;
@@ -106,7 +113,6 @@ private:
         int mpdu_payload_size;
         int ppdu_payload_size;
         int inter_frame_space;
-        vector_int sackd;
     } frame_parameters;
 
     static const int SAMPLE_RATE = IEEE1901_SAMPLE_RATE; 
@@ -145,45 +151,34 @@ public:
     ~phy_service (void);
     phy_service& operator=(const phy_service& rhs);
 
-    vector_float create_sof_ppdu(const unsigned char *mpdu_payload_bin, size_t len);
-    vector_float create_sof_ppdu(const vector_int &mpdu_payload);
-    vector_float create_sack_ppdu(const unsigned char *sackd_bin, size_t len);
-    vector_float create_sack_ppdu(const vector_int sackd);
-    vector_float create_sound_ppdu(robo_mode_t robo_mode);
+    vector_float create_ppdu(const unsigned char *mpdu_fc_bin, size_t mpdu_fc_len, const unsigned char *mpdu_payload_bin = NULL, size_t mpdu_payload_len = 0);
+    vector_float create_ppdu(vector_int &mpdu_fc_int, const vector_int &mpdu_payload_int = vector_int());
     void process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
-    bool process_ppdu_frame_control(vector_float::const_iterator iter);
+    bool process_ppdu_frame_control(vector_float::const_iterator iter, vector_int &mpdu_fc_int);
+    bool process_ppdu_frame_control(vector_float::const_iterator iter, unsigned char* mpdu_fc_bin = NULL);
     void process_ppdu_payload(vector_float::const_iterator iter, unsigned char *mpdu_payload_bin);
     vector_int process_ppdu_payload(vector_float::const_iterator iter);
     void process_noise(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
     tone_map_t calculate_tone_map(float P_t);
     void set_tone_map(tone_map_t tone_map);
     void set_code_rate(code_rate rate);
-    void set_robo_mode(robo_mode_t robo_mode);
     void set_noise_psd(float n0);
     int get_mpdu_payload_size();
     int get_ppdu_payload_length();
-    mpdu_type_t get_frame_type();
-    vector_float get_snr();
-    vector_int get_sackd();
-    void get_sackd(unsigned char *sackd_bin);
-    int get_sackd_size();
     int get_inter_frame_space();
     vector_float::const_iterator preamble();
     static int max_blocks (robo_mode_t robo_mode, code_rate rate, modulation_type modulation = QPSK);
     void debug(bool debug) {d_debug = debug; return;};
 
 private:
+    ppdu_mode_t get_mode (const vector_int &mpdu_fc_int);
+    void update_frame_control (vector_int &mpdu_fc_int, ppdu_mode_t ppdu_mode, size_t payload_size);
     vector_symbol create_payload_symbols(const vector_int &payload_bits, pb_size_t pb_size, robo_mode_t robo_mode, tone_info_t tone_info = tone_info_t(), code_rate rate = RATE_1_2);
     vector_symbol_freq create_payload_symbols_freq (const vector_int &bitstream, pb_size_t pb_size, robo_mode_t robo_mode, tone_info_t tone_info = tone_info_t(), code_rate rate = RATE_1_2);
     vector_symbol create_frame_control_symbol(const vector_int &bitstream);
-    static vector_int create_sof_frame_control (unsigned int n_symbols, robo_mode_t robo_mode, pb_size_t pb_size);
-    static vector_int create_sack_frame_control (const vector_int sackd);
-    vector_int create_sound_frame_control (unsigned int n_symbols, pb_size_t pb_size);
-    static void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value);
     static void pack_bitvector(vector_int::const_iterator begin, vector_int::const_iterator end, unsigned char* array);
     static vector_int unpack_into_bitvector (const unsigned char *data, size_t c);    
     static unsigned long crc24(const vector_int &bit_vector);
-    static unsigned long crc32(unsigned char *icp, int icnt);
     static vector_int scrambler(const vector_int& bitstream, int &state);
     static int scrambler_init(void);
     void init_turbo_codec();
@@ -191,7 +186,7 @@ private:
     vector_int tc_decoder(const vector_float &received_info, const vector_float &received_parity, pb_size_t pb_size, code_rate rate);
     static vector_int channel_interleaver(const vector_int& bitstream, const vector_int& parity, pb_size_t pb_size, code_rate rate);
     static vector_int robo_interleaver(const vector_int& bitstream, robo_mode_t robo_mode);
-    static tone_info_t calc_robo_carriers (robo_mode_t robo_mode);
+    tone_info_t calc_tone_info (robo_mode_t robo_mode);
     static void calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad);
     static vector_int copier(const vector_int& bitstream, int n_carriers, int offset, int start = 0);
     vector_symbol_freq modulate(const vector_int& bits, const tone_info_t& tone_info);
@@ -239,7 +234,6 @@ private:
     bool d_debug;
     tone_info_t d_tone_info;
     code_rate d_code_rate;
-    robo_mode_t d_robo_mode;
     float d_n0;
     fftwf_complex *d_ifft_input, *d_fft_output, *d_fft_syncp_output;
     float *d_ifft_output, *d_fft_input, *d_fft_syncp_input;
@@ -249,11 +243,10 @@ private:
     const vector_float PREAMBLE;
     const vector_complex SYNCP_FREQ;
     const std::array<vector_int, 3> TURBO_INTERLEAVER_SEQUENCE;
-    vector_symbol SOUND_PB136, SOUND_PB520;
-    vector_symbol_freq SOUND_PB136_FREQ, SOUND_PB520_FREQ;
     channel_response d_broadcast_channel_response;
     tones_float d_noise_psd;
     tones_float d_snr;
+    ppdu_mode_t d_rx_ppdu_mode;
 
 };
 
