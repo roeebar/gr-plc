@@ -21,7 +21,7 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 int main(int argc, char * argv[]) {
     unsigned int seed = 1444438709;
     bool debug_ = false;
-    light_plc::robo_mode_t robo_mode = light_plc::NO_ROBO;
+    light_plc::tone_mode_t tone_mode = light_plc::NO_ROBO;
     int nblocks = 1;
     float snr = 30;
     bool encode_only = false;
@@ -55,13 +55,13 @@ int main(int argc, char * argv[]) {
 
     char* seed_str = getCmdOption(argv, argv + argc, "-seed");
     if (seed_str != NULL)
-        seed = (light_plc::robo_mode_t)atoi(seed_str);
+        seed = (light_plc::tone_mode_t)atoi(seed_str);
 
     phy_service_qa tester(debug_, seed);
 
-    char* robo_mode_str = getCmdOption(argv, argv + argc, "-robo-mode");
-    if (robo_mode_str != NULL)
-        robo_mode = (light_plc::robo_mode_t)atoi(robo_mode_str);
+    char* tone_mode_str = getCmdOption(argv, argv + argc, "-robo-mode");
+    if (tone_mode_str != NULL)
+        tone_mode = (light_plc::tone_mode_t)atoi(tone_mode_str);
 
     char* nblocks_str = getCmdOption(argv, argv + argc, "-nblocks");
     if (nblocks_str != NULL)
@@ -82,12 +82,12 @@ int main(int argc, char * argv[]) {
         tester.random_test(100, encode_only);
     else if (std::string(mode_str) == "SOF") {
         tester.test_sound(STD_ROBO, snr, encode_only);
-        tester.test_sof(RATE_1_2, robo_mode, nblocks, snr, encode_only);
+        tester.test_sof(RATE_1_2, tone_mode, nblocks, snr, encode_only);
     }
     else if (std::string(mode_str) == "SOUND")
-        tester.test_sound(robo_mode, snr, encode_only);
+        tester.test_sound(tone_mode, snr, encode_only);
     else if (std::string(mode_str) == "SOFFILE")
-        tester.encode_to_file(RATE_1_2, robo_mode, 1, in_filename, out_filename);
+        tester.encode_to_file(RATE_1_2, tone_mode, 1, in_filename, out_filename);
     else if (std::string(mode_str) == "SACK")
         tester.test_sack();
 

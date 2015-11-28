@@ -61,10 +61,13 @@ const int phy_service::SYNCP_CARRIERS_ANGLE_NUMBER [SYNCP_SIZE / 2 + 1] = {IEEE1
 const bool phy_service::SYNCP_CARRIERS_MASK [SYNCP_SIZE / 2 + 1] = {IEEE1901_SYNCP_CARRIERS_MASK};
 
 const std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::HAMMING_WINDOW = phy_service::create_hamming_window();
-const phy_service::tone_info_t phy_service::BROADCAST_CARRIERS = phy_service::build_broadcast_tone_map();
+const phy_service::tone_info_t phy_service::BROADCAST_CARRIERS = phy_service::build_broadcast_tone_info();
 const int phy_service::N_BROADCAST_CARRIERS = phy_service::count_non_masked_carriers(CARRIERS_BROADCAST_MASK.begin(), CARRIERS_BROADCAST_MASK.end());
+const phy_service::tone_info_t phy_service::TONE_INFO_STD_ROBO = phy_service::calc_robo_tone_info(STD_ROBO);
+const phy_service::tone_info_t phy_service::TONE_INFO_MINI_ROBO = phy_service::calc_robo_tone_info(MINI_ROBO);
+const phy_service::tone_info_t phy_service::TONE_INFO_HS_ROBO = phy_service::calc_robo_tone_info(HS_ROBO);
 
-phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadcast_tone_map()), d_code_rate(RATE_1_2), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
+phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadcast_tone_info()), d_n0(1), PREAMBLE(calc_preamble()), SYNCP_FREQ(calc_syncp_fft(PREAMBLE)), TURBO_INTERLEAVER_SEQUENCE(calc_turbo_interleaver_sequence()) {
     static_assert(BPSK==1 && QPSK==2 && QAM8==3 && QAM16==4 && QAM64==5 && QAM256==6 && QAM1024==7 && QAM4096==8, "Mapping parameters error");
     create_fftw_vars();
     init_turbo_codec();
@@ -76,7 +79,6 @@ phy_service::phy_service (bool debug) : d_debug(debug), d_tone_info(build_broadc
 phy_service::phy_service (const phy_service &obj) : 
         d_debug(obj.d_debug),
         d_tone_info(obj.d_tone_info),
-        d_code_rate(obj.d_code_rate),
         d_n0(obj.d_n0),
         PREAMBLE(obj.PREAMBLE), 
         SYNCP_FREQ(obj.SYNCP_FREQ), 
@@ -102,7 +104,6 @@ phy_service& phy_service::operator=(const phy_service& rhs) {
     std::swap(d_broadcast_channel_response, tmp.d_broadcast_channel_response);
     std::swap(d_noise_psd, tmp.d_noise_psd);
     std::swap(d_snr, tmp.d_snr);
-    std::swap(d_code_rate, tmp.d_code_rate);
     std::swap(d_tone_info, tmp.d_tone_info);
     std::swap(d_n0, tmp.d_n0);
     std::swap(d_debug, tmp.d_debug);
@@ -142,7 +143,7 @@ vector_float phy_service::create_ppdu(vector_int &mpdu_fc_int, const vector_int 
     if (ppdu_mode.has_payload) {
         DEBUG_ECHO("Encoding payload blocks...")
         DEBUG_VECTOR(mpdu_payload_int);
-        payload_symbols = create_payload_symbols(mpdu_payload_int, ppdu_mode.pb_size, ppdu_mode.robo_mode, d_tone_info, d_code_rate);
+        payload_symbols = create_payload_symbols(mpdu_payload_int, ppdu_mode.pb_size, ppdu_mode.tone_mode);
     }
 
     // Create the final symbols array
@@ -162,15 +163,15 @@ vector_float phy_service::create_ppdu(vector_int &mpdu_fc_int, const vector_int 
 
 phy_service::ppdu_mode_t phy_service::get_mode (const vector_int &mpdu_fc_int) {  
     ppdu_mode_t ppdu_mode;
-    mpdu_type_t dt = (mpdu_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
+    delimiter_type_t dt = (delimiter_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
     switch (dt) {
-        case MPDU_TYPE_SOF: {
+        case DT_SOF: {
             int tmi = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH);
             switch (tmi) {
-                case 0: ppdu_mode.robo_mode = STD_ROBO; break;
-                case 1: ppdu_mode.robo_mode = HS_ROBO; break;
-                case 2: ppdu_mode.robo_mode = MINI_ROBO; break;
-                default: ppdu_mode.robo_mode = NO_ROBO; break;
+                case 0: ppdu_mode.tone_mode = STD_ROBO; break;
+                case 1: ppdu_mode.tone_mode = HS_ROBO; break;
+                case 2: ppdu_mode.tone_mode = MINI_ROBO; break;
+                default: ppdu_mode.tone_mode = NO_ROBO; break;
             }
             int pbsz = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH);
             switch (pbsz) {
@@ -180,16 +181,16 @@ phy_service::ppdu_mode_t phy_service::get_mode (const vector_int &mpdu_fc_int) {
             ppdu_mode.has_payload = true;
             break;
         }
-        case MPDU_TYPE_SOUND: {
+        case DT_SOUND: {
             int pbsz = get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH);
             switch (pbsz) {
-                case 0: ppdu_mode.pb_size = PB520; ppdu_mode.robo_mode = STD_ROBO; break;
-                case 1: ppdu_mode.pb_size = PB136; ppdu_mode.robo_mode = MINI_ROBO; break;
+                case 0: ppdu_mode.pb_size = PB520; ppdu_mode.tone_mode = STD_ROBO; break;
+                case 1: ppdu_mode.pb_size = PB136; ppdu_mode.tone_mode = MINI_ROBO; break;
             }
             ppdu_mode.has_payload = true;
             break;
         }
-        case MPDU_TYPE_SACK:
+        case DT_SACK:
             ppdu_mode.has_payload = false;
             break;
 
@@ -200,22 +201,22 @@ phy_service::ppdu_mode_t phy_service::get_mode (const vector_int &mpdu_fc_int) {
 }
 
 void phy_service::update_frame_control (vector_int &mpdu_fc_int, ppdu_mode_t ppdu_mode, size_t payload_size) {  
-    mpdu_type_t dt = (mpdu_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
+    delimiter_type_t dt = (delimiter_type_t)get_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
     int fl_width = 0;
     if (ppdu_mode.has_payload) {
         // Calculate frame length
-        tone_info_t tone_info = calc_tone_info(ppdu_mode.robo_mode);
+        tone_info_t tone_info = get_tone_info(ppdu_mode.tone_mode);
         int n_blocks = ppdu_mode.pb_size == PB520 ? payload_size / (520*8) : payload_size / (136*8);
-        int interleaved_block_size = calc_interleaved_block_size(ppdu_mode.robo_mode, d_code_rate, ppdu_mode.pb_size);
+        int interleaved_block_size = calc_interleaved_block_size(ppdu_mode.tone_mode, tone_info.rate, ppdu_mode.pb_size);
         int n_bits = n_blocks * interleaved_block_size;
         int n_symbols = (n_bits % tone_info.capacity) ? n_bits / tone_info.capacity + 1 : n_bits / tone_info.capacity;
         fl_width = std::ceil((n_symbols * (NUMBER_OF_CARRIERS*2.0/SAMPLE_RATE) + IEEE1901_RIFS_DEFAULT)/1.28);
     }
     switch (dt) {
-        case MPDU_TYPE_SOF:
+        case DT_SOF:
             set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH, fl_width);
             break;
-        case MPDU_TYPE_SOUND: 
+        case DT_SOUND: 
             set_field(mpdu_fc_int, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH, fl_width);
             break;
         default:
@@ -321,7 +322,7 @@ unsigned long phy_service::crc24(const vector_int &bit_vector) {
     return (crc ^ 0xffffff);
 }    
 
-vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &payload_bits, pb_size_t pb_size, robo_mode_t robo_mode, phy_service::tone_info_t tone_info, code_rate rate) {
+vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &payload_bits, pb_size_t pb_size, tone_mode_t tone_mode) {
     // Determine number of blocks and blocks size
     int block_n_bits = (pb_size == PB520) ? 520*8 : 136*8;
     assert (pb_size == PB520 || pb_size == PB136); // Cannot have payload blocks of 16 octets
@@ -329,13 +330,9 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
     int n_blocks = payload_bits.size() / block_n_bits;
     assert ((payload_bits.size() % block_n_bits) == 0);
 
-    int block_size = calc_interleaved_block_size(robo_mode, rate, pb_size);
+    tone_info_t tone_info = get_tone_info(tone_mode);
+    int block_size = calc_interleaved_block_size(tone_mode, tone_info.rate, pb_size);
     // Encode blocks
-    if (robo_mode != NO_ROBO) {
-        tone_info = calc_tone_info(robo_mode);
-        rate = RATE_1_2;
-    }
-
     vector_int block_bits, encoded_payload_bits(block_size * n_blocks);
     vector_int::iterator iter_out = encoded_payload_bits.begin();
     int scrambler_state = scrambler_init(); // This inits the scrambler state
@@ -347,15 +344,15 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
         DEBUG_VECTOR(scrambled);
 
         // Turbo-convolution encoder
-        vector_int parity = tc_encoder(scrambled, pb_size, rate);
+        vector_int parity = tc_encoder(scrambled, pb_size, tone_info.rate);
         DEBUG_VECTOR(parity);
 
         // Channel interleaver
-        vector_int interleaved = channel_interleaver(scrambled, parity, pb_size, rate);
+        vector_int interleaved = channel_interleaver(scrambled, parity, pb_size, tone_info.rate);
         DEBUG_VECTOR(interleaved);
 
-        if (robo_mode != NO_ROBO) {
-            interleaved = robo_interleaver(interleaved, robo_mode);
+        if (tone_mode != NO_ROBO) {
+            interleaved = robo_interleaver(interleaved, tone_mode);
             DEBUG_VECTOR(interleaved);
         }
 
@@ -367,8 +364,8 @@ vector_symbol_freq phy_service::create_payload_symbols_freq(const vector_int &pa
     return modulate(encoded_payload_bits, tone_info);
 }
 
-vector_symbol phy_service::create_payload_symbols(const vector_int &payload_bits, pb_size_t pb_size, robo_mode_t robo_mode, phy_service::tone_info_t tone_info, code_rate rate) {
-    vector_symbol_freq symbols_freq = create_payload_symbols_freq(payload_bits, pb_size, robo_mode, tone_info, rate);
+vector_symbol phy_service::create_payload_symbols(const vector_int &payload_bits, pb_size_t pb_size, tone_mode_t tone_mode) {
+    vector_symbol_freq symbols_freq = create_payload_symbols_freq(payload_bits, pb_size, tone_mode);
 
     // Perform IFFT to get a time domain symbol
     vector_symbol symbols(symbols_freq.size());
@@ -435,7 +432,7 @@ void phy_service::init_turbo_codec() {
     d_turbo_codec.set_parameters(gen, gen, 4, interleaver_sequence_bvec, puncture_matrix, 4, "LOGMAX", 1.0, true,  itpp::LLR_calc_unit());
 }
 
-vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_size, code_rate rate) {
+vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_size, core_rate_t rate) {
     itpp::bmat puncture_matrix;
     assert (rate == RATE_1_2); // Only Rate = 1/2 is supported in the encoder/decoder
     if (rate == RATE_1_2)
@@ -485,7 +482,7 @@ vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_siz
     return parity; */
 }
 
-vector_int phy_service::tc_decoder(const vector_float &received_info, const vector_float &received_parity, pb_size_t pb_size, code_rate rate) {
+vector_int phy_service::tc_decoder(const vector_float &received_info, const vector_float &received_parity, pb_size_t pb_size, core_rate_t rate) {
     itpp::bmat puncture_matrix;
     assert (rate == RATE_1_2); // Only Rate = 1/2 is supported in the encoder/decoder
     if (rate == RATE_1_2)
@@ -585,7 +582,7 @@ vector_int phy_service::consistuent_encoder(const vector_int& in, pb_size_t pb_s
     return out;
 }
 
-void phy_service::puncture(vector_int &bitstream, code_rate rate) {
+void phy_service::puncture(vector_int &bitstream, core_rate_t rate) {
     switch (rate) {
         case RATE_1_2:
             break;
@@ -682,7 +679,7 @@ vector_int phy_service::turbo_interleaver(const vector_int &bitstream, pb_size_t
     return out;
 }
 
-vector_int phy_service::channel_interleaver(const vector_int& bitstream, const vector_int& parity_bitstream, pb_size_t pb_size, code_rate rate) {
+vector_int phy_service::channel_interleaver(const vector_int& bitstream, const vector_int& parity_bitstream, pb_size_t pb_size, core_rate_t rate) {
     int step_size = CHANNEL_INTERLEAVER_STEPSIZE[pb_size][rate];
     int offset = CHANNEL_INTERLEAVER_OFFSET[pb_size][rate];
     int info_row_no = 0;
@@ -751,11 +748,11 @@ bool phy_service::channel_interleaver_row(const vector_int& bitstream, vector_in
     return false;
 }
 
-vector_int phy_service::robo_interleaver(const vector_int& bitstream, robo_mode_t robo_mode) {
+vector_int phy_service::robo_interleaver(const vector_int& bitstream, tone_mode_t tone_mode) {
     // Determine number of bits to pad at end of copy
     unsigned int n_raw = bitstream.size();
     unsigned int n_copies, bits_in_last_symbol, bits_in_segment, n_pad;
-    calc_robo_parameters (robo_mode, n_raw, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);
+    calc_robo_parameters (tone_mode, n_raw, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);
 
     // Set the bits shift parameters
     std::vector<int> cycle_shifts(n_copies,0);
@@ -789,20 +786,30 @@ vector_int phy_service::robo_interleaver(const vector_int& bitstream, robo_mode_
     return robo_bitstream;
 }
 
-phy_service::tone_info_t phy_service::calc_tone_info (robo_mode_t robo_mode) {
-    // Create basic ROBO carriers consists of broadcast mask and QPSK
+phy_service::tone_info_t phy_service::get_tone_info (tone_mode_t tone_mode) {
+    switch (tone_mode) {
+        case STD_ROBO: return TONE_INFO_STD_ROBO; break;
+        case HS_ROBO: return TONE_INFO_HS_ROBO; break;
+        case MINI_ROBO: return TONE_INFO_MINI_ROBO; break;
+        default: return d_tone_info; break;
+    }
+}
+
+phy_service::tone_info_t phy_service::calc_robo_tone_info (tone_mode_t tone_mode) {
+    assert (tone_mode == STD_ROBO || tone_mode == MINI_ROBO || tone_mode == HS_ROBO);
+
     tone_info_t tone_info = BROADCAST_CARRIERS;
 
     int n_copies = 0;
 
     // Each mode replicates the bits n_copies times
-    switch (robo_mode) { 
+    switch (tone_mode) { 
         case STD_ROBO: n_copies = 4; break;
         case HS_ROBO: n_copies = 2; break;
         case MINI_ROBO: n_copies = 5; break;
-        case NO_ROBO: return d_tone_info; break; 
+        case NO_ROBO: break; 
     }
-    assert (robo_mode == STD_ROBO || robo_mode == HS_ROBO || robo_mode == MINI_ROBO); // ROBO mode should be only one of these
+    // Create basic ROBO carriers consists of broadcast mask and QPSK
 
     unsigned int n_carriers = N_BROADCAST_CARRIERS;
     unsigned int n_carriers_robo = n_copies * (n_carriers / n_copies);
@@ -821,15 +828,15 @@ phy_service::tone_info_t phy_service::calc_tone_info (robo_mode_t robo_mode) {
     return tone_info; 
 }
 
-void phy_service::calc_robo_parameters (robo_mode_t robo_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad) {
+void phy_service::calc_robo_parameters (tone_mode_t tone_mode, unsigned int n_raw, unsigned int &n_copies, unsigned int &bits_in_last_symbol, unsigned int &bits_in_segment, unsigned int &n_pad) {
     // Each mode replicates the bits n_copies times
-    switch (robo_mode) { 
+    switch (tone_mode) { 
         case STD_ROBO: n_copies = 4; break;
         case HS_ROBO: n_copies = 2; break;
         case MINI_ROBO: n_copies = 5; break;
         case NO_ROBO: break; 
     }
-    assert (robo_mode == STD_ROBO || robo_mode == HS_ROBO || robo_mode == MINI_ROBO); // ROBO mode should be only one of these
+    assert (tone_mode == STD_ROBO || tone_mode == HS_ROBO || tone_mode == MINI_ROBO); // ROBO mode should be only one of these
 
     unsigned int n_carriers = N_BROADCAST_CARRIERS;
     unsigned int n_carriers_robo = n_copies * (n_carriers / n_copies);
@@ -1095,6 +1102,9 @@ void phy_service::process_ppdu_payload(vector_float::const_iterator iter, unsign
 
 
 vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) {
+    if (!d_frame_parameters.has_payload) 
+        return vector_int(0);
+
     // Resolve frame control symbol
     iter += GUARD_INTERVAL_PAYLOAD;
     
@@ -1119,68 +1129,58 @@ vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) 
         DEBUG_VECTOR((*symbols_freq_iter));
     }
 
-    switch (d_frame_parameters.type) {
-        case (MPDU_TYPE_SOF):
-        case (MPDU_TYPE_SOUND): {
-            // Determine the decoded blocks size
-            int pb_n_bits = (d_frame_parameters.pb_size == PB520) ? 520*8 : 136*8;
-            assert (d_frame_parameters.pb_size == PB520 || d_frame_parameters.pb_size == PB136); // Cannot have payload blocks of 16 octets
+    // Determine the decoded blocks size
+    int pb_n_bits = (d_frame_parameters.pb_size == PB520) ? 520*8 : 136*8;
+    assert (d_frame_parameters.pb_size == PB520 || d_frame_parameters.pb_size == PB136); // Cannot have payload blocks of 16 octets
 
-            vector_float blocks_bits(d_frame_parameters.tone_info.capacity * symbols.size());
-            vector_float::iterator blocks_bits_iter = blocks_bits.begin();
-            for (vector_symbol_freq::iterator symbol_freq_iter = symbols_freq.begin(); symbol_freq_iter != symbols_freq.end(); symbol_freq_iter++) {
-                // Demodulate 
-                vector_float new_bits = symbol_demodulate(symbol_freq_iter->begin(), d_frame_parameters.tone_info, d_broadcast_channel_response);
-                blocks_bits_iter = std::copy(new_bits.begin(), new_bits.end(), blocks_bits_iter);
-            }
-            DEBUG_VECTOR(blocks_bits);
+    tone_info_t tone_info = get_tone_info(d_frame_parameters.tone_mode);
+    vector_float blocks_bits(tone_info.capacity * symbols.size());
+    vector_float::iterator blocks_bits_iter = blocks_bits.begin();
+    for (vector_symbol_freq::iterator symbol_freq_iter = symbols_freq.begin(); symbol_freq_iter != symbols_freq.end(); symbol_freq_iter++) {
+        // Demodulate 
+        vector_float new_bits = symbol_demodulate(symbol_freq_iter->begin(), tone_info, d_broadcast_channel_response);
+        blocks_bits_iter = std::copy(new_bits.begin(), new_bits.end(), blocks_bits_iter);
+    }
+    DEBUG_VECTOR(blocks_bits);
 
-            // Determine the number of blocks contained
-            int n_blocks =  blocks_bits.size() / d_frame_parameters.interleaved_block_size;
+    // Determine the number of blocks contained
+    int n_blocks =  blocks_bits.size() / d_frame_parameters.interleaved_block_size;
 
-            // Deinterleave and decode blocks
-            blocks_bits_iter = blocks_bits.begin();
-            int scrambler_state = scrambler_init(); // Init the scrambler state
-            vector_int payload_bits(n_blocks * pb_n_bits);
-            vector_int::iterator payload_bits_iter = payload_bits.begin();
-            for (int i = 0; i< n_blocks; i++) {
-                vector_float block_bits = vector_float(blocks_bits_iter, blocks_bits_iter + d_frame_parameters.interleaved_block_size);
-                vector_float received_info;
-                vector_float received_parity;
-                vector_int decoded_info;
-         
-                if (d_frame_parameters.robo_mode != NO_ROBO) {
-                    vector_float robo_deinterleaved = robo_deinterleaver(block_bits, d_frame_parameters.encoded_block_size, d_frame_parameters.robo_mode);
-                    DEBUG_VECTOR(robo_deinterleaved);
-                    received_info = channel_deinterleaver(robo_deinterleaved, received_parity, d_frame_parameters.pb_size, d_frame_parameters.rate);
-                } else {
-                    received_info = channel_deinterleaver(block_bits, received_parity, d_frame_parameters.pb_size, d_frame_parameters.rate);
-                }
-
-                decoded_info = tc_decoder(received_info, received_parity, d_frame_parameters.pb_size, d_frame_parameters.rate);
-
-                DEBUG_VECTORINT_PACK(decoded_info);
-
-                vector_int descrambled = scrambler(decoded_info, scrambler_state);
-                DEBUG_VECTOR(descrambled);
-
-                payload_bits_iter = std::copy(descrambled.begin(),descrambled.end(), payload_bits_iter);
-                blocks_bits_iter += d_frame_parameters.interleaved_block_size;
-            }
-            DEBUG_VECTOR(payload_bits);
-
-            vector_symbol_freq symbols_freq_ref = create_payload_symbols_freq(payload_bits, d_frame_parameters.pb_size, d_frame_parameters.robo_mode, d_frame_parameters.tone_info, d_frame_parameters.rate);
-            estimate_channel_gain(symbols_freq.begin(), symbols_freq.end(), symbols_freq_ref.begin(), d_broadcast_channel_response);
-            DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
-            return payload_bits;
-            break;
+    // Deinterleave and decode blocks
+    blocks_bits_iter = blocks_bits.begin();
+    int scrambler_state = scrambler_init(); // Init the scrambler state
+    vector_int payload_bits(n_blocks * pb_n_bits);
+    vector_int::iterator payload_bits_iter = payload_bits.begin();
+    for (int i = 0; i< n_blocks; i++) {
+        vector_float block_bits = vector_float(blocks_bits_iter, blocks_bits_iter + d_frame_parameters.interleaved_block_size);
+        vector_float received_info;
+        vector_float received_parity;
+        vector_int decoded_info;
+ 
+        if (d_frame_parameters.tone_mode != NO_ROBO) {
+            vector_float robo_deinterleaved = robo_deinterleaver(block_bits, d_frame_parameters.encoded_block_size, d_frame_parameters.tone_mode);
+            DEBUG_VECTOR(robo_deinterleaved);
+            received_info = channel_deinterleaver(robo_deinterleaved, received_parity, d_frame_parameters.pb_size, tone_info.rate);
+        } else {
+            received_info = channel_deinterleaver(block_bits, received_parity, d_frame_parameters.pb_size, tone_info.rate);
         }
 
-        default:
-            break;
-    }
+        decoded_info = tc_decoder(received_info, received_parity, d_frame_parameters.pb_size, tone_info.rate);
 
-    return vector_int(0);
+        DEBUG_VECTORINT_PACK(decoded_info);
+
+        vector_int descrambled = scrambler(decoded_info, scrambler_state);
+        DEBUG_VECTOR(descrambled);
+
+        payload_bits_iter = std::copy(descrambled.begin(),descrambled.end(), payload_bits_iter);
+        blocks_bits_iter += d_frame_parameters.interleaved_block_size;
+    }
+    DEBUG_VECTOR(payload_bits);
+
+    vector_symbol_freq symbols_freq_ref = create_payload_symbols_freq(payload_bits, d_frame_parameters.pb_size, d_frame_parameters.tone_mode);
+    estimate_channel_gain(symbols_freq.begin(), symbols_freq.end(), symbols_freq_ref.begin(), d_broadcast_channel_response);
+    DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
+    return payload_bits;
 }
 
 void phy_service::set_noise_psd(float n0) {
@@ -1327,11 +1327,8 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
 
 void phy_service::set_tone_map(tone_map_t tone_map) {
     d_tone_info.tone_map = tone_map;
+    d_tone_info.rate = RATE_1_2;
     update_tone_info_capacity(d_tone_info);
-}
-
-void phy_service::set_code_rate(code_rate rate) {
-    d_code_rate = rate;
 }
 
 int phy_service::get_mpdu_payload_size() {
@@ -1350,12 +1347,11 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
     if (!crc24_check(fc_bits)) 
         return false;
     
-    int dt = get_field(fc_bits, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
-    switch (dt) {
+    delimiter_type_t type = (delimiter_type_t) get_field(fc_bits, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
+    DEBUG_VAR(type);
+    switch (type) {
         // SOF frame control
-        case 1: {
-            frame_parameters.type = MPDU_TYPE_SOF;
-            DEBUG_VAR(frame_parameters.type);
+        case DT_SOF: {
 
             int pbsz = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOF_PBSZ_WIDTH);
             switch (pbsz) {
@@ -1365,10 +1361,10 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
 
             int tmi = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH);
             switch (tmi) {
-                case 0: frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("Robo Mode = STD_ROBO"); break;
-                case 1: frame_parameters.robo_mode = HS_ROBO; DEBUG_ECHO("Robo Mode = HS_ROBO"); break;
-                case 2: frame_parameters.robo_mode = MINI_ROBO; DEBUG_ECHO("Robo Mode = MINI_ROBO"); break;
-                default: frame_parameters.robo_mode = NO_ROBO; frame_parameters.tone_info = d_tone_info; break;
+                case 0: frame_parameters.tone_mode = STD_ROBO; DEBUG_ECHO("Tone Mode = STD_ROBO"); break;
+                case 1: frame_parameters.tone_mode = HS_ROBO; DEBUG_ECHO("Tone Mode = HS_ROBO"); break;
+                case 2: frame_parameters.tone_mode = MINI_ROBO; DEBUG_ECHO("Tone Mode = MINI_ROBO"); break;
+                default: frame_parameters.tone_mode = NO_ROBO; DEBUG_ECHO("Tone Mode = NO_ROBO"); break;
             }
 
             int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH);
@@ -1380,22 +1376,17 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
         }
 
         // SACK frame control
-        case 2: {
-            frame_parameters.type = MPDU_TYPE_SACK;
-            DEBUG_VAR(frame_parameters.type);
+        case DT_SACK: {
             frame_parameters.has_payload = false;           
             break;
         }
         
         // Sound frame control
-        case 4: {
-            frame_parameters.type = MPDU_TYPE_SOUND;
-            DEBUG_VAR(frame_parameters.type);
-
+        case DT_SOUND: {
             int pbsz = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH);
             switch (pbsz) {
-                case 0: frame_parameters.pb_size = PB520; frame_parameters.robo_mode = STD_ROBO; DEBUG_ECHO("pb_size_t = PB520"); break;
-                case 1: frame_parameters.pb_size = PB136; frame_parameters.robo_mode = MINI_ROBO; DEBUG_ECHO("pb_size_t = PB136"); break;
+                case 0: frame_parameters.pb_size = PB520; frame_parameters.tone_mode = STD_ROBO; DEBUG_ECHO("pb_size_t = PB520"); break;
+                case 1: frame_parameters.pb_size = PB136; frame_parameters.tone_mode = MINI_ROBO; DEBUG_ECHO("pb_size_t = PB136"); break;
             }
 
             int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH);
@@ -1417,12 +1408,10 @@ bool phy_service::parse_frame_control (const vector_int &fc_bits, frame_paramete
     
     // If this frame contains a payload, calculate these parameters
     if (frame_parameters.has_payload) {
-        if (frame_parameters.robo_mode != NO_ROBO)
-            frame_parameters.tone_info = calc_tone_info(frame_parameters.robo_mode);
-        frame_parameters.rate = d_code_rate;
-        frame_parameters.encoded_block_size = calc_encoded_block_size(frame_parameters.rate, frame_parameters.pb_size);
-        frame_parameters.interleaved_block_size = calc_interleaved_block_size(frame_parameters.robo_mode, frame_parameters.rate, frame_parameters.pb_size);
-        int number_of_blocks = (frame_parameters.n_expected_symbols * frame_parameters.tone_info.capacity) / frame_parameters.interleaved_block_size;
+        tone_info_t tone_info = get_tone_info(frame_parameters.tone_mode);
+        frame_parameters.encoded_block_size = calc_encoded_block_size(tone_info.rate, frame_parameters.pb_size);
+        frame_parameters.interleaved_block_size = calc_interleaved_block_size(frame_parameters.tone_mode, tone_info.rate, frame_parameters.pb_size);
+        int number_of_blocks = (frame_parameters.n_expected_symbols * tone_info.capacity) / frame_parameters.interleaved_block_size;
         frame_parameters.mpdu_payload_size =  number_of_blocks * calc_block_size(frame_parameters.pb_size);
         frame_parameters.ppdu_payload_size = frame_parameters.n_expected_symbols * (NUMBER_OF_CARRIERS * 2 + GUARD_INTERVAL_PAYLOAD);
     } else {
@@ -1613,7 +1602,7 @@ vector_float phy_service::combine_copies(vector_float& bitstream, int offset, in
     return decopier_output;
 }
 
-vector_float phy_service::channel_deinterleaver(const vector_float& bitstream, vector_float& parity_bitstream, pb_size_t pb_size, code_rate rate) {
+vector_float phy_service::channel_deinterleaver(const vector_float& bitstream, vector_float& parity_bitstream, pb_size_t pb_size, core_rate_t rate) {
     int step_size = CHANNEL_INTERLEAVER_STEPSIZE[pb_size][rate];
     int offset = CHANNEL_INTERLEAVER_OFFSET[pb_size][rate];
     int info_row_no = 0;
@@ -1693,9 +1682,9 @@ bool phy_service::channel_deinterleaver_row(vector_float::const_iterator& iter, 
     return false;
 }
 
-vector_float phy_service::robo_deinterleaver(const vector_float& bitstream, int n_raw, robo_mode_t robo_mode)  { 
+vector_float phy_service::robo_deinterleaver(const vector_float& bitstream, int n_raw, tone_mode_t tone_mode)  { 
     unsigned int n_copies, bits_in_last_symbol, bits_in_segment, n_pad;
-    calc_robo_parameters (robo_mode, n_raw, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);      
+    calc_robo_parameters (tone_mode, n_raw, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);      
     assert (bitstream.size() % n_copies == 0); // input should have exactly n_copies of n_raw+n_pad
     // Set the bits shift parameters
     std::vector<int> cycle_shifts(n_copies,0);
@@ -1742,13 +1731,13 @@ vector_float phy_service::robo_deinterleaver(const vector_float& bitstream, int 
     return combined_copy;
 }
 
-int phy_service::calc_interleaved_block_size(robo_mode_t robo_mode, code_rate rate, pb_size_t pb_size) {
+int phy_service::calc_interleaved_block_size(tone_mode_t tone_mode, core_rate_t rate, pb_size_t pb_size) {
     int encoded_pb_n_bits = calc_encoded_block_size(rate, pb_size);
 
     // Determine parameters for ROBO mode
     unsigned int n_copies = 1, n_pad = 0, bits_in_last_symbol, bits_in_segment; // Default values when not in ROBO mode
-    if (robo_mode != NO_ROBO) {
-        calc_robo_parameters (robo_mode, encoded_pb_n_bits, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);
+    if (tone_mode != NO_ROBO) {
+        calc_robo_parameters (tone_mode, encoded_pb_n_bits, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);
         return (encoded_pb_n_bits + n_pad) * n_copies;
     }
     return encoded_pb_n_bits;
@@ -1761,7 +1750,7 @@ inline int phy_service::calc_block_size(pb_size_t pb_size) {
         return 136*8;
     else return 16*8;
 }
-int phy_service::calc_encoded_block_size(code_rate rate, pb_size_t pb_size) {
+int phy_service::calc_encoded_block_size(core_rate_t rate, pb_size_t pb_size) {
     // Determine number of bits in original block
     int block_n_bits = (pb_size == PB520) ? 520*8 : 136*8;
     assert (pb_size == PB520 || pb_size == PB136); // Cannot have payload blocks of 16 octets
@@ -1776,20 +1765,21 @@ int phy_service::calc_encoded_block_size(code_rate rate, pb_size_t pb_size) {
     return encoded_pb_n_bits;
 }
 
-int phy_service::max_blocks (robo_mode_t robo_mode, code_rate rate, modulation_type modulation) {  
-    int encoded_pb_n_bits = calc_interleaved_block_size(robo_mode, rate, PB520);
+int phy_service::max_blocks (tone_mode_t tone_mode, core_rate_t rate, modulation_type modulation) {  
+    int encoded_pb_n_bits = calc_interleaved_block_size(tone_mode, rate, PB520);
 
     float symbol_durarion = NUMBER_OF_CARRIERS * 2.0 / SAMPLE_RATE; // one symbol duration (microseconds)
     float max_frame_duration = (((1 << IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH) - 1) * 1.28 - IEEE1901_RIFS_DEFAULT); // maximum of all symbols duration allowed (microseconds)
     int max_n_symbols = max_frame_duration / symbol_durarion; // maximum number of symbols
-    int max_n_bits = max_n_symbols * build_broadcast_tone_map(modulation).capacity; // maximum number of bits
+    int max_n_bits = max_n_symbols * build_broadcast_tone_info(modulation).capacity; // maximum number of bits
     return max_n_bits / encoded_pb_n_bits; // maximum number of PB520 blocks
 }
 
-phy_service::tone_info_t phy_service::build_broadcast_tone_map(modulation_type modulation) {
+phy_service::tone_info_t phy_service::build_broadcast_tone_info(modulation_type modulation) {
     tone_info_t broadcast_carriers;
     for (size_t i=0; i<CARRIERS_BROADCAST_MASK.size(); i++)
         broadcast_carriers.tone_map[i] = CARRIERS_BROADCAST_MASK[i] ? modulation : NULLED;
+    broadcast_carriers.rate = RATE_1_2;
     update_tone_info_capacity(broadcast_carriers);
     return broadcast_carriers;
 }
