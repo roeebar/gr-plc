@@ -59,7 +59,7 @@ namespace gr {
             const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
             light_plc::tone_map_t tone_map;
             for (size_t j = 0; j<tone_map_len; j++)
-              tone_map[j] = (light_plc::modulation_type)tone_map_blob[j];
+              tone_map[j] = (light_plc::modulation_type_t)tone_map_blob[j];
             d_phy_service.set_tone_map(tone_map);
           }        
 

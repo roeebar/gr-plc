@@ -33,6 +33,7 @@ list(APPEND lightplc_libs
 # source files
 list(APPEND lightplc_sources
     phy_service.cc
+    utils.cc
 )
 
 # create a static library
@@ -44,6 +45,7 @@ set_target_properties(lightplc PROPERTIES COMPILE_FLAGS "-fPIC") # static librar
 # create an executable test 
 list(APPEND phy_test_sources
     phy_service.cc
+    utils.cc
     phy_service_qa.cc
     phy_test.cc
     )

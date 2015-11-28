@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <fstream>
 #include "phy_service_qa.h"
-#include "ieee1901.inc"
 
 using namespace light_plc;
 
@@ -24,7 +23,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     // First send sounding
     std::cout << "Test 1 (Sound):" << std::endl;
     
-    test_sound(STD_ROBO);
+    test_sound(TM_STD_ROBO);
 
     // Send the rest of the random tests
     for (int i=2; i<=number_of_tests; i++) {
@@ -35,9 +34,9 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             std::cout << "Test " << i << " (Sound): " << std::endl;           
             tone_mode_t tone_mode;
             if (integer_random(1) == 0)
-                tone_mode = STD_ROBO;
+                tone_mode = TM_STD_ROBO;
             else
-                tone_mode = MINI_ROBO;
+                tone_mode = TM_MINI_ROBO;
             if (!test_sound(tone_mode))
                 return false;
         } else if (test_type < 30) {  // sack test
@@ -50,12 +49,12 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             tone_mode_t tone_mode;
             int mode = integer_random(3);
             switch (mode){
-                case 0: tone_mode = STD_ROBO; break;
-                case 1: tone_mode = MINI_ROBO; break;
-                case 2: tone_mode = HS_ROBO; break;
-                case 3: tone_mode = NO_ROBO; break;
+                case 0: tone_mode = TM_STD_ROBO; break;
+                case 1: tone_mode = TM_MINI_ROBO; break;
+                case 2: tone_mode = TM_HS_ROBO; break;
+                case 3: tone_mode = TM_NO_ROBO; break;
             }
-            int number_of_blocks = integer_random(encoder.max_blocks(tone_mode, rate));
+            int number_of_blocks = integer_random(encoder.max_blocks(tone_mode));
             std::cout << "Test " << i << " (SOF): " << std::endl;
             
             if (!test_sof(rate, tone_mode, number_of_blocks))
@@ -144,7 +143,7 @@ bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
 bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_only) {
     std::cout << "ROBO mode = " << tone_mode << std::endl;
     vector_int mpdu_payload;
-    if (tone_mode == STD_ROBO)
+    if (tone_mode == TM_STD_ROBO)
         mpdu_payload = vector_int(520*8);
     else
         mpdu_payload = vector_int(136*8);
@@ -245,10 +244,10 @@ vector_int phy_service_qa::create_sof_frame_control (tone_mode_t tone_mode, pb_s
     // Set tone map index
     int tmi = 0;
     switch (tone_mode) {
-        case STD_ROBO: tmi=0; break;
-        case HS_ROBO: tmi=1; break;
-        case MINI_ROBO: tmi=2; break;
-        case NO_ROBO: tmi=3; break;
+        case TM_STD_ROBO: tmi=0; break;
+        case TM_HS_ROBO: tmi=1; break;
+        case TM_MINI_ROBO: tmi=2; break;
+        case TM_NO_ROBO: tmi=3; break;
     }
     set_field(frame_control, IEEE1901_FRAME_CONTROL_SOF_TMI_OFFSET, IEEE1901_FRAME_CONTROL_SOF_TMI_WIDTH, tmi);
     
@@ -259,15 +258,13 @@ vector_int phy_service_qa::create_sound_frame_control (tone_mode_t tone_mode)  {
     vector_int frame_control(IEEE1901_FRAME_CONTROL_NBITS,0);
 
     // Set the pbsz bit
-    if (tone_mode == STD_ROBO)
+    if (tone_mode == TM_STD_ROBO)
         set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 0);
     else
         set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_PBSZ_WIDTH, 1);
 
     // Set delimiter type to Sound    
     set_field(frame_control, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH, 4);
-    
-    set_field(frame_control, IEEE1901_FRAME_CONTROL_SOUND_CFS_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_CFS_WIDTH, 1);
 
     return frame_control;
 }

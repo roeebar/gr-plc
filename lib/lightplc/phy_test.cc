@@ -21,7 +21,7 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 int main(int argc, char * argv[]) {
     unsigned int seed = 1444438709;
     bool debug_ = false;
-    light_plc::tone_mode_t tone_mode = light_plc::NO_ROBO;
+    light_plc::tone_mode_t tone_mode = light_plc::TM_NO_ROBO;
     int nblocks = 1;
     float snr = 30;
     bool encode_only = false;
@@ -32,7 +32,7 @@ int main(int argc, char * argv[]) {
         << "  -modulation NUMBER  Set modulation in SOF or SOFFILE modes\n"
         << "                      Default = 1 (QPSK)\n\n"
         << "  -robo-mode NUMBER   Set ROBO mode in SOF, SOUND or SOFFILE modes\n" 
-        << "                      Default to 0 (NO_ROBO)\n\n"
+        << "                      Default to 0 (TM_NO_ROBO)\n\n"
         << "  -nblocks NUMBER     Set number of blocks to encode in SOF or SOFFILE modes\n"
         << "                      Default = 1\n\n"
         << "  -snr NUMBER         Set noise according to SNR number in db\n"
@@ -81,7 +81,7 @@ int main(int argc, char * argv[]) {
     if (mode_str == NULL)
         tester.random_test(100, encode_only);
     else if (std::string(mode_str) == "SOF") {
-        tester.test_sound(STD_ROBO, snr, encode_only);
+        tester.test_sound(TM_STD_ROBO, snr, encode_only);
         tester.test_sof(RATE_1_2, tone_mode, nblocks, snr, encode_only);
     }
     else if (std::string(mode_str) == "SOUND")
@@ -92,10 +92,10 @@ int main(int argc, char * argv[]) {
         tester.test_sack();
 
 
-    //tester.encode_to_file(RATE_1_2, NO_ROBO, QAM1024, 1, "input.bin", "output.bin");
-    //tester.test_sound(STD_ROBO, false);
-    //tester.test_sof(RATE_1_2, NO_ROBO, QAM1024, 72, false);
-    //tester.test_sof(RATE_1_2, STD_ROBO, QPSK, 1, false);
+    //tester.encode_to_file(RATE_1_2, TM_NO_ROBO, QAM1024, 1, "input.bin", "output.bin");
+    //tester.test_sound(TM_STD_ROBO, false);
+    //tester.test_sof(RATE_1_2, TM_NO_ROBO, QAM1024, 72, false);
+    //tester.test_sof(RATE_1_2, TM_STD_ROBO, QPSK, 1, false);
     //tester.test_sack();
 
     //tester.random_test(100, false);
