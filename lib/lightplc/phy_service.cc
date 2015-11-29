@@ -226,7 +226,7 @@ void phy_service::pack_bitvector(vector_int::const_iterator iter, vector_int::co
     int i = 0;
     while (iter!=end) {
         unsigned char byte = 0;
-        for (int offset=7; offset>=0; offset --)
+        for (int offset=0; offset<8; offset++)
             byte |= *iter++ << offset;
         array[i++] = byte;
     }
@@ -237,10 +237,10 @@ vector_int phy_service::unpack_into_bitvector (const unsigned char *data, size_t
     for (unsigned int i=0; i<c; i++)
     {
         unsigned char byte = data[i];
-        int offset = 7;
+        int offset = 0;
         while (byte)
         {
-            bit_vector[i*8+offset--] = byte & 1;
+            bit_vector[i*8+offset++] = byte & 1;
             byte >>= 1;
         }
     }
@@ -293,7 +293,7 @@ unsigned long phy_service::crc24(const vector_int &bit_vector) {
     while(iter != bit_vector.end()) {
         unsigned char cp;
         cp = 0;
-        for (int offset=7; offset>=0; offset--) 
+        for (int offset=0; offset<8; offset++) 
             cp |= (*iter++) << offset;
         crc = ((crc << 8) & 0xffff00) ^ crc24tab[((crc >> 16) & 0xff) ^ cp];
     }
