@@ -7,11 +7,11 @@ class phy_service_qa {
 public:
 	phy_service_qa (bool d_debug = false, unsigned int seed = 0);
     bool random_test(int number_of_tests, bool encode_only = false);
-    bool test_sof(core_rate_t rate, tone_mode_t tone_mode, int number_of_blocks, float SNRdb = 30, bool encode_only = false);
+    bool test_sof(tone_mode_t tone_mode, int number_of_blocks, float SNRdb = 30, bool encode_only = false);
 	bool test_sack(float SNRdb = 30, bool encode_only = false);
 	bool test_sound(tone_mode_t tone_mode, float SNRdb = 30, bool encode_only = false);
 	float add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb);
-    bool encode_to_file(core_rate_t rate, tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename);
+    bool encode_to_file(tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename);
     phy_service encoder;
 
 private: 

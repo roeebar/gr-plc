@@ -5,6 +5,7 @@
 #include <vector>
 #include <complex>
 #include <array>
+#include <assert.h>
 
 namespace light_plc {
 

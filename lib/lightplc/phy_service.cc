@@ -3,8 +3,8 @@
 #include <iostream>
 #include <algorithm>
 #include <functional>
-#include <assert.h>
 #include <cmath>
+#include <numeric>
 #include <itpp/comm/modulator.h>
 #include <queue>
 
@@ -199,7 +199,8 @@ void phy_service::update_frame_control (vector_int &mpdu_fc_int, tx_params_t tx_
         int interleaved_block_size = calc_interleaved_block_size(tx_params.tone_mode, tone_info.rate, tx_params.pb_size);
         int n_bits = n_blocks * interleaved_block_size;
         int n_symbols = (n_bits % tone_info.capacity) ? n_bits / tone_info.capacity + 1 : n_bits / tone_info.capacity;
-        fl_width = std::ceil((n_symbols * (NUMBER_OF_CARRIERS*2.0/SAMPLE_RATE) + IEEE1901_RIFS_DEFAULT)/1.28);
+        float symbol_durarion = (NUMBER_OF_CARRIERS * 2.0 + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL) / SAMPLE_RATE; // one symbol duration (microseconds)
+        fl_width = std::ceil((n_symbols * symbol_durarion + IEEE1901_RIFS_DEFAULT)/1.28);
     }
     switch (dt) {
         case DT_SOF:
@@ -1202,9 +1203,9 @@ bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, 
 }
 
 void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end) {
-    static const std::array<float, phy_service::NUMBER_OF_CARRIERS*2> HAMMING_WINDOW = phy_service::create_hamming_window();
-
-    const int M = NUMBER_OF_CARRIERS * 2; // window length
+    static const int M = NUMBER_OF_CARRIERS * 2; // window length
+    static const std::array<float, M> HAMMING_WINDOW = phy_service::create_hamming_window();
+    static const float hamming_energy = std::inner_product(HAMMING_WINDOW.begin(), HAMMING_WINDOW.end(), HAMMING_WINDOW.begin(), (float)0) / M; // calcs sum of squares
     int R = M/2; // 1-R is the overlapping length
     int N = iter_end - iter_begin; // total signal length
     int K = (N - M) / R + 1; // number of overlapping windows fits in signal
@@ -1214,7 +1215,7 @@ void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_
     for (int k=0; k<K; k++) {
         vector_float::const_iterator iter = iter_begin + k*R;
         for (int i=0; i<M; i++)
-            w[i] = *(iter++) + HAMMING_WINDOW[i];
+            w[i] = *(iter++) * HAMMING_WINDOW[i] / hamming_energy;
         fft = fft_real(w.begin(), w.end());
         // Calculate the PSD, and average with previous values
         for (int i=0; i<M/2+1; i++)
@@ -1321,6 +1322,7 @@ void phy_service::set_tone_map(tone_map_t tone_map) {
     d_custom_tone_info.tone_map = tone_map;
     d_custom_tone_info.rate = RATE_1_2;
     update_tone_info_capacity(d_custom_tone_info);
+    DEBUG_VAR(d_custom_tone_info.capacity);
 }
 
 int phy_service::get_mpdu_payload_size() {
@@ -1338,7 +1340,7 @@ int phy_service::get_inter_frame_space() {
 bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_params) {  
     if (!crc24_check(fc_bits)) 
         return false;
-    
+    int fl_width = 0;
     delimiter_type_t type = (delimiter_type_t) get_field(fc_bits, IEEE1901_FRAME_CONTROL_DT_IH_OFFSET, IEEE1901_FRAME_CONTROL_DT_IH_WIDTH);
     DEBUG_VAR(type);
     switch (type) {
@@ -1359,10 +1361,7 @@ bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_para
                 default: rx_params.tone_mode = TM_NO_ROBO; DEBUG_ECHO("Tone Mode = TM_NO_ROBO"); break;
             }
 
-            int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH);
-                rx_params.n_expected_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT) / (NUMBER_OF_CARRIERS * 2.0/SAMPLE_RATE);
-            DEBUG_VAR(rx_params.n_expected_symbols);
-
+            fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH);
             rx_params.has_payload = true;
             break;
         }
@@ -1381,10 +1380,7 @@ bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_para
                 case 1: rx_params.pb_size = PB136; rx_params.tone_mode = TM_MINI_ROBO; DEBUG_ECHO("pb_size_t = PB136"); break;
             }
 
-            int fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH);
-                rx_params.n_expected_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT) / (NUMBER_OF_CARRIERS * 2.0 / SAMPLE_RATE);
-            DEBUG_VAR(rx_params.n_expected_symbols);
-
+            fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH);
             rx_params.has_payload = true;
             break;
         }
@@ -1394,6 +1390,9 @@ bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_para
             return false;
             break;
     }
+    // Calc number of expected symbols
+    rx_params.n_expected_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT) / ((NUMBER_OF_CARRIERS * 2.0 + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL)/SAMPLE_RATE);
+    DEBUG_VAR(rx_params.n_expected_symbols);
 
     // Default inter frame space for all frame types
     rx_params.inter_frame_space = IEEE1901_RIFS_DEFAULT * SAMPLE_RATE;
@@ -1748,12 +1747,12 @@ int phy_service::calc_encoded_block_size(core_rate_t rate, pb_size_t pb_size) {
 }
 
 int phy_service::max_blocks (tone_mode_t tone_mode) {  
+    static const float SYMBOL_DURARION = (NUMBER_OF_CARRIERS * 2.0 + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL) / SAMPLE_RATE; // one symbol duration (microseconds)
+    static const float MAX_FRAME_DURATION = ((1 << IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH) - 1) * 1.28 - IEEE1901_RIFS_DEFAULT; // maximum of all symbols duration allowed (microseconds)
+    static const int MAX_N_SYMBOLS = MAX_FRAME_DURATION / SYMBOL_DURARION; // maximum number of symbols
     tone_info_t tone_info = get_tone_info(tone_mode);
     int encoded_pb_n_bits = calc_interleaved_block_size(tone_mode, tone_info.rate, PB520);
-    float symbol_durarion = NUMBER_OF_CARRIERS * 2.0 / SAMPLE_RATE; // one symbol duration (microseconds)
-    float max_frame_duration = (((1 << IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH) - 1) * 1.28 - IEEE1901_RIFS_DEFAULT); // maximum of all symbols duration allowed (microseconds)
-    int max_n_symbols = max_frame_duration / symbol_durarion; // maximum number of symbols
-    int max_n_bits = max_n_symbols * tone_info.capacity; // maximum number of bits
+    int max_n_bits = MAX_N_SYMBOLS * tone_info.capacity; // maximum number of bits
     return max_n_bits / encoded_pb_n_bits; // maximum number of PB520 blocks
 }
 

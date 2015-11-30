@@ -44,8 +44,6 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             if (!test_sack(encode_only))
                 return false;
         } else if (test_type < 100) { // sof test
-            //core_rate_t rate = (core_rate_t) integer_random(2);
-            core_rate_t rate = RATE_1_2;
             tone_mode_t tone_mode;
             int mode = integer_random(3);
             switch (mode){
@@ -57,7 +55,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             int number_of_blocks = integer_random(encoder.max_blocks(tone_mode));
             std::cout << "Test " << i << " (SOF): " << std::endl;
             
-            if (!test_sof(rate, tone_mode, number_of_blocks))
+            if (!test_sof(tone_mode, number_of_blocks))
                 return false;
         }
     }
@@ -66,15 +64,13 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     return true;
 }
 
-bool phy_service_qa::test_sof(core_rate_t rate, tone_mode_t tone_mode, int number_of_blocks, float SNRdb, bool encode_only) {
+bool phy_service_qa::test_sof(tone_mode_t tone_mode, int number_of_blocks, float SNRdb, bool encode_only) {
 
     vector_int payload(520*8*number_of_blocks);
-
-    std::cout << "Encoding rate = " << rate << std::endl;
+    int max_number_of_blocks = encoder.max_blocks(tone_mode);
     std::cout << "ROBO mode = " << tone_mode << std::endl;
-    std::cout << "number of blocks = " << number_of_blocks << std::endl;
+    std::cout << "number of blocks = " << number_of_blocks <<" (max=" << max_number_of_blocks << ")" <<  std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
-    encoder.set_tone_map(d_tone_map);
     pb_size_t pb_size;
     (payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
     vector_int fc = create_sof_frame_control(tone_mode, pb_size);
@@ -165,6 +161,7 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
         iter += encoder.get_ppdu_payload_length();
         encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
         d_tone_map = encoder.calculate_tone_map(0.001);
+        encoder.set_tone_map(d_tone_map);
         std::cout << "Passed." << std::endl << std::endl;
         return true;
     } else {
@@ -172,11 +169,10 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
     }
 }
 
-bool phy_service_qa::encode_to_file (core_rate_t rate, tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename) {
+bool phy_service_qa::encode_to_file (tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename) {
     vector_int payload(520*8*number_of_blocks);
 
     std::cout << "Testing parameters: " << std::endl;
-    std::cout << "Encoding rate = " << rate << std::endl;
     std::cout << "ROBO mode = " << tone_mode << std::endl;
     std::cout << "number of blocks = " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);

@@ -7,6 +7,7 @@ void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned l
         bit_vector[bit_offset + i] = new_value & 0x1;
         new_value >>= 1;
     }
+    assert(new_value == 0);
     return;
 }
 

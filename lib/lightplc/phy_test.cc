@@ -29,8 +29,6 @@ int main(int argc, char * argv[]) {
         std::cout << "Options:\n" 
         << "  -mode MODE          Can be SOF, SOUND, SACK, SOFFILE, RANDOM.\n"
         << "                      Default to RANDOM (100 random tests)\n\n"
-        << "  -modulation NUMBER  Set modulation in SOF or SOFFILE modes\n"
-        << "                      Default = 1 (QPSK)\n\n"
         << "  -robo-mode NUMBER   Set ROBO mode in SOF, SOUND or SOFFILE modes\n" 
         << "                      Default to 0 (TM_NO_ROBO)\n\n"
         << "  -nblocks NUMBER     Set number of blocks to encode in SOF or SOFFILE modes\n"
@@ -82,12 +80,12 @@ int main(int argc, char * argv[]) {
         tester.random_test(100, encode_only);
     else if (std::string(mode_str) == "SOF") {
         tester.test_sound(TM_STD_ROBO, snr, encode_only);
-        tester.test_sof(RATE_1_2, tone_mode, nblocks, snr, encode_only);
+        tester.test_sof(tone_mode, nblocks, snr, encode_only);
     }
     else if (std::string(mode_str) == "SOUND")
         tester.test_sound(tone_mode, snr, encode_only);
     else if (std::string(mode_str) == "SOFFILE")
-        tester.encode_to_file(RATE_1_2, tone_mode, 1, in_filename, out_filename);
+        tester.encode_to_file(tone_mode, 1, in_filename, out_filename);
     else if (std::string(mode_str) == "SACK")
         tester.test_sack();
 
