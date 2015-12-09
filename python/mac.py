@@ -8,6 +8,7 @@ import sys
 from datetime import datetime, timedelta
 import threading
 from gnuradio import gr
+from time import sleep
 
 class mac(gr.basic_block):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
@@ -44,7 +45,7 @@ class mac(gr.basic_block):
     """
     docstring for block mac
     """
-    def __init__(self, device_addr, master, tmi, dest, debug):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -60,6 +61,8 @@ class mac(gr.basic_block):
         self.debug = debug
         self.is_master = master
         self.tmi = tmi
+        self.broadcast_tone_mask = broadcast_tone_mask
+        self.sync_tone_mask = sync_tone_mask;
         if self.is_master: 
             self.name = "MAC (master)"
             self.state = self.state_waiting_for_app
@@ -100,7 +103,8 @@ class mac(gr.basic_block):
                     if dt == "SOF":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
                         payload = bytearray(dict["payload"].tolist())
-                        self.last_frame_blocks_error = self.parse_mpdu_payload(payload)                        
+                        self.last_frame_blocks_error = self.parse_mpdu_payload(payload)
+                        if not (1 in self.last_frame_blocks_error): self.send_util_payload_to_phy()
                     elif dt == "SOUND":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (Sound) from PHY"
                     elif dt == "SACK":
@@ -120,6 +124,7 @@ class mac(gr.basic_block):
                         self.transmit_sack()
                         self.state = self.state_sending_sack
                     elif self.state ==  self.state_waiting_for_sof_sound and self.last_received_frame_type == "SOUND":
+                        self.send_util_payload_to_phy()
                         self.send_calc_tone_info_to_phy()
                         self.state = self.state_waiting_for_tone_map
                     elif self.state ==  self.state_waiting_for_soundack and self.last_received_frame_type == "SACK":
@@ -222,7 +227,7 @@ class mac(gr.basic_block):
         mpdu_payload, self.last_frame_n_blocks = self.create_mpdu_payload(self.create_mgmt_msg_cm_chan_est(self.rx_tone_map))
 
         # Create frame control
-        mpdu_fc = self.create_sof_frame_control(0, mpdu_payload)
+        mpdu_fc = self.create_sof_frame_control(1, mpdu_payload)
         mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
 
@@ -230,7 +235,7 @@ class mac(gr.basic_block):
         dict = gr.pmt.make_dict();
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=0) to PHY"
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=1) to PHY"
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))        
 
     def send_calc_tone_info_to_phy(self):
@@ -242,8 +247,30 @@ class mac(gr.basic_block):
         tone_map_pmt = gr.pmt.init_u8vector(len(self.tx_tone_map), list(self.tx_tone_map))
         dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("tone_map"), tone_map_pmt)
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSETTONEMAP"), dict))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXSETTONEMAP"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXCONFIG"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXCONFIG"
+
+    def send_init_phy(self):
+        tone_mask_pmt = gr.pmt.init_u8vector(len(self.broadcast_tone_mask), list(self.broadcast_tone_mask))
+        sync_tone_mask_pmt = gr.pmt.init_u8vector(len(self.sync_tone_mask), list(self.sync_tone_mask))
+        dict = gr.pmt.make_dict()
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("broadcast_tone_mask"), tone_mask_pmt)
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sync_tone_mask"), sync_tone_mask_pmt)
+        if self.is_master:
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("id"), gr.pmt.to_pmt("master"))
+        else:
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("id"), gr.pmt.to_pmt("slave"))
+
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXINIT"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXINIT"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXINIT"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXINIT"
+
+
+    def send_util_payload_to_phy(self):
+        dict = gr.pmt.make_dict();
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXUTILPAYLOAD"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXUTILPAYLOAD"
 
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"))
@@ -257,6 +284,7 @@ class mac(gr.basic_block):
             ninput_items_required[i] = noutput_items
 
     def start(self):
+        self.send_init_phy();
         self.send_status_to_app()
 
     def general_work(self, input_items, output_items):
@@ -455,9 +483,6 @@ class mac(gr.basic_block):
             if not self.crc32_check(phy_block):
                 sys.stderr.write(self.name + ": state = " + str(self.state) + ", PHY block CRC error\n")
                 phy_blocks_error.append(1)
-                print "crc error:"
-                print binascii.hexlify(phy_block)
-                print self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_SSN_OFFSET, ieee1901.PHY_BLOCK_HEADER_SSN_WIDTH)
                 continue
             else:
                 phy_blocks_error.append(0)
@@ -555,6 +580,7 @@ class mac(gr.basic_block):
             self.tx_tone_map[i] = self.get_numeric_field(mmentry, cbd_offset, ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH)
             self.tx_capacity += ieee1901.BITLOADING_NBITS[self.tx_tone_map[i]]
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
+        if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
 
     def create_mgmt_msg(self, mmtype, mmentry):

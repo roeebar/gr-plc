@@ -13,10 +13,8 @@ typedef std::vector<int> vector_int;
 typedef std::vector<float> vector_float;
 typedef std::complex<float> complex;
 typedef std::vector<complex> vector_complex;
-typedef std::vector<vector_float> vector_symbol;
-typedef std::vector<vector_complex> vector_symbol_freq;
 
-enum core_rate_t {
+enum code_rate_t {
     RATE_1_2 = 0,
     RATE_16_21 = 1,
     RATE_16_18 = 2,
@@ -48,6 +46,8 @@ enum modulation_type_t {
 };
 
 typedef std::array<modulation_type_t, IEEE1901_NUMBER_OF_CARRIERS+1> tone_map_t;
+typedef std::array<bool, IEEE1901_NUMBER_OF_CARRIERS+1> tone_mask_t;
+typedef std::array<bool, IEEE1901_SYNCP_SIZE / 2 + 1> sync_tone_mask_t;
 
 void set_field(vector_int &bit_vector, int bit_offset, int bit_width, unsigned long new_value);
 unsigned long get_field(const vector_int &bit_vector, int bit_offset, int bit_width);

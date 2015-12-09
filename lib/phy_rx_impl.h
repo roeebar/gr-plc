@@ -7,6 +7,7 @@
 #include <lightplc/phy_service.h>
 #include <list>
 #include <gnuradio/filter/fir_filter.h>
+#include <string>
 
 namespace gr {
   namespace plc {
@@ -24,6 +25,7 @@ namespace gr {
      private:
       light_plc::phy_service d_phy_service;
       const bool d_debug;
+      bool d_init_done;
       gr::filter::kernel::fir_filter_fff *d_fir;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
@@ -48,6 +50,7 @@ namespace gr {
       std::vector<float> d_noise;
       int d_noise_offset;
       int d_inter_frame_space_offset;
+      std::string d_name;
 
      public:
       phy_rx_impl(bool debug);

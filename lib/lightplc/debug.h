@@ -10,10 +10,17 @@
                                     std::cout << x.at(debug_i)<<' ';                                                    \
                                 std::cout << std::endl;                                                                 
 
+#define PRINT_VECTOR_RANGE(name,x,y)   std::cout << name << " (" << (y)-(x) << "):";                                    \
+                                { unsigned int debug_i=0;                                                               \
+                                while (x+debug_i != y)                                                                  \
+                                    std::cout << *(x+debug_i++) <<' ';                                                  \
+                                std::cout << std::endl; }                                                               \
+
+
 #define PRINT_VECTORINT_PACK(x) std::ios state(NULL);                                                                   \
                                 state.copyfmt(std::cout);                                                               \
                                 std::cout << #x << " (" << x.size() << "):";                                            \
-                                vector_int::const_iterator iter=x.begin();                                               \
+                                vector_int::const_iterator iter=x.begin();                                              \
                                 while (iter!=x.end()) {                                                                 \
                                     unsigned char byte=0;                                                               \
                                     for (int offset=7; offset>=0; offset --) {                                          \
@@ -32,11 +39,13 @@
 #  define DEBUG_VECTOR(x) if (d_debug) {PRINT_VECTOR(x)}
 #  define DEBUG_ECHO(x) if (d_debug) {(std::cout << x << std::endl);}
 #  define DEBUG_VECTORINT_PACK(x) if (d_debug) {PRINT_VECTORINT_PACK(x)}
+#  define DEBUG_VECTOR_RANGE(name,x,y) if (d_debug) {PRINT_VECTOR_RANGE(name,x,y)}
 #else
 #  define DEBUG_VAR(x) do {} while (0);
 #  define DEBUG_VECTOR(x) do {} while (0);
 #  define DEBUG_ECHO(x) do {} while (0);
 #  define DEBUG_VECTORINT_PACK(x) do {} while (0);
+#  define DEBUG_VECTOR_RANGE(name,x,y) do {} while (0);
 #endif
 
 #define dout d_debug && std::cout

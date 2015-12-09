@@ -5,6 +5,7 @@
 
 #include <plc/phy_tx.h>
 #include <lightplc/phy_service.h>
+#include <string>
 
 namespace gr {
   namespace plc {
@@ -14,10 +15,12 @@ namespace gr {
      private:
       light_plc::phy_service d_phy_service;
       const bool d_debug;
+      bool d_init_done;
       light_plc::vector_float d_datastream;
       int d_datastream_offset;
       int d_datastream_len;
-      enum {READY, TX, RESET} d_transmitter_state;
+      enum {READY, TX, RESET, HALT} d_transmitter_state;
+      std::string d_name;
 
      public:
       phy_tx_impl(bool debug);

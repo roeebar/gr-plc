@@ -7,8 +7,10 @@
 using namespace light_plc;
 
 phy_service_qa::phy_service_qa (bool d_debug, unsigned int seed) {
-    encoder = phy_service();
-    encoder.debug(d_debug);
+    tone_mask_t mask = {0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1};
+    sync_tone_mask_t sync_mask = {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    d_phy = phy_service(mask, mask, sync_mask,d_debug);
+    d_phy.debug(d_debug);
     if (seed == 0)
         seed = time(NULL);
     std::cout << "Seed = " << seed << std::endl;
@@ -21,7 +23,7 @@ int phy_service_qa::integer_random(int max) { return (rand() % (max+1)); }
 
 bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
     // First send sounding
-    std::cout << "Test 1 (Sound):" << std::endl;
+    std::cout << "Test 1 (Sound)" << std::endl;
     
     test_sound(TM_STD_ROBO);
 
@@ -31,7 +33,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
         int test_type = integer_random(100);
 
         if (test_type < 10) { // sound test
-            std::cout << "Test " << i << " (Sound): " << std::endl;           
+            std::cout << "Test " << i << " (Sound)" << std::endl;           
             tone_mode_t tone_mode;
             if (integer_random(1) == 0)
                 tone_mode = TM_STD_ROBO;
@@ -40,7 +42,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             if (!test_sound(tone_mode))
                 return false;
         } else if (test_type < 30) {  // sack test
-            std::cout << "Test " << i << " (SACK): " << std::endl;
+            std::cout << "Test " << i << " (SACK)" << std::endl;
             if (!test_sack(encode_only))
                 return false;
         } else if (test_type < 100) { // sof test
@@ -52,8 +54,8 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
                 case 2: tone_mode = TM_HS_ROBO; break;
                 case 3: tone_mode = TM_NO_ROBO; break;
             }
-            int number_of_blocks = integer_random(encoder.max_blocks(tone_mode));
-            std::cout << "Test " << i << " (SOF): " << std::endl;
+            int number_of_blocks = integer_random(d_phy.max_blocks(tone_mode));
+            std::cout << "Test " << i << " (SOF)" << std::endl;
             
             if (!test_sof(tone_mode, number_of_blocks))
                 return false;
@@ -65,32 +67,38 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
 }
 
 bool phy_service_qa::test_sof(tone_mode_t tone_mode, int number_of_blocks, float SNRdb, bool encode_only) {
+    if (tone_mode == TM_NO_ROBO) // make sure only one block ends in the last OFDM symbol when not in ROBO mode
+        while (((8332*number_of_blocks) % d_capacity) > 8332)
+            number_of_blocks--;
 
     vector_int payload(520*8*number_of_blocks);
-    int max_number_of_blocks = encoder.max_blocks(tone_mode);
-    std::cout << "ROBO mode = " << tone_mode << std::endl;
-    std::cout << "number of blocks = " << number_of_blocks <<" (max=" << max_number_of_blocks << ")" <<  std::endl;
+    int max_number_of_blocks = d_phy.max_blocks(tone_mode);
+    std::cout << "ROBO mode: " << tone_mode << std::endl;
+    std::cout << "number of blocks: " << number_of_blocks <<" (max=" << max_number_of_blocks << ")" <<  std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
     pb_size_t pb_size;
     (payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
     vector_int fc = create_sof_frame_control(tone_mode, pb_size);
-    vector_float datastream = encoder.create_ppdu(fc, payload);
+    vector_float datastream = d_phy.create_ppdu(fc, payload);
 
-    float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
-    encoder.set_noise_psd(var*2);
+    add_noise(datastream.begin(), datastream.end(), SNRdb);
 
-    std::cout << "Datastream length = " << datastream.size() << std::endl;
+    std::cout << "Datastream length: " << datastream.size() << std::endl;
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
-        encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
+        d_phy.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
+        if (d_phy.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
         }
-        vector_int return_payload = encoder.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
-        encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
+        vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
+        iter += d_phy.get_ppdu_payload_length();
+        d_phy.process_noise(iter, iter + d_phy.get_inter_frame_space());
         if (std::equal(payload.begin(), payload.end(), return_payload.begin())) {
+            d_phy.utilize_payload();
+            if (tone_mode == TM_NO_ROBO)
+                std::cout << "BER: " << d_phy.get_last_ber() << std::endl;
             std::cout << "Passed." << std::endl << std::endl;
             return true;
         } else {
@@ -106,17 +114,16 @@ bool phy_service_qa::test_sack(float SNRdb, bool encode_only) {
     vector_int sackd(80);
     std::generate(sackd.begin(), sackd.end(), binary_random);
     vector_int fc = create_sack_frame_control(sackd);
-    vector_float datastream = encoder.create_ppdu(fc);
-    std::cout << "Datastream length = " << datastream.size() << std::endl;
+    vector_float datastream = d_phy.create_ppdu(fc);
+    std::cout << "Datastream length: " << datastream.size() << std::endl;
 
-    float var = add_noise(datastream.begin(), datastream.end(), SNRdb);
-    encoder.set_noise_psd(var*2);
+    add_noise(datastream.begin(), datastream.end(), SNRdb);
 
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
-        encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
+        d_phy.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
         vector_int frame_control;
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE, frame_control) == false)
+        if (d_phy.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE, frame_control) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
@@ -144,24 +151,27 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
     else
         mpdu_payload = vector_int(136*8);
     vector_int fc = create_sound_frame_control(tone_mode);
-    vector_float datastream = encoder.create_ppdu(fc, mpdu_payload);
-    std::cout << "Datastream length = " << datastream.size() << std::endl;
+    vector_float datastream = d_phy.create_ppdu(fc, mpdu_payload);
+    std::cout << "Datastream length: " << datastream.size() << std::endl;
 
     add_noise(datastream.begin(), datastream.end(), SNRdb);
 
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
-        encoder.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
-        if (encoder.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
+        d_phy.process_ppdu_preamble(iter, iter + phy_service::PREAMBLE_SIZE);
+        if (d_phy.process_ppdu_frame_control(iter += phy_service::PREAMBLE_SIZE) == false)
         {
             std::cout << "Failed!" << std::endl;
             return false;
         }
-        vector_int return_payload = encoder.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
-        iter += encoder.get_ppdu_payload_length();
-        encoder.process_noise(iter, iter + encoder.get_inter_frame_space());
-        d_tone_map = encoder.calculate_tone_map(0.001);
-        encoder.set_tone_map(d_tone_map);
+        vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
+        iter += d_phy.get_ppdu_payload_length();
+        d_phy.process_noise(iter, iter + d_phy.get_inter_frame_space());
+        d_phy.utilize_payload();
+        d_tone_map = d_phy.calculate_tone_map(0.001);
+        d_phy.set_tone_map(d_tone_map);
+        calc_capacity();
+        std::cout << "Capacity: " << d_capacity << std::endl;
         std::cout << "Passed." << std::endl << std::endl;
         return true;
     } else {
@@ -169,18 +179,52 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
     }
 }
 
+void phy_service_qa::calc_capacity() {
+    d_capacity = 0;
+    for (auto it = d_tone_map.begin(); it != d_tone_map.end(); it++)
+        switch (*it) {
+            case MT_NULLED:
+                break;
+            case MT_BPSK:
+                d_capacity += 1;
+                break;
+            case MT_QPSK:
+                d_capacity += 2;
+                break;
+            case MT_QAM8:
+                d_capacity += 3;
+                break;
+            case MT_QAM16:
+                d_capacity += 4;
+                break;
+            case MT_QAM64:
+                d_capacity += 6;
+                break;
+            case MT_QAM256:
+                d_capacity += 8;
+                break;
+            case MT_QAM1024:
+                d_capacity += 10;
+                break;
+            case MT_QAM4096:
+                d_capacity += 12;
+                break;
+        }
+    return;
+}
+
 bool phy_service_qa::encode_to_file (tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename) {
     vector_int payload(520*8*number_of_blocks);
 
     std::cout << "Testing parameters: " << std::endl;
-    std::cout << "ROBO mode = " << tone_mode << std::endl;
-    std::cout << "number of blocks = " << number_of_blocks << std::endl;
+    std::cout << "ROBO mode: " << tone_mode << std::endl;
+    std::cout << "number of blocks: " << number_of_blocks << std::endl;
     std::generate(payload.begin(), payload.end(), binary_random);
     pb_size_t pb_size;
     (payload.size() > 136*8) ? pb_size = PB520 : pb_size = PB136;
     vector_int fc = create_sof_frame_control(tone_mode, pb_size);
-    vector_float datastream = encoder.create_ppdu(fc, payload);    
-    std::cout << "Datastream length = " << datastream.size() << std::endl;
+    vector_float datastream = d_phy.create_ppdu(fc, payload);    
+    std::cout << "Datastream length: " << datastream.size() << std::endl;
 
     std::ofstream in(input_filename,std::ios_base::binary);
     vector_int::value_type v;
@@ -221,7 +265,7 @@ float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float:
         float y = n(g);
         *iter = *iter + y;
     }
-    std::cout << "SNR = " << SNRdb << std::endl;
+    std::cout << "SNR: " << SNRdb << " (var=" << var << ")" << std::endl;
     return var;
 }
 

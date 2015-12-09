@@ -27,15 +27,15 @@ namespace gr {
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(float))),
             d_debug (debug),
+            d_init_done(false),
             d_datastream_offset(0),
             d_datastream_len(0),
-            d_transmitter_state(READY)
+            d_transmitter_state(HALT),
+            d_name("PHY Tx")
     {
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_tx_impl::mac_in, this, _1));
       message_port_register_out(pmt::mp("mac out"));
-      d_phy_service = light_plc::phy_service();
-      //d_phy_service.debug(d_debug);
     }
 
     /*
@@ -46,46 +46,86 @@ namespace gr {
     }
 
     void phy_tx_impl::mac_in (pmt::pmt_t msg) {     
-      if(pmt::is_pair(msg)) {
-        if (pmt::is_symbol(pmt::car(msg)) && pmt::is_dict(pmt::cdr(msg))) {
-          std::string cmd = pmt::symbol_to_string(pmt::car(msg));
-          pmt::pmt_t dict = pmt::cdr(msg);
-          
-          if (cmd == "PHY-TXSETTONEMAP") {
-            dout << "PHY Transmitter: setting custom tx tone map" << std::endl;
-            // Get tone map
-            pmt::pmt_t tone_map_pmt = pmt::dict_ref(dict, pmt::mp("tone_map"), pmt::PMT_NIL);
-            size_t tone_map_len = 0;
-            const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
-            light_plc::tone_map_t tone_map;
-            for (size_t j = 0; j<tone_map_len; j++)
-              tone_map[j] = (light_plc::modulation_type_t)tone_map_blob[j];
-            d_phy_service.set_tone_map(tone_map);
-          }        
+      if (!(pmt::is_pair(msg) && pmt::is_symbol(pmt::car(msg)) && pmt::is_dict(pmt::cdr(msg))))
+          return;
 
-          else if (cmd == "PHY-TXSTART") {
-            if (d_transmitter_state == READY) {
-              // Get frame control
-              pmt::pmt_t mpdu_fc_pmt = pmt::dict_ref(dict, pmt::mp("frame_control"), pmt::PMT_NIL);
-              size_t mpdu_fc_length = 0;
-              const unsigned char *mpdu_fc = pmt::u8vector_elements(mpdu_fc_pmt, mpdu_fc_length);
-              // Get payload
-              size_t mpdu_payload_length = 0;
-              const unsigned char *mpdu_payload = NULL;
-              if (pmt::dict_has_key(dict,pmt::mp("payload"))) {
-                pmt::pmt_t mpdu_payload_pmt = pmt::dict_ref(dict, pmt::mp("payload"), pmt::PMT_NIL);
-                mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
-              }
-              dout << "PHY Transmitter: received new MPDU from MAC" << std::endl;
-              d_datastream = d_phy_service.create_ppdu(mpdu_fc, mpdu_fc_length, mpdu_payload, mpdu_payload_length);
-              d_datastream_len = d_datastream.size();
-              d_transmitter_state = TX;
-            
-            } else {
-              std::cerr << "PHY Transmitter: received MPDU while transmitter is busy, dropping MPDU" << std::endl;             
-            }            
+      std::string cmd = pmt::symbol_to_string(pmt::car(msg));
+      pmt::pmt_t dict = pmt::cdr(msg);
+        
+      if (cmd == "PHY-TXCONFIG") {
+        // Set tone map
+        if (pmt::dict_has_key(dict,pmt::mp("tone_map"))) {
+          dout << d_name << ": setting custom tx tone map" << std::endl;
+          pmt::pmt_t tone_map_pmt = pmt::dict_ref(dict, pmt::mp("tone_map"), pmt::PMT_NIL);
+          size_t tone_map_len = 0;
+          const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
+          light_plc::tone_map_t tone_map;
+          for (size_t j = 0; j<tone_map_len; j++)
+            tone_map[j] = (light_plc::modulation_type_t)tone_map_blob[j];
+          d_phy_service.set_tone_map(tone_map);
+        }
+      }
+
+      else if (cmd == "PHY-TXINIT") {
+        if (!d_init_done) {
+          light_plc::tone_mask_t tone_mask;
+          light_plc::sync_tone_mask_t sync_tone_mask;
+          if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
+              pmt::dict_has_key(dict,pmt::mp("sync_tone_mask"))) 
+          {
+            dout << d_name << ": setting tone masks" << std::endl;
+
+            // Set broadcast tone mask
+            pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("broadcast_tone_mask"), pmt::PMT_NIL);
+            size_t tone_mask_len = 0;
+            const uint8_t *tone_mask_blob = pmt::u8vector_elements(tone_mask_pmt, tone_mask_len);
+            assert(tone_mask_len == tone_mask.size());
+            for (size_t j = 0; j<tone_mask_len; j++)
+              tone_mask[j] = tone_mask_blob[j];
+
+            // Set sync tone mask
+            pmt::pmt_t sync_tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("sync_tone_mask"), pmt::PMT_NIL);
+            size_t sync_tone_mask_len = 0;
+            const uint8_t *sync_tone_mask_blob = pmt::u8vector_elements(sync_tone_mask_pmt, sync_tone_mask_len);
+            assert(sync_tone_mask_len == sync_tone_mask.size());
+            for (size_t j = 0; j<sync_tone_mask_len; j++)
+              sync_tone_mask[j] = sync_tone_mask_blob[j];
+
+            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask);
+            //d_phy_service.debug(d_debug);
           }
-        }   
+
+          if (pmt::dict_has_key(dict,pmt::mp("id"))) 
+            d_name = "PHY Tx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
+
+          d_transmitter_state = READY;
+          d_init_done = true;
+          dout << d_name << ": init done" << std::endl;
+        } else 
+          std::cerr << d_name << ": ERROR: cannot init more than once" << std::endl;
+      }
+
+      else if (cmd == "PHY-TXSTART") {
+        if (d_transmitter_state == READY) {
+          // Get frame control
+          pmt::pmt_t mpdu_fc_pmt = pmt::dict_ref(dict, pmt::mp("frame_control"), pmt::PMT_NIL);
+          size_t mpdu_fc_length = 0;
+          const unsigned char *mpdu_fc = pmt::u8vector_elements(mpdu_fc_pmt, mpdu_fc_length);
+          // Get payload
+          size_t mpdu_payload_length = 0;
+          const unsigned char *mpdu_payload = NULL;
+          if (pmt::dict_has_key(dict,pmt::mp("payload"))) {
+            pmt::pmt_t mpdu_payload_pmt = pmt::dict_ref(dict, pmt::mp("payload"), pmt::PMT_NIL);
+            mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
+          }
+          dout << d_name << ": received new MPDU from MAC" << std::endl;
+          d_datastream = d_phy_service.create_ppdu(mpdu_fc, mpdu_fc_length, mpdu_payload, mpdu_payload_length);
+          d_datastream_len = d_datastream.size();
+          d_transmitter_state = TX;
+        
+        } else {
+          std::cerr << d_name << ": received MPDU while transmitter is not ready, dropping MPDU" << std::endl;             
+        }            
       }
     }
 
@@ -95,10 +135,8 @@ namespace gr {
               gr_vector_void_star &output_items)
     {
       int i = 0;
-      bool done = false;
       float *out = (float *) output_items[0];
 
-      //while (!done) {
         switch (d_transmitter_state) {
           case TX: {
 
@@ -112,21 +150,19 @@ namespace gr {
             }
 
             std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_float::value_type)*i);
-            dout << "PHY Transmitter: state = BUSY, copied " << i << "/" << d_datastream_len << std::endl;
+            dout << d_name << ": state = BUSY, copied " << i << "/" << d_datastream_len << std::endl;
 
             d_datastream_offset += i;
 
             if(i > 0 && d_datastream_offset == d_datastream_len) {
-              dout << "PHY Transmitter: state = BUSY, MPDU sent!" << std::endl;
+              dout << d_name << ": state = BUSY, MPDU sent!" << std::endl;
               d_transmitter_state = RESET;
-            } else {
-              done = true;
             }
             break;
           }
 
           case RESET: {
-            dout << "PHY Transmitter: state = RESET" << std::endl;
+            dout << d_name << ": state = RESET" << std::endl;
             d_datastream_offset = 0;
             d_datastream_len = 0;
             d_transmitter_state = READY;
@@ -142,11 +178,12 @@ namespace gr {
             pmt::pmt_t value = pmt::from_long(i);
             pmt::pmt_t srcid = pmt::string_to_symbol(alias());
             add_item_tag(0, nitems_written(0), key, value, srcid);            
-            done = true;
             break;
           }
+
+          case HALT: 
+            break;
         }
-      //}
       // Tell runtime system how many output items we produced.
       return i;
     }
