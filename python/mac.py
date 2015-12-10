@@ -13,21 +13,9 @@ from time import sleep
 class mac(gr.basic_block):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
-    rx_incomplete_frames = {}
-    rx_incomplete_mgmt_frames = {}
-    tx_frames_buffer = {}
-    tx_frames_in_buffer = 0
-    last_ssn = -1 # track last ssn received
-    last_mgmt_ssn = -1 # track last ssn received
-    last_sound_frame = datetime.min # last time a sound frame was transmitted
-    last_frame_blocks_error = [] # list of last received frame blocks error
-    last_frame_n_blocks = 0 # number of PHY blocks in last send frame
-    last_received_frame_type = ""
-    sound_frame_rate = 1 # minimum time in seconds between sounds frames
-    sack_timeout = 1 # minimum time in seconds to wait for sack
-    rx_tone_map = []
-    tx_tone_map = []
-    tx_capacity = 0
+    SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
+    SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
+
     ( state_waiting_for_app,        # 0  
       state_sending_sof,            # 1 
       state_sending_sound,          # 2 
@@ -40,11 +28,23 @@ class mac(gr.basic_block):
       state_waiting_for_tone_map,   # 9
       state_waiting_for_mgmtmsg     #10
       ) = range(11)
+
+    rx_incomplete_frames = {}
+    rx_incomplete_mgmt_frames = {}
+    tx_frames_queue = {}
+    tx_frames_in_queue = 0
+    last_rx_ssn = -1 # track last ssn received
+    last_rx_frame_blocks_error = [] # list of last received frame blocks error
+    last_rx_frame_type = ""
+    last_tx_sound_frame = datetime.min # last time a sound frame was transmitted
+    last_tx_frame_n_blocks = 0 # number of PHY blocks in last sent frame
+    rx_tone_map = []
+    tx_tone_map = []
+    tx_capacity = 0
     transmission_queue_is_full = False
     sack_timer = None
-    """
-    docstring for block mac
-    """
+    stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
+
     def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, debug):
         gr.basic_block.__init__(self,
             name="mac",
@@ -77,8 +77,8 @@ class mac(gr.basic_block):
         if gr.pmt.is_pair(msg):
             if gr.pmt.is_u8vector(gr.pmt.cdr(msg)) and gr.pmt.is_dict(gr.pmt.car(msg)):
                 payload = bytearray(gr.pmt.u8vector_elements(gr.pmt.cdr(msg)))
-                if self.debug: print self.name + ": state = " + str(self.state) + ", received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_buffer)
-                if self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
+                if self.debug: print self.name + ": state = " + str(self.state) + ", received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_queue)
+                if self.tx_frames_in_queue < self.MAX_FRAMES_IN_BUFFER:
                     dict = gr.pmt.to_python(gr.pmt.car(msg))
                     mac_frame = self.create_mac_frame(self.dest, payload, False)
                     self.submit_mac_frame(mac_frame)
@@ -99,37 +99,37 @@ class mac(gr.basic_block):
                 if msg_id == "PHY-RXSTART":
                     frame_control = bytearray(dict["frame_control"])
                     dt = self.get_frame_type(frame_control)
-                    self.last_received_frame_type = dt
+                    self.last_rx_frame_type = dt
                     if dt == "SOF":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
                         payload = bytearray(dict["payload"].tolist())
-                        self.last_frame_blocks_error = self.parse_mpdu_payload(payload)
-                        if not (1 in self.last_frame_blocks_error): self.send_util_payload_to_phy()
+                        self.last_rx_frame_blocks_error = self.parse_mpdu_payload(payload)
+                        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
                     elif dt == "SOUND":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (Sound) from PHY"
                     elif dt == "SACK":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SACK) from PHY"
-                        if self.sack_timer:
-                            self.sack_timer.cancel()
-                            self.sack_time = None
+                        self.cancel_sack_timer()
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
                         n_errors = self.parse_sackd(sackd)
                         if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " blocks error\n")
+                        self.stats['n_blocks_tx_fail'] += n_errors
+                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks
                
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
-                    if self.state == self.state_waiting_for_sack and self.last_received_frame_type == "SACK":
+                    if self.state == self.state_waiting_for_sack and self.last_rx_frame_type == "SACK":
                         self.transmit_sof()
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_received_frame_type == "SOF":
+                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOF":
                         self.transmit_sack()
                         self.state = self.state_sending_sack
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_received_frame_type == "SOUND":
+                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOUND":
                         self.send_util_payload_to_phy()
                         self.send_calc_tone_info_to_phy()
                         self.state = self.state_waiting_for_tone_map
-                    elif self.state ==  self.state_waiting_for_soundack and self.last_received_frame_type == "SACK":
+                    elif self.state ==  self.state_waiting_for_soundack and self.last_rx_frame_type == "SACK":
                         self.state = self.state_waiting_for_mgmtmsg
-                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_received_frame_type == "SOF":
+                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_rx_frame_type == "SOF":
                         self.transmit_sof()
 
                 elif msg_id == "PHY-TXEND":
@@ -157,11 +157,17 @@ class mac(gr.basic_block):
 
     def sack_timout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
+        stats['n_missing_acks'] += 1
         self.transmit_sof()
 
     def start_sack_timer(self):
-        self.sack_timer = threading.Timer(self.sack_timeout, self.sack_timout_callback)
+        self.sack_timer = threading.Timer(self.SACK_TIMEOUT, self.sack_timout_callback)
         self.sack_timer.start()
+
+    def cancel_sack_timer(self):
+        if self.sack_timer:
+            self.sack_timer.cancel()
+            self.sack_time = None        
 
     def transmit_sof(self):
         # Send sound if timout
@@ -170,7 +176,7 @@ class mac(gr.basic_block):
             return
 
         # Else, try to get a new MAC frame from transmission queue
-        mpdu_payload, self.last_frame_n_blocks = self.create_mpdu_payload(False)
+        mpdu_payload, self.last_tx_frame_n_blocks = self.create_mpdu_payload(False)
         if not mpdu_payload: 
             self.state = self.state_waiting_for_app
             if self.debug: print self.name + ": state = " + str(self.state) + ", no more data"
@@ -204,15 +210,15 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
         self.state = self.state_sending_sound
-        self.last_sound_frame = datetime.now();
+        self.last_tx_sound_frame = datetime.now();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def transmit_sack(self):
         # Preparing SACK frame control
-        sackd = bytearray(((len(self.last_frame_blocks_error) - 1) / 8) + 1 + 1)
+        sackd = bytearray(((len(self.last_rx_frame_blocks_error) - 1) / 8) + 1 + 1)
         sackd[0] = 0b00010101
-        for i in range(len(self.last_frame_blocks_error)):
-            sackd[1 + i/8] = sackd[1 + i/8] | (self.last_frame_blocks_error[i] << (i % 8))
+        for i in range(len(self.last_rx_frame_blocks_error)):
+            sackd[1 + i/8] = sackd[1 + i/8] | (self.last_rx_frame_blocks_error[i] << (i % 8))
         sackd_u8vector = gr.pmt.init_u8vector(len(sackd), list(sackd))
         mpdu_fc = self.create_sack_frame_control(sackd)
         mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
@@ -224,7 +230,7 @@ class mac(gr.basic_block):
 
     def transmit_mgmtmsg(self):
         # Creating the management MAC frame
-        mpdu_payload, self.last_frame_n_blocks = self.create_mpdu_payload(self.create_mgmt_msg_cm_chan_est(self.rx_tone_map))
+        mpdu_payload, self.last_tx_frame_n_blocks = self.create_mpdu_payload(self.create_mgmt_msg_cm_chan_est(self.rx_tone_map))
 
         # Create frame control
         mpdu_fc = self.create_sof_frame_control(1, mpdu_payload)
@@ -275,7 +281,7 @@ class mac(gr.basic_block):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"))
 
     def sound_timout(self):
-        return (datetime.now() - self.last_sound_frame).total_seconds() >= self.sound_frame_rate
+        return (datetime.now() - self.last_tx_sound_frame).total_seconds() >= self.SOUND_FRAME_RATE
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call
@@ -285,6 +291,15 @@ class mac(gr.basic_block):
     def start(self):
         self.send_init_phy();
         self.send_status_to_app()
+
+    def stop(self):
+        self.cancel_sack_timer()
+        if self.is_master:
+            print self.name + " final report:"
+            print "PHY blocks transmitted successfully: " + str(self.stats['n_blocks_tx_success'])
+            print "PHY blocks transmitted unsuccessfully: " + str(self.stats['n_blocks_tx_fail'])
+            print "Missing SACK frames: " + str(self.stats['n_missing_acks'])
+        return True
 
     def general_work(self, input_items, output_items):
         noutput_items = output_items[0].size
@@ -344,14 +359,14 @@ class mac(gr.basic_block):
         return (payload, mgmt)
 
     def submit_mac_frame(self, frame):
-        if (str(self.dest) in self.tx_frames_buffer):
-            stream = self.tx_frames_buffer[str(self.dest)]
+        if (str(self.dest) in self.tx_frames_queue):
+            stream = self.tx_frames_queue[str(self.dest)]
         else:
             stream = {"ssn": 0, "frames": [], "remainder": bytearray(0)}
-            self.tx_frames_buffer[str(self.dest)] = stream
+            self.tx_frames_queue[str(self.dest)] = stream
         stream["frames"].append(frame)
-        self.tx_frames_in_buffer += 1
-        if self.tx_frames_in_buffer == self.MAX_FRAMES_IN_BUFFER: self.transmission_queue_is_full = True
+        self.tx_frames_in_queue += 1
+        if self.tx_frames_in_queue == self.MAX_FRAMES_IN_BUFFER: self.transmission_queue_is_full = True
         if self.debug: print self.name + ": state = " + str(self.state) + ", added MAC frame to tranmission queue, frame size = " + str(len(frame))
 
     def receive_mac_frame(self, frame):
@@ -381,11 +396,11 @@ class mac(gr.basic_block):
         stream = {}
         if not mgmt:
             # Check if buffer is empty
-            if not len(self.tx_frames_buffer): 
+            if not len(self.tx_frames_queue): 
                 return ([], 0)
-            for key in self.tx_frames_buffer:
-                if self.tx_frames_buffer[key]["frames"] or self.tx_frames_buffer[key]["remainder"]:
-                    stream = self.tx_frames_buffer[key]
+            for key in self.tx_frames_queue:
+                if self.tx_frames_queue[key]["frames"] or self.tx_frames_queue[key]["remainder"]:
+                    stream = self.tx_frames_queue[key]
                     break
             if not stream: 
                 return ([], 0)
@@ -408,7 +423,7 @@ class mac(gr.basic_block):
             segment = remainder[0:body_size]
             if remainder:
                 remainder = remainder[body_size:]
-                if not remainder: self.tx_frames_in_buffer -= 1
+                if not remainder: self.tx_frames_in_queue -= 1
             while len(segment) < body_size and frames:
                 if not mac_boundary_flag:
                     mac_boundary_offset = len(segment)
@@ -416,7 +431,7 @@ class mac(gr.basic_block):
                 remainder = frames[0][body_size-len(segment):]
                 segment += frames[0][0:body_size-len(segment)]                
                 frames.pop(0)
-                if not remainder: self.tx_frames_in_buffer -= 1
+                if not remainder: self.tx_frames_in_queue -= 1
 
             # Determine if segment should be 128 bytes or 512
             if len(segment) < body_size:
@@ -442,7 +457,7 @@ class mac(gr.basic_block):
         if not mgmt:
             stream["remainder"] = remainder
             stream["ssn"] = ssn
-            if self.transmission_queue_is_full and self.tx_frames_in_buffer < self.MAX_FRAMES_IN_BUFFER:
+            if self.transmission_queue_is_full and self.tx_frames_in_queue < self.MAX_FRAMES_IN_BUFFER:
                 self.transmission_queue_is_full = False
                 self.send_status_to_app()
 
@@ -468,9 +483,9 @@ class mac(gr.basic_block):
                 incomplete_frames = self.rx_incomplete_mgmt_frames
 
             else:
-                if ssn != self.last_ssn + 1:
-                    sys.stderr.write(self.name + ": state = " + str(self.state) + ", discontinued SSN numbering (last = " +str(self.last_ssn) + ", current = " + str(ssn) + "\n")
-                self.last_ssn = ssn
+                if ssn != self.last_rx_ssn + 1:
+                    sys.stderr.write(self.name + ": state = " + str(self.state) + ", discontinued SSN numbering (last = " +str(self.last_rx_ssn) + ", current = " + str(ssn) + "\n")
+                self.last_rx_ssn = ssn
                 incomplete_frames = self.rx_incomplete_frames
 
             mac_boundary_offset = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_MFBO_OFFSET, ieee1901.PHY_BLOCK_HEADER_MFBO_WIDTH)
@@ -530,7 +545,7 @@ class mac(gr.basic_block):
         if not sacki == 0b00010101: 
             sys.stderr.write(self.name + ": state = " + str(self.state) + ", not supported sacki = " + str(sacki) + "\n")
         n_errors = 0
-        for i in range(self.last_frame_n_blocks):
+        for i in range(self.last_tx_frame_n_blocks):
             n_errors += not (sackd[1 + i/8] & (1 << (i % 8)) == 0)
         return n_errors
 
