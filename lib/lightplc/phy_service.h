@@ -113,7 +113,7 @@ public:
     int get_mpdu_payload_size();
     int get_ppdu_payload_length();
     int get_inter_frame_space();
-    float get_last_ber();
+    stats_t get_stats();
     vector_float::const_iterator preamble();
     int max_blocks (tone_mode_t tone_mode);
     void debug(bool debug) {d_debug = debug; return;};
@@ -179,7 +179,7 @@ private:
     tone_info_t d_custom_tone_info;
     channel_response d_broadcast_channel_response;
     tones_float d_noise_psd;
-    float d_ber;
+    stats_t d_stats;
     rx_params_t d_rx_params;
     vector_float d_rx_soft_bits;
     vector_int d_rx_mpdu_payload;

@@ -60,6 +60,7 @@ phy_service::phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask
     DEBUG_VECTOR(TONE_MASK);
     BROADCAST_TONE_MASK = broadcast_tone_mask;
     DEBUG_VECTOR(BROADCAST_TONE_MASK);
+    assert(*(BROADCAST_TONE_MASK.end()-1) == 0 && (*BROADCAST_TONE_MASK.begin()==0)); // cannot use the first and last carriers
     N_BROADCAST_TONES = count_non_masked_carriers(BROADCAST_TONE_MASK.begin(), BROADCAST_TONE_MASK.end());
     DEBUG_VAR(N_BROADCAST_TONES);
     SYNC_TONE_MASK = sync_tone_mask;
@@ -77,7 +78,7 @@ phy_service::phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask
     d_broadcast_channel_response.mask = BROADCAST_TONE_MASK;
     d_broadcast_channel_response.carriers_gain.fill(1);
     d_noise_psd.fill(0);
-    d_ber = 0;
+    d_stats = stats_t();
 }
 
 phy_service::phy_service (bool debug): phy_service({IEEE1901_TONE_MASK}, {IEEE1901_TONE_MASK}, {IEEE1901_SYNCP_TONE_MASK}, debug){};
@@ -98,7 +99,7 @@ phy_service::phy_service (const phy_service &obj) :
     d_custom_tone_info(obj.d_custom_tone_info),
     d_broadcast_channel_response(obj.d_broadcast_channel_response),
     d_noise_psd(obj.d_noise_psd),
-    d_ber(obj.d_ber),
+    d_stats(obj.d_stats),
     d_rx_params(obj.d_rx_params),
     d_rx_soft_bits(obj.d_rx_soft_bits),
     d_rx_mpdu_payload(obj.d_rx_mpdu_payload),
@@ -125,7 +126,7 @@ phy_service& phy_service::operator=(const phy_service& rhs) {
     std::swap(d_custom_tone_info, tmp.d_custom_tone_info);
     std::swap(d_broadcast_channel_response, tmp.d_broadcast_channel_response);
     std::swap(d_noise_psd, tmp.d_noise_psd);
-    std::swap(d_ber, tmp.d_ber);
+    std::swap(d_stats, tmp.d_stats);
     std::swap(d_rx_params, tmp.d_rx_params);
     std::swap(d_rx_soft_bits, tmp.d_rx_soft_bits);
     std::swap(d_rx_mpdu_payload, tmp.d_rx_mpdu_payload);
@@ -833,6 +834,7 @@ phy_service::tone_info_t phy_service::get_tone_info (tone_mode_t tone_mode) {
 phy_service::tone_info_t phy_service::calc_robo_tone_info (tone_mode_t tone_mode) {
     assert (tone_mode == TM_STD_ROBO || tone_mode == TM_MINI_ROBO || tone_mode == TM_HS_ROBO);
 
+    // Create basic ROBO carriers consists of broadcast mask and QPSK
     tone_info_t tone_info = BROADCAST_QPSK_TONE_INFO;
 
     int n_copies = 0;
@@ -844,7 +846,6 @@ phy_service::tone_info_t phy_service::calc_robo_tone_info (tone_mode_t tone_mode
         case TM_MINI_ROBO: n_copies = 5; break;
         case TM_NO_ROBO: break; 
     }
-    // Create basic ROBO carriers consists of broadcast mask and QPSK
 
     unsigned int n_carriers = N_BROADCAST_TONES;
     unsigned int n_carriers_robo = n_copies * (n_carriers / n_copies);
@@ -1167,7 +1168,7 @@ vector_int phy_service::process_ppdu_payload(vector_float::const_iterator iter) 
     vector_float::iterator rx_soft_bits_iter = d_rx_soft_bits.begin();
     rx_soft_bits_iter = demodulate_symbols(d_rx_symbols_freq.begin(), d_rx_symbols_freq.end(), rx_soft_bits_iter, tone_info.tone_map, d_broadcast_channel_response);
 
-    // Trim the dummy bits from the last symbol
+    // Trim the dummy bits in the last symbol
     d_rx_soft_bits.erase(d_rx_soft_bits.begin() + n_blocks * fec_block_size, d_rx_soft_bits.end()); 
     DEBUG_VECTOR(d_rx_soft_bits);
 
@@ -1226,18 +1227,22 @@ void phy_service::utilize_payload() {
         vector_int hard_demodulated_bits_ref = encode_payload(mpdu_payload_ref, d_rx_params.pb_size, tone_info.rate, d_rx_params.tone_mode);
         DEBUG_VECTOR(hard_demodulated_bits_ref);
 
-        // Calculate the difference and BER
+        // Update stats with BER and number of bits
         int diff = 0;
         for (size_t i=0; i<hard_demodulated_bits.size(); i++)
             diff += (hard_demodulated_bits[i] != hard_demodulated_bits_ref[i]);
-        d_ber = (float)diff/hard_demodulated_bits.size();
+        d_stats.ber = (float)diff/hard_demodulated_bits.size();
+        d_stats.n_bits = hard_demodulated_bits.size();
 
         // Find the expected modulated symbols for channel estimation
         assert(d_rx_symbols_freq.size());
         vector_complex symbols_freq_ref = modulate(hard_demodulated_bits_ref, tone_info);
         estimate_channel_gain(d_rx_symbols_freq.begin(), d_rx_symbols_freq.end(), symbols_freq_ref.begin(), d_broadcast_channel_response);
         DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
-    }   
+    } else {
+        d_stats.ber = 0; // if no payload, BER=0
+        d_stats.n_bits = 0;
+    }
 }
 
 bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, unsigned char* mpdu_fc_bin) {
@@ -1287,24 +1292,21 @@ bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, 
 }
 
 void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end) {
-    static const int M = NUMBER_OF_CARRIERS * 2; // window length
-    static const std::array<float, M> HAMMING_WINDOW = phy_service::create_hamming_window();
-    static const float hamming_energy = std::inner_product(HAMMING_WINDOW.begin(), HAMMING_WINDOW.end(), HAMMING_WINDOW.begin(), (float)0) / M; // calcs sum of squares
-    int R = M/2; // 1-R is the overlapping length
-    int N = iter_end - iter_begin; // total signal length
-    int K = (N - M) / R + 1; // number of overlapping windows fits in signal
-
-    vector_float w(M); // signal segment multiplied by hamming window
+    static const int N = NUMBER_OF_CARRIERS * 2; // window length
+    int R = N/2; // 1-R is the overlapping length
+    int M = iter_end - iter_begin; // total signal length
+    int K = (M - N) / R + 1; // number of overlapping windows fits in signal
+    vector_float w(N); // signal segment multiplied by hamming window
     vector_complex fft(NUMBER_OF_CARRIERS + 1);
     d_noise_psd.fill(0); // init vector to zero
     for (int k=0; k<K; k++) {
         vector_float::const_iterator iter = iter_begin + k*R;
-        for (int i=0; i<M; i++)
-            w[i] = *(iter++) * HAMMING_WINDOW[i] / hamming_energy;
+        for (int i=0; i<N; i++)
+            w[i] = *(iter++);
         fft_real(w.begin(), w.end(), fft.begin());
         // Calculate the PSD, and average with previous values
-        for (int i=0; i<M/2+1; i++)
-           d_noise_psd[i] = d_noise_psd[i] + std::norm(fft[i]) / K;
+        for (int i=0; i<N/2+1; i++) 
+           d_noise_psd[i] = d_noise_psd[i] + std::norm(fft[i]) / K;       
     }
 
     DEBUG_VECTOR(d_noise_psd);  
@@ -1416,8 +1418,8 @@ int phy_service::get_inter_frame_space() {
     return d_rx_params.inter_frame_space;
 }
 
-float phy_service::get_last_ber() {
-    return d_ber;
+stats_t phy_service::get_stats() {
+    return d_stats;
 }
 
 bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_params) {  
@@ -1750,7 +1752,7 @@ int phy_service::calc_fec_block_size(tone_mode_t tone_mode, code_rate_t rate, pb
     int encoded_pb_n_bits = calc_encoded_block_size(rate, pb_size);
 
     // Determine parameters for ROBO mode
-    unsigned int n_copies = 1, n_pad = 0, bits_in_last_symbol, bits_in_segment; // Default values when not in ROBO mode
+    unsigned int n_copies = 1, n_pad = 0, bits_in_last_symbol, bits_in_segment; // default values when not in ROBO mode
     if (tone_mode != TM_NO_ROBO) {
         calc_robo_parameters (tone_mode, encoded_pb_n_bits, n_copies, bits_in_last_symbol, bits_in_segment, n_pad);
         return (encoded_pb_n_bits + n_pad) * n_copies;

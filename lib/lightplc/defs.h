@@ -14,6 +14,11 @@ typedef std::vector<float> vector_float;
 typedef std::complex<float> complex;
 typedef std::vector<complex> vector_complex;
 
+typedef struct stats_t {
+    float ber;
+    size_t n_bits;
+} stats_t;
+
 enum code_rate_t {
     RATE_1_2 = 0,
     RATE_16_21 = 1,

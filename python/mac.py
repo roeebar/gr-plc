@@ -266,7 +266,6 @@ class mac(gr.basic_block):
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXINIT"), dict))
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXINIT"
 
-
     def send_util_payload_to_phy(self):
         dict = gr.pmt.make_dict();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXUTILPAYLOAD"), dict))

@@ -115,7 +115,6 @@ namespace gr {
             pmt::pmt_t sync_tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("sync_tone_mask"), pmt::PMT_NIL);
             size_t sync_tone_mask_len = 0;
             const uint8_t *sync_tone_mask_blob = pmt::u8vector_elements(sync_tone_mask_pmt, sync_tone_mask_len);
-            std::cout << sync_tone_mask_len;
             assert(sync_tone_mask_len == sync_tone_mask.size());
             for (size_t j = 0; j<sync_tone_mask_len; j++)
               sync_tone_mask[j] = sync_tone_mask_blob[j];
