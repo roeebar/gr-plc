@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC  -Wall -std=c++11 -O3 -DNDEBUG   -shared -Wl,-soname,libgnuradio-plc.so -o libgnuradio-plc.so CMakeFiles/gnuradio-plc.dir/plcp_transmit_impl.cc.o CMakeFiles/gnuradio-plc.dir/mac_impl.cc.o CMakeFiles/gnuradio-plc.dir/plcp_receiver_impl.cc.o -lboost_filesystem -lboost_system -lgnuradio-runtime -lgnuradio-pmt -llightplc 

@@ -28,8 +28,6 @@ link_directories(${Boost_LIBRARY_DIRS})
 list(APPEND plc_sources
     phy_tx_impl.cc
     phy_rx_impl.cc
-    mac_receiver_impl.cc
-    mac_transmitter_impl.cc
     app_out_impl.cc
     app_in_impl.cc
 )

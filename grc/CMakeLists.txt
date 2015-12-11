@@ -18,8 +18,6 @@
 # Boston, MA 02110-1301, USA.
 install(FILES
     plc_mac.xml
-    plc_mac_receiver.xml
-    plc_mac_transmitter.xml
     plc_mac.xml
     plc_app_out.xml
     plc_app_in.xml

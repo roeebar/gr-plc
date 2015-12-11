@@ -1,1 +1,0 @@
-/usr/bin/c++    -Wall -std=c++11 -O3 -DNDEBUG    CMakeFiles/test-plc.dir/test_plc.cc.o CMakeFiles/test-plc.dir/qa_plc.cc.o CMakeFiles/test-plc.dir/qa_plcp_receiver.cc.o  -o test-plc -rdynamic -lgnuradio-runtime -lgnuradio-pmt -lboost_filesystem -lboost_system -lcppunit -ldl -llightplc 
