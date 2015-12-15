@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<block>
+  <name>Impulse Noise Source</name>
+  <key>plc_impulse_noise</key>
+  <category>PLC</category>
+  <import>import plc</import>
+  <make>plc.impulse_noise($samp_rate, $n_noises, $max_psd, $psd_window, $iat_range, $freq_range)</make>
+  <param>
+    <name>Sample Rate</name>
+    <key>samp_rate</key>
+    <value>samp_rate</value>
+    <type>float</type>
+  </param>
+  <param>
+    <name>Number of Sources</name>
+    <key>n_noises</key>
+    <value>1</value>
+    <type>int</type>
+  </param>
+  <param>
+    <name>Peak PSD</name>
+    <key>max_psd</key>
+    <type>float</type>
+  </param>
+  <param>
+    <name>PSD Window Duration</name>
+    <key>psd_window</key>
+    <type>float</type>
+  </param>
+  <param>
+    <name>IAT Range</name>
+    <key>iat_range</key>
+    <type>real_vector</type>
+  </param>
+  <param>
+    <name>Frequency Range</name>
+    <key>freq_range</key>
+    <type>real_vector</type>
+  </param>
+  <source>
+    <name>out</name>
+    <type>complex</type>
+  </source>
+</block>

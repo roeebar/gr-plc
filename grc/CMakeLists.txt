@@ -22,5 +22,6 @@ install(FILES
     plc_app_out.xml
     plc_app_in.xml
     plc_phy_tx.xml
-    plc_phy_rx.xml DESTINATION share/gnuradio/grc/blocks
+    plc_phy_rx.xml
+    plc_impulse_noise.xml DESTINATION share/gnuradio/grc/blocks
 )

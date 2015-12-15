@@ -33,7 +33,7 @@ GR_PYTHON_INSTALL(
     __init__.py
     ieee1901.py
     mac.py
-    DESTINATION ${GR_PYTHON_DIR}/plc
+    impulse_noise.py DESTINATION ${GR_PYTHON_DIR}/plc
 )
 
 ########################################################################

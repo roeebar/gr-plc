@@ -443,7 +443,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1032, 171)</value>
+      <value>(1208, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -764,11 +764,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(915, 224)</value>
+      <value>(1016, 171)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>180</value>
     </param>
     <param>
       <key>id</key>
@@ -945,7 +945,7 @@
     </param>
     <param>
       <key>num_inputs</key>
-      <value>2</value>
+      <value>3</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1354,6 +1354,69 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>plc_impulse_noise</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>freq_range</key>
+      <value>[0, samp_rate/2]</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1016, 283)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>180</value>
+    </param>
+    <param>
+      <key>iat_range</key>
+      <value>[1.0/20, 1.0/200e3]</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>plc_impulse_noise_0</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>n_noises</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>psd_window</key>
+      <value>4096/samp_rate</value>
+    </param>
+    <param>
+      <key>max_psd</key>
+      <value>(10**(2.2/10)/2*0.3**2)/100</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>samp_rate</value>
     </param>
   </block>
   <block>
@@ -3291,7 +3354,7 @@
     <source_block_id>PHY_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_0</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>1</sink_key>
+    <sink_key>2</sink_key>
   </connection>
   <connection>
     <source_block_id>PHY_0_0</source_block_id>
@@ -3315,7 +3378,7 @@
     <source_block_id>analog_fastnoise_source_x_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_0</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>1</sink_key>
   </connection>
   <connection>
     <source_block_id>blks2_error_rate_0</source_block_id>
@@ -3382,6 +3445,12 @@
     <sink_block_id>plc_mac_0</sink_block_id>
     <source_key>mac out</source_key>
     <sink_key>app in</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>plc_impulse_noise_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_mac_0</source_block_id>
