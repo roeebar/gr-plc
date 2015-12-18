@@ -193,8 +193,7 @@ vector_float phy_service::create_ppdu(vector_int &mpdu_fc_int, const vector_int 
     vector_float::iterator datastream_iter = datastream.begin();
     datastream_iter = append_datastream(PREAMBLE.begin(), PREAMBLE.end(), datastream_iter, 0, IEEE1901_SCALE_FACTOR_PREAMBLE);
 
-//    datastream_iter = std::copy(PREAMBLE.begin(), PREAMBLE.end(), datastream_iter);
-    // Frame control and payload are also divided by N to compensate for the ifft which implicitly multiply by N
+    // Frame control and payload scale factor is divided by N to compensate for the ifft which implicitly multiply by N
     datastream_iter = append_datastream(fc_symbols.begin(), fc_symbols.begin() + NUMBER_OF_CARRIERS * 2, datastream_iter - ROLLOFF_INTERVAL, IEEE1901_GUARD_INTERVAL_FC + ROLLOFF_INTERVAL, IEEE1901_SCALE_FACTOR_FC / (NUMBER_OF_CARRIERS*2));
     vector_float::const_iterator payload_symbols_iter = payload_symbols.begin();
     while (payload_symbols_iter != payload_symbols.end()) {

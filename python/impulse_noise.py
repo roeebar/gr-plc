@@ -15,28 +15,23 @@ class impulse_noise(gr.sync_block):
     SAMP_RATE = 0
     dtype = numpy.dtype('complex64')
     impulses = []
-
-    def __init__(self, samp_rate, n_noises, max_psd, psd_window_duration, iat_range, freq_range):
+#(10**(2.2/10)/2*0.3**2)/10
+    def __init__(self, samp_rate):
         gr.sync_block.__init__(self,
             name="impulse_noise",
             in_sig=None,
             out_sig=[self.dtype])
         self.SAMP_RATE = samp_rate
-        self.MAX_PSD = max_psd
-        self.IAT_RANGE = iat_range
-        self.FREQ_RANGE = freq_range
-        self.PSD_WINDOW_LENGTH = int(psd_window_duration * self.SAMP_RATE)
-        print "MAX_PSD=" + str(self.MAX_PSD)
-        print "PSD_WINDOW_LENGTH=" + str(self.PSD_WINDOW_LENGTH)
-        print "IAT_RANGE=" + str(self.IAT_RANGE)
-        print "FREQ_RANGE=" + str(self.FREQ_RANGE)
 
-        for i in range(n_noises):
-            self.impulses.append(self.gen_impulse())
+        #for i in range(n_noises):
+#            self.impulses.append(self.gen_impulse())
         #self.MIN_SNR_DB = 10
         #self.MIN_SNR = 10**(MIN_SNR_DB/float(10))
         #PAYLOAD_GAIN = 10^(2.2/20)/(4096**0.5) * 4096/2 * 0.3  # payload carrier gain in frequency domain 
         #MAX_GAIN = max_gain
+    def add_noise(self, iat, A, l, f, offset):
+        print "iat=" + str(iat) + " A=" + str(A) + " l=" + str(l) + " f=" + str(f) + " offset=" + str(offset)
+        self.impulses.append(self.create_impulse(iat, A, l, f, offset))
 
     def work(self, input_items, output_items):
         out = output_items[0]
@@ -103,6 +98,16 @@ class impulse_noise(gr.sync_block):
         impulse = {}
         offset = math.floor(o * N)
         t_offset = numpy.concatenate((t[offset:], t[0:offset]))
+        impulse['signal'] = A * numpy.sin(2*pi*f*t) * numpy.exp(-l*t);
+        impulse['pos'] = 0
+        return impulse
+
+    def create_impulse(self, iat, A, l, f, offset):
+        N = int(iat * self.SAMP_RATE)
+        samples_offset = math.floor(offset * N)
+        t = numpy.arange(0, self.SAMP_RATE * iat, dtype=self.dtype) / float(self.SAMP_RATE) 
+        t_offset = numpy.concatenate((t[samples_offset:], t[0:samples_offset]))
+        impulse = {}
         impulse['signal'] = A * numpy.sin(2*pi*f*t) * numpy.exp(-l*t);
         impulse['pos'] = 0
         return impulse

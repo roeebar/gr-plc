@@ -2,7 +2,6 @@
 # 
 
 import ieee1901
-import numpy
 import binascii
 import sys
 from datetime import datetime, timedelta
@@ -13,8 +12,10 @@ from time import sleep
 class mac(gr.basic_block):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
-    SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
+    SOUND_FRAME_RATE = 5 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
+
+    info = {'tx_tone_map': 1}
 
     ( state_waiting_for_app,        # 0  
       state_sending_sof,            # 1 
@@ -596,6 +597,7 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
+        if (self.info['tx_tone_map']): print self.name + ": tx_tone_map: " + str(self.tx_tone_map)
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)
