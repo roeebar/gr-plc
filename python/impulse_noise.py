@@ -44,16 +44,16 @@ class impulse_noise(gr.sync_block):
 
             # copy remainder of previous iteration
             k = min(N-i, M)
-            out[0:k] = s[i:i+k]
+            out[0:k] += s[i:i+k]
             j = k
 
             # keep filling with noise till no more room for full noise signal
             while j+N<=M:
-                out[j:j+N] = s[:]
+                out[j:j+N] += s[:]
                 j+=N
 
             # fill the remaining space
-            out[j:M] = s[0:M-j]
+            out[j:M] += s[0:M-j]
 
             # update noise position
             impulse['pos'] = (i + M) % N
@@ -97,8 +97,8 @@ class impulse_noise(gr.sync_block):
         # Generate noise signal
         impulse = {}
         offset = math.floor(o * N)
-        t_offset = numpy.concatenate((t[offset:], t[0:offset]))
-        impulse['signal'] = A * numpy.sin(2*pi*f*t) * numpy.exp(-l*t);
+        t_shifted = numpy.concatenate((t[offset:], t[0:offset]))
+        impulse['signal'] = A * numpy.sin(2*pi*f*t_shifted) * numpy.exp(-l*t_shifted);
         impulse['pos'] = 0
         return impulse
 
@@ -106,9 +106,9 @@ class impulse_noise(gr.sync_block):
         N = int(iat * self.SAMP_RATE)
         samples_offset = math.floor(offset * N)
         t = numpy.arange(0, self.SAMP_RATE * iat, dtype=self.dtype) / float(self.SAMP_RATE) 
-        t_offset = numpy.concatenate((t[samples_offset:], t[0:samples_offset]))
+        t_shifted = numpy.concatenate((t[-samples_offset:], t[:-samples_offset]))
         impulse = {}
-        impulse['signal'] = A * numpy.sin(2*pi*f*t) * numpy.exp(-l*t);
+        impulse['signal'] = A * numpy.sin(2*pi*f*t_shifted) * numpy.exp(-l*t_shifted);
         impulse['pos'] = 0
         return impulse
 

@@ -1023,7 +1023,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>0</value>
     </param>
     <param>
       <key>file</key>
@@ -1176,7 +1176,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/gr-plc/Testing/Sesame Street - Elmo's Ducks - low.mkv</value>
+      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/Sesame Street - Elmo's Ducks - low.mkv</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1356,7 +1356,7 @@
     <key>plc_impulse_noise</key>
     <param>
       <key>a</key>
-      <value>0.009564, 0.009176, 0.009102, 0.009076, 0.009064, 0.009057</value>
+      <value>7.120337, 0.119385, 0.118776, 0.118663, 0.118624</value>
     </param>
     <param>
       <key>alias</key>
@@ -1372,7 +1372,7 @@
     </param>
     <param>
       <key>l</key>
-      <value>(2.3/4096*samp_rate,)*2</value>
+      <value>(4.6/2/2e-6,)*5</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1380,7 +1380,7 @@
     </param>
     <param>
       <key>f</key>
-      <value>samp_rate/2/6, 2*samp_rate/2/6</value>
+      <value>samp_rate/4096*1, samp_rate/4096*512, samp_rate/4096*1024, samp_rate/4096*1535, samp_rate/4096*2047</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1392,7 +1392,7 @@
     </param>
     <param>
       <key>iat</key>
-      <value>(4096/samp_rate,)*2</value>
+      <value>((4096+756-496)/samp_rate,)*5</value>
     </param>
     <param>
       <key>id</key>
@@ -1408,11 +1408,11 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>2</value>
+      <value>4</value>
     </param>
     <param>
       <key>o</key>
-      <value>0/6.0, 1/6.0</value>
+      <value>0/5.0, 1/5.0, 2/5.0, 3/5.0, 4/5.0</value>
     </param>
     <param>
       <key>samp_rate</key>
