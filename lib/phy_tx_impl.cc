@@ -8,6 +8,7 @@
 #include <boost/thread.hpp>
 #include "debug.h"
 #include "phy_tx_impl.h"
+#include <thread>
 
 namespace gr {
   namespace plc {
@@ -53,6 +54,10 @@ namespace gr {
       pmt::pmt_t dict = pmt::cdr(msg);
         
       if (cmd == "PHY-TXCONFIG") {
+        if (d_transmitter_state == PREPARING) {
+          std::cerr << d_name << ": ERROR: cannot config while preparing for tx" << std::endl;
+          return;
+        }
         // Set tone map
         if (pmt::dict_has_key(dict,pmt::mp("tone_map"))) {
           dout << d_name << ": setting custom tx tone map" << std::endl;
@@ -111,22 +116,30 @@ namespace gr {
           pmt::pmt_t mpdu_fc_pmt = pmt::dict_ref(dict, pmt::mp("frame_control"), pmt::PMT_NIL);
           size_t mpdu_fc_length = 0;
           const unsigned char *mpdu_fc = pmt::u8vector_elements(mpdu_fc_pmt, mpdu_fc_length);
+          d_mpdu_fc = std::vector<unsigned char>(mpdu_fc, mpdu_fc + mpdu_fc_length);
           // Get payload
           size_t mpdu_payload_length = 0;
           const unsigned char *mpdu_payload = NULL;
+          d_mpdu_payload = std::vector<unsigned char>(0);
           if (pmt::dict_has_key(dict,pmt::mp("payload"))) {
             pmt::pmt_t mpdu_payload_pmt = pmt::dict_ref(dict, pmt::mp("payload"), pmt::PMT_NIL);
             mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
+            d_mpdu_payload = std::vector<unsigned char>(mpdu_payload, mpdu_payload + mpdu_payload_length);
           }
           dout << d_name << ": received new MPDU from MAC" << std::endl;
-          d_datastream = d_phy_service.create_ppdu(mpdu_fc, mpdu_fc_length, mpdu_payload, mpdu_payload_length);
-          d_datastream_len = d_datastream.size();
-          d_transmitter_state = TX;
-        
+          d_transmitter_state = PREPARING;
+          std::thread{&phy_tx_impl::create_ppdu, this}.detach(); // creating the PPDU in a new thread not to starve the work routine
         } else {
           std::cerr << d_name << ": received MPDU while transmitter is not ready, dropping MPDU" << std::endl;             
         }            
       }
+    }
+
+    void phy_tx_impl::create_ppdu() {
+      d_datastream = d_phy_service.create_ppdu(d_mpdu_fc.data(), d_mpdu_fc.size(), d_mpdu_payload.data(), d_mpdu_payload.size());
+      d_datastream_len = d_datastream.size();
+      d_transmitter_state = TX;
+      return;
     }
 
     int
@@ -139,7 +152,6 @@ namespace gr {
 
         switch (d_transmitter_state) {
           case TX: {
-
             i = std::min(noutput_items, d_datastream_len - d_datastream_offset);
             if (d_datastream_offset == 0 && i > 0) {
               // add tags
@@ -171,6 +183,7 @@ namespace gr {
             break;
           }
 
+          case PREPARING:
           case READY: {
             i = noutput_items;
             std::memset(out, 0, sizeof(float)*i);            

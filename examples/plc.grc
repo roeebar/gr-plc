@@ -296,7 +296,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>12.5e6</value>
+      <value>25e6</value>
     </param>
   </block>
   <block>
@@ -678,7 +678,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(697, 656)</value>
+      <value>(721, 656)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -721,7 +721,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(449, 224)</value>
+      <value>(393, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -917,11 +917,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(553, 480)</value>
+      <value>(553, 488)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1082,7 +1082,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(931, 600)</value>
+      <value>(987, 600)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1333,7 +1333,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(217, 216)</value>
+      <value>(129, 216)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1376,7 +1376,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>f</key>
@@ -1408,7 +1408,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>4</value>
+      <value>0</value>
     </param>
     <param>
       <key>o</key>
@@ -1455,7 +1455,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(299, 224)</value>
+      <value>(219, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1464,6 +1464,10 @@
     <param>
       <key>id</key>
       <value>plc_mac_0</value>
+    </param>
+    <param>
+      <key>info</key>
+      <value>False</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1531,6 +1535,10 @@
     <param>
       <key>id</key>
       <value>plc_mac_0_0</value>
+    </param>
+    <param>
+      <key>info</key>
+      <value>False</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1663,7 +1671,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(131, 216)</value>
+      <value>(51, 216)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2366,11 +2374,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(515, 224)</value>
+      <value>(491, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3181,11 +3189,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(771, 568)</value>
+      <value>(803, 568)</value>
     </param>
     <param>
       <key>_rotation</key>

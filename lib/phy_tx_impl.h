@@ -19,14 +19,16 @@ namespace gr {
       light_plc::vector_float d_datastream;
       int d_datastream_offset;
       int d_datastream_len;
-      enum {READY, TX, RESET, HALT} d_transmitter_state;
+      enum {READY, PREPARING, TX, RESET, HALT} d_transmitter_state;
       std::string d_name;
+      std::vector<unsigned char> d_mpdu_fc, d_mpdu_payload;
 
      public:
       phy_tx_impl(bool debug);
       ~phy_tx_impl();
 
 	  void mac_in (pmt::pmt_t msg);
+    void create_ppdu();
 
       // Where all the action really happens
       int work(int noutput_items,

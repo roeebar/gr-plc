@@ -28,17 +28,17 @@ int main(int argc, char * argv[]) {
     if(cmdOptionExists(argv, argv+argc, "-help")) {
         std::cout << "Options:\n" 
         << "  -mode MODE          Can be SOF, SOUND, SACK, SOFFILE, RANDOM.\n"
-        << "                      Default to RANDOM (100 random tests)\n\n"
+        << "                      Default to RANDOM (100 random tests)\n"
         << "  -robo-mode NUMBER   Set ROBO mode in SOF, SOUND or SOFFILE modes\n" 
-        << "                      Default to 0 (TM_NO_ROBO)\n\n"
+        << "                      Default to 3 (TM_NO_ROBO)\n"
         << "  -nblocks NUMBER     Set number of blocks to encode in SOF or SOFFILE modes\n"
-        << "                      Default = 1\n\n"
+        << "                      Default = 1\n"
         << "  -snr NUMBER         Set noise according to SNR number in db\n"
-        << "                      Default = 30db\n\n"
-        << "  -encode_only        Do not try to process the recevied stream\n\n"
-        << "  -in_filename NAME   Input file name is SOFFILE mode\n\n" 
-        << "  -out_filename NAME  Output file name is SOFFILE mode\n\n"
-        << "  -d                  Print debug output\n\n" 
+        << "                      Default = 30db\n"
+        << "  -encode_only        Do not try to process the recevied stream\n"
+        << "  -in_filename NAME   Input file name is SOFFILE mode\n" 
+        << "  -out_filename NAME  Output file name is SOFFILE mode\n"
+        << "  -d                  Print debug output\n" 
         << "  -seed NUMBER        Use seed number for random values\n" << std::endl;
         return 0;
     }

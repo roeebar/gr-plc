@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $debug)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $info, $debug)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -64,6 +64,20 @@
     <key>sync_tone_mask</key>
     <value></value>
     <type>int_vector</type>
+  </param>
+  <param>
+    <name>Info</name>
+    <key>info</key>
+    <value>False</value>
+    <type>bool</type>
+    <option>
+      <name>Enable</name>
+      <key>True</key>
+    </option>
+    <option>
+      <name>Disable</name>
+      <key>False</key>
+    </option>
   </param>
   <param>
     <name>Debug</name>

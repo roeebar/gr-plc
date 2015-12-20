@@ -12,10 +12,10 @@ from time import sleep
 class mac(gr.basic_block):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
-    SOUND_FRAME_RATE = 5 # minimum time in seconds between sounds frames
+    SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
 
-    info = {'tx_tone_map': 1}
+    info_type = {'tx_tone_map': 1}
 
     ( state_waiting_for_app,        # 0  
       state_sending_sof,            # 1 
@@ -46,7 +46,7 @@ class mac(gr.basic_block):
     sack_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, debug):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, info, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -60,6 +60,7 @@ class mac(gr.basic_block):
         self.device_addr = bytearray(''.join(chr(x) for x in device_addr))
         self.dest = bytearray(''.join(chr(x) for x in dest))
         self.debug = debug
+        self.info = info
         self.is_master = master
         self.tmi = tmi
         self.broadcast_tone_mask = broadcast_tone_mask
@@ -597,7 +598,7 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
-        if (self.info['tx_tone_map']): print self.name + ": tx_tone_map: " + str(self.tx_tone_map)
+        if self.info and self.info_type['tx_tone_map']: print self.name + ": tx_tone_map: " + str(self.tx_tone_map)
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)
