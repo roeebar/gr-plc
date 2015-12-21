@@ -46,7 +46,7 @@ class mac(gr.basic_block):
     sack_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, info, debug):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, target_ber, info, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -64,7 +64,8 @@ class mac(gr.basic_block):
         self.is_master = master
         self.tmi = tmi
         self.broadcast_tone_mask = broadcast_tone_mask
-        self.sync_tone_mask = sync_tone_mask;
+        self.sync_tone_mask = sync_tone_mask
+        self.target_ber = target_ber
         if self.is_master: 
             self.name = "MAC (master)"
             self.state = self.state_waiting_for_app
@@ -159,7 +160,7 @@ class mac(gr.basic_block):
 
     def sack_timout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
-        stats['n_missing_acks'] += 1
+        self.stats['n_missing_acks'] += 1
         self.transmit_sof()
 
     def start_sack_timer(self):
@@ -248,8 +249,9 @@ class mac(gr.basic_block):
 
     def send_calc_tone_info_to_phy(self):
         dict = gr.pmt.make_dict();
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("target_ber"), gr.pmt.to_pmt(self.target_ber))
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXCALCTONEMAP.request"), dict))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", requesting PHY-RXCALCTONEMAP"
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXCALCTONEMAP.request"
 
     def send_set_tx_tone_map(self):
         tone_map_pmt = gr.pmt.init_u8vector(len(self.tx_tone_map), list(self.tx_tone_map))

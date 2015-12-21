@@ -35,9 +35,7 @@ private:
         const complex *map;
         const float scale;
     };
-
-    typedef std::array<float, IEEE1901_NUMBER_OF_CARRIERS+1> tones_float;
-    
+   
     typedef struct channel_response {
         tone_mask_t mask;
         std::array<complex, IEEE1901_NUMBER_OF_CARRIERS+1> carriers;

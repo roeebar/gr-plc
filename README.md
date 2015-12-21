@@ -7,7 +7,6 @@ GNURadio blocks and library for IEEE1901/HomePlug-like communication.
     make  
     sudo make install  
     sudo ldconfig  
-    group - rtprio 99  
 To disable thread priority UHD warning, add the following to */etc/security/limits.conf*  
 
     @<group> - rtprio 99  

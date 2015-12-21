@@ -1237,6 +1237,7 @@ void phy_service::utilize_payload() {
         assert(d_rx_symbols_freq.size());
         vector_complex symbols_freq_ref = modulate(hard_demodulated_bits_ref, tone_info);
         estimate_channel_gain(d_rx_symbols_freq.begin(), d_rx_symbols_freq.end(), symbols_freq_ref.begin(), d_broadcast_channel_response);
+        d_stats.channel_gain = d_broadcast_channel_response.carriers_gain;
         DEBUG_VECTOR(d_broadcast_channel_response.carriers_gain);
     } else {
         d_stats.ber = 0; // if no payload, BER=0
@@ -1344,7 +1345,7 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
     }
 
     // Incremental algorithm
-    while (P_bar_nom/P_bar_denom > P_t) {  // test if sum(P[i]*b[i])/sum(b[i]) > P_t)
+    while (P_bar_nom/P_bar_denom > P_t && !bitloadings_set.empty()) {  // test if sum(P[i]*b[i])/sum(b[i]) > P_t)
         carrier_ber_t carrier_ber = bitloadings_set.top(); // get the bitloading of the worst carrier
         float ber = carrier_ber.first;
         int i = carrier_ber.second;

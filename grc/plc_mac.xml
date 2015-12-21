@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $info, $debug)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $target_ber, $info, $debug)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -65,6 +65,12 @@
     <value></value>
     <type>int_vector</type>
   </param>
+  <param>
+    <name>Target BER</name>
+    <key>target_ber</key>
+    <value></value>
+    <type>float</type>
+  </param>  
   <param>
     <name>Info</name>
     <key>info</key>

@@ -30,7 +30,7 @@ class impulse_noise(gr.sync_block):
         #PAYLOAD_GAIN = 10^(2.2/20)/(4096**0.5) * 4096/2 * 0.3  # payload carrier gain in frequency domain 
         #MAX_GAIN = max_gain
     def add_noise(self, iat, A, l, f, offset):
-        print "iat=" + str(iat) + " A=" + str(A) + " l=" + str(l) + " f=" + str(f) + " offset=" + str(offset)
+        print "I" + str(self.impulses.size) + ": iat=" + str(iat) + " A=" + str(A) + " l=" + str(l) + " f=" + str(f) + " offset=" + str(offset)
         self.impulses.append(self.create_impulse(iat, A, l, f, offset))
 
     def work(self, input_items, output_items):

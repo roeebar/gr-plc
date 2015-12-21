@@ -21,20 +21,21 @@ namespace gr {
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
-    phy_rx::make(bool debug)
+    phy_rx::make(bool info, bool debug)
     {
       return gnuradio::get_initial_sptr
-        (new phy_rx_impl(debug));
+        (new phy_rx_impl(info, debug));
     }
 
     /*
      * The private constructor
      */
-    phy_rx_impl::phy_rx_impl(bool debug)
+    phy_rx_impl::phy_rx_impl(bool info, bool debug)
       : gr::sync_block("phy_rx",
               gr::io_signature::make(1, 1, sizeof(float)),
               gr::io_signature::make(0, 0, 0)),
             d_debug (debug),
+            d_info(info),
             d_init_done(false),
             d_receiver_state(HALT),
             d_search_corr(0),
@@ -77,7 +78,8 @@ namespace gr {
 
       if (cmd == "PHY-RXCALCTONEMAP.request") {
         dout << d_name << ": recalculating tone map" << std::endl;
-        light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(0.001);
+        float target_ber = pmt::to_float(pmt::dict_ref(dict, pmt::mp("target_ber"), pmt::PMT_NIL));
+        light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(target_ber);
         d_phy_service.set_tone_map(tone_map);
         pmt::pmt_t tone_map_pmt = pmt::make_u8vector(tone_map.size(), 0);
         size_t len;
@@ -92,6 +94,15 @@ namespace gr {
       else if (cmd == "PHY-RXUTILPAYLOAD") {
         dout << d_name << ": utilizing payload" << std::endl;
         d_phy_service.utilize_payload();
+        light_plc::stats_t stats = d_phy_service.get_stats();
+        if (d_info) {
+          std::cout << d_name << ": NBITS = " << stats.n_bits << std::endl;
+          std::cout << d_name << ": BER = " << stats.ber << std::endl;
+          std::cout << d_name << ": Channel = [";
+          for (auto iter=stats.channel_gain.begin(); iter != stats.channel_gain.end(); iter++)
+            std::cout << *iter << " ";
+          std::cout << "]" << std::endl;
+        }
       } 
 
       else if (cmd == "PHY-RXINIT") {

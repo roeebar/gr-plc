@@ -27,7 +27,7 @@ namespace gr {
        * class. plc::phy_rx::make is the public interface for
        * creating new instances.
        */
-      static sptr make(bool debug);
+      static sptr make(bool info, bool debug);
     };
 
   } // namespace plc

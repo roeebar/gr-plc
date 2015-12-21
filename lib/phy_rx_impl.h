@@ -25,6 +25,7 @@ namespace gr {
      private:
       light_plc::phy_service d_phy_service;
       const bool d_debug;
+      const bool d_info;
       bool d_init_done;
       gr::filter::kernel::fir_filter_fff *d_fir;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;
@@ -53,7 +54,7 @@ namespace gr {
       std::string d_name;
 
      public:
-      phy_rx_impl(bool debug);
+      phy_rx_impl(bool info, bool debug);
       ~phy_rx_impl();
       void mac_in (pmt::pmt_t msg);
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);
