@@ -22,14 +22,6 @@ private:
         DT_RSOF = 5
     };
 
-    struct spline_set_t{
-        float a;
-        float b;
-        float c;
-        float d;
-        double x;
-    };
-
     struct modulation_map_t {
         const unsigned int n_bits;
         const complex *map;
@@ -173,7 +165,6 @@ private:
     void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response);
     void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response);
     static std::array<float, NUMBER_OF_CARRIERS*2> create_hamming_window();
-    std::vector<spline_set_t> spline(vector_float &x, vector_float &y);
     tone_info_t d_custom_tone_info;
     channel_response d_broadcast_channel_response;
     tones_float d_noise_psd;

@@ -1872,7 +1872,7 @@ void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, v
     while (iter != iter_end) { 
         if (SYNC_TONE_MASK[i]) {
             x[j] = i * (float)NUMBER_OF_CARRIERS / (float)N_SYNC_CARRIERS;  // corresponded OFDM symbol carrier number
-            y[j] = std::arg(*iter / *ref_iter);
+            y[j] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI);
             j++;
         }
         iter++;
@@ -1882,15 +1882,30 @@ void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, v
     DEBUG_VECTOR(x);
     DEBUG_VECTOR(y);
 
-    std::vector<spline_set_t> spline_set = spline(x,y);
-    for (unsigned int i = 0, j = 0; i < channel_response.carriers.size(); i++) {
-        if (channel_response.mask[i]) {
-            while (j < spline_set.size()-1 && spline_set[j+1].x <= i) j++;
-            float dx = i - spline_set[j].x;
-            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0,spline_set[j].a + spline_set[j].b * dx + spline_set[j].c * dx * dx +
-                                                      spline_set[j].d * dx * dx * dx));
+    // Linear interpolation of channel phase 
+    for (j=0; j<N_SYNC_ACTIVE_TONES-1; j++){
+        int start = 0, end = 0;
+        if (std::abs(y[j+1]-y[j]) > M_PI) { // phase unwrapping
+            if (y[j+1] > y[j])
+                y[j] = y[j] + 2 * M_PI;
+            else
+                y[j] = y[j] - 2 * M_PI;
         }
-    } 
+        float a = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+
+        if (j==0) // special case for first interval
+            start = 0;
+        else
+            start = x[j];
+        
+        if (j==N_SYNC_ACTIVE_TONES-2) // special case for last interval
+            end = NUMBER_OF_CARRIERS + 1;
+        else
+            end = x[j+1];
+
+        for (i=start; i<end; i++)
+            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0,a * (i - x[j]) + y[j]));
+    }
 }
 
 std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming_window() {
@@ -1902,57 +1917,5 @@ std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming
     return window;
 }
 
-std::vector<phy_service::spline_set_t> phy_service::spline(vector_float &x, vector_float &y)
-{
-    int n = x.size()-1;
-    vector_float a;
-    a.insert(a.begin(), y.begin(), y.end());
-    vector_float b(n);
-    vector_float d(n);
-    vector_float h;
 
-    for(int i = 0; i < n; ++i)
-        h.push_back(x[i+1]-x[i]);
-
-    vector_float alpha;
-    for(int i = 0; i < n; ++i)
-        alpha.push_back( (float)3*(a[i+1]-a[i])/h[i] - (float)3*(a[i]-a[i-1])/h[i-1]  );
-
-    vector_float c(n+1);
-    vector_float l(n+1);
-    vector_float mu(n+1);
-    vector_float z(n+1);
-    l[0] = 1;
-    mu[0] = 0;
-    z[0] = 0;
-
-    for(int i = 1; i < n; ++i)
-    {
-        l[i] = 2 *(x[i+1]-x[i-1])-h[i-1]*mu[i-1];
-        mu[i] = h[i]/l[i];
-        z[i] = (alpha[i]-h[i-1]*z[i-1])/l[i];
-    }
-
-    l[n] = 1;
-    z[n] = 0;
-    c[n] = 0;
-
-    for(int j = n-1; j >= 0; --j)
-    {
-        c[j] = z [j] - mu[j] * c[j+1];
-        b[j] = (a[j+1]-a[j])/h[j]-h[j]*(c[j+1]+(float)2*c[j])/(float)3;
-        d[j] = (c[j+1]-c[j])/(float)3/h[j];
-    }
-
-    std::vector<spline_set_t> output_set(n);
-    for(int i = 0; i < n; ++i)
-    {
-        output_set[i].a = a[i];
-        output_set[i].b = b[i];
-        output_set[i].c = c[i];
-        output_set[i].d = d[i];
-        output_set[i].x = x[i];
-    }
-    return output_set;
-}
 } /* namespace light_plc */

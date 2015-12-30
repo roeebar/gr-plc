@@ -180,6 +180,11 @@ namespace gr {
 
         case SEARCH:
           while (i + 2 * SYNCP_SIZE < ninput) {
+            d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
+            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
+            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
+            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
+            i++;                       
             if(d_energy > MIN_ENERGY && d_search_corr / d_energy > THRESHOLD) {
               if(d_plateau < MIN_PLATEAU) {
                 d_plateau++;
@@ -187,17 +192,12 @@ namespace gr {
                 dout << d_name << ": state = SEARCH, Found frame!" << std::endl;
                 d_receiver_state = SYNC;
                 d_sync_min = d_search_corr / d_energy;
-                d_sync_min_index = (PREAMBLE_SIZE + d_preamble_offset - 1) % PREAMBLE_SIZE;
+                d_sync_min_index = d_preamble_offset;
                 break;
               }   
             } else {
               d_plateau = 0;
             }
-            d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
-            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
-            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
-            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            i++;                       
           }
           break;
 
@@ -208,12 +208,11 @@ namespace gr {
             d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
             d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            i++;
             if (d_search_corr / d_energy < d_sync_min) {
                 d_sync_min = d_search_corr / d_energy;
-                d_sync_min_index = (PREAMBLE_SIZE + d_preamble_offset - 1) % PREAMBLE_SIZE;
+                d_sync_min_index = d_preamble_offset;
             }
-
+            i++;
           }
           i += 2 * SYNCP_SIZE;
           dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
@@ -234,16 +233,20 @@ namespace gr {
                            d_preamble[(start + k + 4 * N) % PREAMBLE_SIZE]) * (m - p) + m * p;
             fine_sync_corr = fine_sync_corr + new_u - d_preamble_corr[k % N];
             d_preamble_corr[k % N] = new_u;
-            if (k >= N && fine_sync_corr < fine_sync_min) {
+            if (k == N-1) {
+              fine_sync_min = fine_sync_corr;
+              fine_sync_min_index = k;             
+            } else if (k >= N && fine_sync_corr < fine_sync_min) {
               fine_sync_min = fine_sync_corr;
               fine_sync_min_index = k;
             }
           }
-          d_frame_start = 3 * (N / 2) - ((PREAMBLE_SIZE + d_preamble_offset - d_sync_min_index) % PREAMBLE_SIZE) + (fine_sync_min_index - N - FINE_SYNC_LENGTH);
-          dout << d_name << ": state = SYNC, fine sync, min = " << fine_sync_min << ", correction = "  << fine_sync_min_index-N-FINE_SYNC_LENGTH<< std::endl;
+          d_frame_start = 3 * (N / 2) - ((PREAMBLE_SIZE + d_preamble_offset - d_sync_min_index) % PREAMBLE_SIZE) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
+          dout << d_name << ": state = SYNC, fine sync, min = " << fine_sync_min << ", correction = "  << fine_sync_min_index-N+1-FINE_SYNC_LENGTH<< std::endl;
           d_receiver_state = COPY_PREAMBLE;
           break;
         }
+
         case COPY_PREAMBLE: {
           dout << d_name << ": state = COPY_PREAMBLE" << std::endl;
           while (i < d_frame_start) {
@@ -351,11 +354,13 @@ namespace gr {
           d_energy = 0;
           d_inter_frame_space_offset = 0;
           for (int j=0; j<SYNCP_SIZE; j++) {
+            d_preamble[d_preamble_offset++] = in[j];
+            d_preamble_corr[j] = 0;
+          }
+          for (int j=0; j<SYNCP_SIZE-1; j++) {
             d_search_corr += in[j] * in[j + SYNCP_SIZE];
             d_energy += in[j + SYNCP_SIZE] * in[j + SYNCP_SIZE];
-            d_preamble[d_preamble_offset++] = in[j * 2];
-            d_preamble[d_preamble_offset++] = in[j * 2 + 1];
-            d_preamble_corr[j] = 0;
+            d_preamble[d_preamble_offset++] = in[j + SYNCP_SIZE];
           }
           d_receiver_state = SEARCH;
           break;
