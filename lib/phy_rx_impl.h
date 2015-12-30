@@ -6,7 +6,6 @@
 #include <plc/phy_rx.h>
 #include <lightplc/phy_service.h>
 #include <list>
-#include <gnuradio/filter/fir_filter.h>
 #include <string>
 
 namespace gr {
@@ -16,6 +15,7 @@ namespace gr {
     {
    	 static const int SYNCP_SIZE;
      static const int SYNC_LENGTH;
+     static const int FINE_SYNC_LENGTH;
      static const int PREAMBLE_SIZE;
      static const int FRAME_CONTROL_SIZE;
      static const float THRESHOLD;
@@ -27,27 +27,25 @@ namespace gr {
       const bool d_debug;
       const bool d_info;
       bool d_init_done;
-      gr::filter::kernel::fir_filter_fff *d_fir;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
       float d_energy;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
-      float *d_correlation;
       light_plc::vector_float d_preamble;
       light_plc::vector_float d_frame_control;
       light_plc::vector_float d_payload;
       pmt::pmt_t d_frame_control_pmt;
-      int d_sync_offset;
+      float d_sync_min;
+      int d_sync_min_index;
       int d_frame_control_offset;
       int d_preamble_offset;
+      float *d_preamble_corr;
       int d_frame_start;
       light_plc::vector_int d_output_datastream;
       int d_output_datastream_offset;
       int d_output_datastream_len;
-      std::list<std::pair<double, int>> d_cor; 
-      std::list<std::pair<double, int>>::iterator d_cor_iter;
       std::vector<float> d_noise;
       int d_noise_offset;
       int d_inter_frame_space_offset;
