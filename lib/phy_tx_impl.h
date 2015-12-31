@@ -13,13 +13,17 @@ namespace gr {
     class phy_tx_impl : public phy_tx
     {
      private:
+      static const int MIN_INTERFRAME_SPACE;
+
       light_plc::phy_service d_phy_service;
       const bool d_debug;
       bool d_init_done;
       light_plc::vector_float d_datastream;
       int d_datastream_offset;
       int d_datastream_len;
-      enum {READY, PREPARING, TX, RESET, HALT} d_transmitter_state;
+      unsigned int d_samples_since_last_tx;
+      bool d_frame_ready;
+      enum {READY, PREPARING, TX, HALT} d_transmitter_state;
       std::string d_name;
       std::vector<unsigned char> d_mpdu_fc, d_mpdu_payload;
 

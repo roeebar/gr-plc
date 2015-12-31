@@ -185,8 +185,7 @@ vector_float phy_service::create_ppdu(vector_int &mpdu_fc_int, const vector_int 
     vector_float datastream(
         PREAMBLE.size() - ROLLOFF_INTERVAL + // Premable size
         NUMBER_OF_CARRIERS * 2 + IEEE1901_GUARD_INTERVAL_FC  + // frame control size
-        payload_symbols.size() / (NUMBER_OF_CARRIERS * 2) * (NUMBER_OF_CARRIERS * 2 + IEEE1901_GUARD_INTERVAL_PAYLOAD) + ROLLOFF_INTERVAL + // payload size
-        IEEE1901_RIFS_DEFAULT * SAMPLE_RATE  // inter frame space
+        payload_symbols.size() / (NUMBER_OF_CARRIERS * 2) * (NUMBER_OF_CARRIERS * 2 + IEEE1901_GUARD_INTERVAL_PAYLOAD) + ROLLOFF_INTERVAL // payload size
     );
 
     // Append preamble, frame control and payload to the datastream

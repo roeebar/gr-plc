@@ -13,21 +13,22 @@ namespace gr {
 
     class phy_rx_impl : public phy_rx
     {
-   	 static const int SYNCP_SIZE;
-     static const int SYNC_LENGTH;
-     static const int FINE_SYNC_LENGTH;
-     static const int PREAMBLE_SIZE;
-     static const int FRAME_CONTROL_SIZE;
-     static const float THRESHOLD;
-     static const float MIN_ENERGY;
-     static const int MIN_PLATEAU;
-
      private:
+      static const int SYNCP_SIZE;
+      static const int SYNC_LENGTH;
+      static const int FINE_SYNC_LENGTH;
+      static const int PREAMBLE_SIZE;
+      static const int FRAME_CONTROL_SIZE;
+      static const float THRESHOLD;
+      static const float MIN_ENERGY;
+      static const int MIN_PLATEAU;
+      static const int MIN_INTERFRAME_SPACE;
+
       light_plc::phy_service d_phy_service;
       const bool d_debug;
       const bool d_info;
       bool d_init_done;
-      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, CONSUME_SPACE, SENSE_SPACE, RESET, IDLE, HALT} d_receiver_state;
+      enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
       float d_energy;
       int d_plateau;

@@ -82,6 +82,7 @@ public:
     static const int PREAMBLE_SIZE = SYNCP_SIZE * 10;
     static const int FRAME_CONTROL_SIZE = NUMBER_OF_CARRIERS * 2 + IEEE1901_GUARD_INTERVAL_FC;
     static const int ROLLOFF_INTERVAL = IEEE1901_ROLLOFF_INTERVAL;
+    static const int MIN_INTERFRAME_SPACE = IEEE1901_RIFS_DEFAULT * SAMPLE_RATE;
 
     phy_service (bool debug = false);
     phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask, sync_tone_mask_t sync_tone_mask, bool debug = false);

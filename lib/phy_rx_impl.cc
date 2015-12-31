@@ -15,12 +15,13 @@ namespace gr {
     const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
     //const int phy_rx_impl::SYNC_LENGTH = phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
     const int phy_rx_impl::SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
-    const int phy_rx_impl::FINE_SYNC_LENGTH = 5; // length for fine frame alignment attempt
+    const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
     const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
     const float phy_rx_impl::MIN_ENERGY = 1e-3; // signal minimum energy
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
+    const int phy_rx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
 
     phy_rx::sptr
     phy_rx::make(bool info, bool debug)
@@ -143,6 +144,7 @@ namespace gr {
           // Init some vectors
           d_preamble = light_plc::vector_float(PREAMBLE_SIZE);
           d_frame_control = light_plc::vector_float(FRAME_CONTROL_SIZE);
+          d_noise = light_plc::vector_float(MIN_INTERFRAME_SPACE);
 
           d_receiver_state = RESET;
           dout << d_name << ": init done" << std::endl;
@@ -160,8 +162,6 @@ namespace gr {
         ninput_items_required[0] = d_frame_start;
       } else if (d_receiver_state == RESET) {
         ninput_items_required[0] = 2 * SYNCP_SIZE;
-      } else if (d_receiver_state == SENSE_SPACE) {
-        ninput_items_required[0] = d_phy_service.get_inter_frame_space();
       } else {
         ninput_items_required[0] = noutput_items;
       }
@@ -180,10 +180,12 @@ namespace gr {
 
         case SEARCH:
           while (i + 2 * SYNCP_SIZE < ninput) {
-            d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
-            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
-            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
-            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
+            d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]); // update correlation window
+            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]); // update energy window
+            d_noise[d_noise_offset] = d_preamble[d_preamble_offset]; // get noise samples
+            d_noise_offset = (d_noise_offset + 1) % d_noise.size(); // update noise pointer
+            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE]; // get preamble samples
+            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE; // update preamble pointer
             i++;                       
             if(d_energy > MIN_ENERGY && d_search_corr / d_energy > THRESHOLD) {
               if(d_plateau < MIN_PLATEAU) {
@@ -206,6 +208,8 @@ namespace gr {
           while (i < SYNC_LENGTH) {
             d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
             d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
+            d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
+            d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
             d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
             if (d_search_corr / d_energy < d_sync_min) {
@@ -235,7 +239,7 @@ namespace gr {
             d_preamble_corr[k % N] = new_u;
             if (k == N-1) {
               fine_sync_min = fine_sync_corr;
-              fine_sync_min_index = k;             
+              fine_sync_min_index = k;
             } else if (k >= N && fine_sync_corr < fine_sync_min) {
               fine_sync_min = fine_sync_corr;
               fine_sync_min_index = k;
@@ -250,15 +254,26 @@ namespace gr {
         case COPY_PREAMBLE: {
           dout << d_name << ": state = COPY_PREAMBLE" << std::endl;
           while (i < d_frame_start) {
-            d_preamble[d_preamble_offset++] = in[i];
-            d_preamble_offset = d_preamble_offset % PREAMBLE_SIZE;
+            d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
+            d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
+            d_preamble[d_preamble_offset] = in[i];
+            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
             i++;
           }
+          // Process preamble
           light_plc::vector_float preamble_aligned (d_preamble.size());
           light_plc::vector_float::iterator preamble_aligned_iter (preamble_aligned.begin());
           preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
           std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
           d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
+
+          // Process noise
+          light_plc::vector_float noise_aligned (d_noise.size());
+          light_plc::vector_float::iterator noise_aligned_iter (noise_aligned.begin());
+          noise_aligned_iter = std::copy(d_noise.begin() + d_noise_offset, d_noise.end(), noise_aligned_iter);
+          std::copy(d_noise.begin(), d_noise.begin() + d_noise_offset, noise_aligned_iter);
+          d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
+
           d_receiver_state = COPY_FRAME_CONTROL;
           break;
         }
@@ -278,7 +293,7 @@ namespace gr {
               } else {
                 d_receiver_state = COPY_PAYLOAD;
                 d_payload_size = d_phy_service.get_ppdu_payload_length();
-                dout << d_name << ": Frame control is OK!" << std::endl;
+                dout << d_name << ": frame control is OK!" << std::endl;
                 d_payload = light_plc::vector_float(d_payload_size);
               }
               break;
@@ -303,36 +318,8 @@ namespace gr {
             dict = pmt::dict_add(dict, pmt::mp("frame_control"), d_frame_control_pmt);  // add frame control information  
             dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);              
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXSTART"), dict));
-            d_receiver_state = SENSE_SPACE;
-          }
-          break;
-        }
 
-        case CONSUME_SPACE: {
-          int j = std::min(d_phy_service.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
-          i += j;
-          d_inter_frame_space_offset += j;
-          dout << d_name << ": state = CONSUME_SPACE" << std::endl;
-          if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
-            pmt::pmt_t dict = pmt::make_dict();
-            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
-            d_receiver_state = RESET;
-          }
-          break;
-        }
-
-        case SENSE_SPACE: {
-          if (d_inter_frame_space_offset == 0)
-            d_noise = std::vector<float>(d_phy_service.get_inter_frame_space());
-          int j = std::min(d_phy_service.get_inter_frame_space() - d_inter_frame_space_offset, ninput);
-          // Get noise data
-          while (i<j)
-            d_noise[d_inter_frame_space_offset++] = in[i++];
-          if (d_inter_frame_space_offset == d_phy_service.get_inter_frame_space()) {
-            // Calculate noise PSD
-            d_phy_service.process_noise(d_noise.begin(), d_noise.end());
-            dout << d_name << ": state = SENSE_SPACE, length = " << d_phy_service.get_inter_frame_space() <<  std::endl;
-            pmt::pmt_t dict = pmt::make_dict();
+            dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
             d_receiver_state = RESET;
           }
@@ -353,6 +340,7 @@ namespace gr {
           d_search_corr = 0;
           d_energy = 0;
           d_inter_frame_space_offset = 0;
+          d_noise_offset = 0;
           for (int j=0; j<SYNCP_SIZE; j++) {
             d_preamble[d_preamble_offset++] = in[j];
             d_preamble_corr[j] = 0;

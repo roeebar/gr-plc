@@ -13,6 +13,8 @@
 namespace gr {
   namespace plc {
 
+    const int phy_tx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
+
     phy_tx::sptr
     phy_tx::make(bool debug)
     {
@@ -31,6 +33,8 @@ namespace gr {
             d_init_done(false),
             d_datastream_offset(0),
             d_datastream_len(0),
+            d_samples_since_last_tx(0),
+            d_frame_ready(false),
             d_transmitter_state(HALT),
             d_name("PHY Tx")
     {
@@ -138,7 +142,7 @@ namespace gr {
     void phy_tx_impl::create_ppdu() {
       d_datastream = d_phy_service.create_ppdu(d_mpdu_fc.data(), d_mpdu_fc.size(), d_mpdu_payload.data(), d_mpdu_payload.size());
       d_datastream_len = d_datastream.size();
-      d_transmitter_state = TX;
+      d_frame_ready = true;
       return;
     }
 
@@ -162,35 +166,43 @@ namespace gr {
             }
 
             std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_float::value_type)*i);
-            dout << d_name << ": state = BUSY, copied " << i << "/" << d_datastream_len << std::endl;
+            dout << d_name << ": state = TX, copied " << i << "/" << d_datastream_len << std::endl;
 
             d_datastream_offset += i;
 
             if(i > 0 && d_datastream_offset == d_datastream_len) {
-              dout << d_name << ": state = BUSY, MPDU sent!" << std::endl;
-              d_transmitter_state = RESET;
+              dout << d_name << ": state = TX, MPDU sent!" << std::endl;
+              d_datastream_offset = 0;
+              d_datastream_len = 0;
+              d_samples_since_last_tx = 0;            
+              d_transmitter_state = READY;
+              d_frame_ready = false;        
+              pmt::pmt_t dict = pmt::make_dict();
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-TXEND"), dict));  
             }
             break;
           }
 
-          case RESET: {
-            dout << d_name << ": state = RESET" << std::endl;
-            d_datastream_offset = 0;
-            d_datastream_len = 0;
-            d_transmitter_state = READY;
-            pmt::pmt_t dict = pmt::make_dict();
-            message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-TXEND"), dict));            
-            break;
-          }
-
           case PREPARING:
+            if (d_frame_ready) {
+              if (d_samples_since_last_tx >= MIN_INTERFRAME_SPACE)
+                d_transmitter_state = TX;
+              else {
+                i = std::min(MIN_INTERFRAME_SPACE - d_samples_since_last_tx, (unsigned int)noutput_items);
+                d_samples_since_last_tx += i;
+                std::memset(out, 0, sizeof(float)*i);            
+              }
+              break;
+            }
+
           case READY: {
             i = noutput_items;
             std::memset(out, 0, sizeof(float)*i);            
             pmt::pmt_t key = pmt::string_to_symbol("packet_len");
             pmt::pmt_t value = pmt::from_long(i);
             pmt::pmt_t srcid = pmt::string_to_symbol(alias());
-            add_item_tag(0, nitems_written(0), key, value, srcid);            
+            add_item_tag(0, nitems_written(0), key, value, srcid);
+            d_samples_since_last_tx += i;
             break;
           }
 
