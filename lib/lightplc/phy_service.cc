@@ -1332,7 +1332,7 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
     int P_bar_denom = 0;
     for (int i=0; i<NUMBER_OF_CARRIERS+1; i++) {
         if (d_broadcast_channel_response.mask[i]) {
-            float erfc_result = std::erfc(MODULATION_MAP[m].scale * sqrt(snr[i] / 2)); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2) 
+            float erfc_result = std::erfc(MODULATION_MAP[m].scale * sqrt(snr[i] / 2)); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2). Q(x)=erfc(x/sqrt(2))/2
             float ser = 2 * A * erfc_result * (1 - A * erfc_result / 2); // calculate symbol error rate (SER) for the carrier
             P_bar_nom += ser;   // sum(P[i]*b[i]) 
             P_bar_denom += b;   // sum(b[i])
@@ -1368,7 +1368,7 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
                 {
                     float f1 = std::erfc(MODULATION_MAP[m].scale * sqrt(snr[i] / 2));
                     float f2 = std::erfc(MODULATION_MAP[m].scale * 1.29 * sqrt(snr[i] / 2));
-                    new_ser = 3 / 4 * f1 * (1 - f2) + f2 / 2;
+                    new_ser = 3 / 4 * f1 * - 3 / 8 * f1 * f2 + f2 / 2;
                     break;
                 }
                 case MT_QPSK:
