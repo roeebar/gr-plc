@@ -15,7 +15,7 @@ namespace gr {
     {
      private:
       static const int SYNCP_SIZE;
-      static const int SYNC_LENGTH;
+      static const int COARSE_SYNC_LENGTH;
       static const int FINE_SYNC_LENGTH;
       static const int PREAMBLE_SIZE;
       static const int FRAME_CONTROL_SIZE;
@@ -30,7 +30,7 @@ namespace gr {
       bool d_init_done;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
-      float d_energy;
+      float d_energy_a, d_energy_b;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
