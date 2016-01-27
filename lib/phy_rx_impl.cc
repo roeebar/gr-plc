@@ -13,8 +13,8 @@ namespace gr {
   namespace plc {
 
     const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
-    //const int phy_rx_impl::SYNC_LENGTH = phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
-    const int phy_rx_impl::SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
+    //const int phy_rx_impl::COARSE_SYNC_LENGTH = phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
+    const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
     const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
@@ -42,7 +42,8 @@ namespace gr {
             d_init_done(false),
             d_receiver_state(HALT),
             d_search_corr(0),
-            d_energy(0),
+            d_energy_a(0),
+            d_energy_b(0),
             d_plateau(0),
             d_payload_size(0),
             d_payload_offset(0),
@@ -157,7 +158,7 @@ namespace gr {
     phy_rx_impl::forecast (int noutput_items, gr_vector_int &ninput_items_required)
     {
       if (d_receiver_state == SYNC) {
-        ninput_items_required[0] = SYNC_LENGTH + 2 * SYNCP_SIZE;
+        ninput_items_required[0] = COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE;
       } else if (d_receiver_state == COPY_PREAMBLE) {
         ninput_items_required[0] = d_frame_start;
       } else if (d_receiver_state == RESET) {
@@ -181,19 +182,21 @@ namespace gr {
         case SEARCH:
           while (i + 2 * SYNCP_SIZE < ninput) {
             d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]); // update correlation window
-            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]); // update energy window
+            d_energy_a += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE] - in[i] * in[i]); // update energy window
+            d_energy_b += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]); // update energy window
             d_noise[d_noise_offset] = d_preamble[d_preamble_offset]; // get noise samples
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); // update noise pointer
             d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE]; // get preamble samples
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE; // update preamble pointer
+            float correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
             i++;                       
-            if(d_energy > MIN_ENERGY && d_search_corr / d_energy > THRESHOLD) {
+            if(correlation > THRESHOLD) {
               if(d_plateau < MIN_PLATEAU) {
                 d_plateau++;
               } else {
                 dout << d_name << ": state = SEARCH, Found frame!" << std::endl;
                 d_receiver_state = SYNC;
-                d_sync_min = d_search_corr / d_energy;
+                d_sync_min = correlation;
                 d_sync_min_index = d_preamble_offset;
                 break;
               }   
@@ -205,15 +208,17 @@ namespace gr {
 
         case SYNC: {
           // Perform coarse sync
-          while (i < SYNC_LENGTH) {
+          while (i < COARSE_SYNC_LENGTH) {
             d_search_corr += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE * 2] - in[i] * in[i + SYNCP_SIZE]);
-            d_energy += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]);
+            d_energy_a += (in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE] - in[i] * in[i]); // update energy window
+            d_energy_b += (in[i + SYNCP_SIZE * 2] * in[i + SYNCP_SIZE * 2] - in[i + SYNCP_SIZE] * in[i + SYNCP_SIZE]); // update energy window
             d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
             d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            if (d_search_corr / d_energy < d_sync_min) {
-                d_sync_min = d_search_corr / d_energy;
+            float correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
+            if (correlation < d_sync_min) {
+                d_sync_min = correlation;
                 d_sync_min_index = d_preamble_offset;
             }
             i++;
@@ -338,7 +343,8 @@ namespace gr {
           d_output_datastream_len = 0;
           d_noise_offset = 0;
           d_search_corr = 0;
-          d_energy = 0;
+          d_energy_a = 0;
+          d_energy_b = 0;
           d_inter_frame_space_offset = 0;
           d_noise_offset = 0;
           for (int j=0; j<SYNCP_SIZE; j++) {
@@ -347,7 +353,8 @@ namespace gr {
           }
           for (int j=0; j<SYNCP_SIZE-1; j++) {
             d_search_corr += in[j] * in[j + SYNCP_SIZE];
-            d_energy += in[j + SYNCP_SIZE] * in[j + SYNCP_SIZE];
+            d_energy_a += in[j] * in[j];
+            d_energy_b += in[j + SYNCP_SIZE] * in[j + SYNCP_SIZE];
             d_preamble[d_preamble_offset++] = in[j + SYNCP_SIZE];
           }
           d_receiver_state = SEARCH;
