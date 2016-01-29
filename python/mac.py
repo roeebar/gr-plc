@@ -382,9 +382,10 @@ class mac(gr.basic_block):
         if payload:
             if not mgmt:
                 if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame, size = " + str(len(frame)) + ", sending payload to APP"
-                pmt_dict = gr.pmt.make_dict();
                 payload_u8vector = gr.pmt.init_u8vector(len(payload), list(payload))
-                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(pmt_dict, payload_u8vector));
+                dict = gr.pmt.make_dict();
+                dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("msdu"), payload_u8vector)
+                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-RXMSDU"), dict));
             else:
                 if self.debug: print self.name + ": state = " + str(self.state) + ", received MAC frame (management), size = " + str(len(frame))
                 self.process_mgmt_msg(payload)

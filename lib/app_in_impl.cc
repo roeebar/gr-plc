@@ -64,9 +64,12 @@ namespace gr {
         unsigned char *out = (unsigned char *) output_items[0];
         while (!d_mac_payload_offset) {
             pmt::pmt_t msg(delete_head_blocking(pmt::intern("mac in")));
-            if(pmt::is_pair(msg)) {
-                if (pmt::is_u8vector(pmt::cdr(msg)) && pmt::is_dict(pmt::car(msg))) {
-                    d_mac_payload = (const unsigned char*) pmt::u8vector_elements(pmt::cdr(msg), d_mac_payload_length);
+            if (pmt::is_pair(msg) && pmt::is_symbol(pmt::car(msg)) && pmt::is_dict(pmt::cdr(msg))) {
+                std::string cmd = pmt::symbol_to_string(pmt::car(msg));
+                pmt::pmt_t dict = pmt::cdr(msg);            
+                if (cmd  == std::string("MAC-RXMSDU")) {
+                    pmt::pmt_t mac_payload_pmt = pmt::dict_ref(dict, pmt::mp("msdu"), pmt::PMT_NIL);
+                    d_mac_payload = (const unsigned char*) pmt::u8vector_elements(mac_payload_pmt, d_mac_payload_length);
                     dout << "APP In: received new payload, size = " << d_mac_payload_length << std::endl;
                     break;
                 }
