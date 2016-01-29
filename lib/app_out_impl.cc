@@ -73,8 +73,9 @@ namespace gr {
       bool payload_sent = false;
       while (!payload_sent) {
         pmt::pmt_t msg(delete_head_blocking(pmt::intern("mac in")));
-        if (pmt::symbol_to_string(msg) == std::string("READY")) {
-          message_port_pub(pmt::mp("mac out"), pmt::cons(dict, d_mac_payload_pmt));
+        if (pmt::is_pair(msg) && pmt::symbol_to_string(pmt::car(msg)) == std::string("MAC-READY")) {
+          dict = pmt::dict_add(dict, pmt::mp("msdu"), d_mac_payload_pmt); 
+          message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("MAC-TXMSDU"), dict));
           payload_sent = true;
           dout << "APP Out: sent payload, size = " << d_mac_payload_offset << std::endl;
           d_total_bytes += d_mac_payload_offset;

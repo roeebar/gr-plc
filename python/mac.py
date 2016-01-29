@@ -78,19 +78,23 @@ class mac(gr.basic_block):
 
     def app_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
-            if gr.pmt.is_u8vector(gr.pmt.cdr(msg)) and gr.pmt.is_dict(gr.pmt.car(msg)):
-                payload = bytearray(gr.pmt.u8vector_elements(gr.pmt.cdr(msg)))
-                if self.debug: print self.name + ": state = " + str(self.state) + ", received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_queue)
-                if self.tx_frames_in_queue < self.MAX_FRAMES_IN_BUFFER:
-                    dict = gr.pmt.to_python(gr.pmt.car(msg))
-                    mac_frame = self.create_mac_frame(self.dest, payload, False)
-                    self.submit_mac_frame(mac_frame)
-                    if not self.transmission_queue_is_full:
-                        self.send_status_to_app()
-                    if self.state == self.state_waiting_for_app: self.transmit_sof()
-                else :
-                    sys.stderr.write (self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP\n")
-                    if self.debug: print self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP"
+            cdr = gr.pmt.cdr(msg)
+            car = gr.pmt.car(msg)
+            if gr.pmt.is_symbol(car) and gr.pmt.is_dict(cdr):
+                msg_id = gr.pmt.to_python(car)
+                dict = gr.pmt.to_python(cdr)
+                if msg_id == "MAC-TXMSDU":
+                    payload = bytearray(dict["msdu"])
+                    if self.debug: print self.name + ": state = " + str(self.state) + ", received payload from APP, size = " + str(len(payload)) + ", frames in buffer = " + str(self.tx_frames_in_queue)
+                    if self.tx_frames_in_queue < self.MAX_FRAMES_IN_BUFFER:
+                        mac_frame = self.create_mac_frame(self.dest, payload, False)
+                        self.submit_mac_frame(mac_frame)
+                        if not self.transmission_queue_is_full:
+                            self.send_status_to_app()
+                        if self.state == self.state_waiting_for_app: self.transmit_sof()
+                    else :
+                        sys.stderr.write (self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP\n")
+                        if self.debug: print self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP"
 
     def phy_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
@@ -282,7 +286,7 @@ class mac(gr.basic_block):
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXUTILPAYLOAD"
 
     def send_status_to_app(self):
-        self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.to_pmt("READY"))
+        self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-READY"), gr.pmt.PMT_NIL))
 
     def sound_timout(self):
         return (datetime.now() - self.last_tx_sound_frame).total_seconds() >= self.SOUND_FRAME_RATE
