@@ -479,7 +479,7 @@
     </param>
     <param>
       <key>value8</key>
-      <value>0.0000001</value>
+      <value>0.01</value>
     </param>
   </block>
   <block>
@@ -980,11 +980,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(776, 457)</value>
+      <value>(721, 440)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>180</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -1137,7 +1137,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/data/received_raw.dat</value>
+      <value>/home/roee/recevied.raw</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1459,10 +1459,10 @@
     </param>
   </block>
   <block>
-    <key>plc_impulse_noise</key>
+    <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>7.120337, 0.119385, 0.118776, 0.118663, 0.118624</value>
+      <value>2.518466, 0.083988, 0.083880, 0.083860, 0.083853</value>
     </param>
     <param>
       <key>alias</key>
@@ -1482,7 +1482,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>f</key>
@@ -1490,7 +1490,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1016, 283)</value>
+      <value>(960, 299)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1502,7 +1502,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>plc_impulse_noise_0</value>
+      <value>plc_impulse_noise_source_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1514,7 +1514,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>4</value>
+      <value>0</value>
     </param>
     <param>
       <key>o</key>
@@ -1597,7 +1597,7 @@
     </param>
     <param>
       <key>tmi</key>
-      <value>1</value>
+      <value>3</value>
     </param>
   </block>
   <block>
@@ -2488,7 +2488,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -2512,11 +2512,11 @@
     </param>
     <param>
       <key>clock_source0</key>
-      <value></value>
+      <value>internal</value>
     </param>
     <param>
       <key>sd_spec0</key>
-      <value>A:A</value>
+      <value></value>
     </param>
     <param>
       <key>time_source0</key>
@@ -3303,7 +3303,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3327,7 +3327,7 @@
     </param>
     <param>
       <key>sd_spec0</key>
-      <value>A:A</value>
+      <value></value>
     </param>
     <param>
       <key>time_source0</key>
@@ -3447,7 +3447,7 @@
     </param>
     <param>
       <key>sync</key>
-      <value>pc_clock</value>
+      <value></value>
     </param>
     <param>
       <key>otw</key>
@@ -3480,6 +3480,12 @@
   </connection>
   <connection>
     <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0_1</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
     <sink_block_id>blocks_file_sink_2</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
@@ -3487,12 +3493,6 @@
   <connection>
     <source_block_id>PHY_0_0</source_block_id>
     <sink_block_id>blocks_null_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>PHY_0_0</source_block_id>
-    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3535,6 +3535,12 @@
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
     <sink_block_id>PHY_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_add_xx_0_1</source_block_id>
+    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3587,22 +3593,10 @@
     <sink_key>app in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_impulse_noise_0</source_block_id>
-    <sink_block_id>blocks_add_xx_0_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_impulse_noise_0</source_block_id>
+    <source_block_id>plc_impulse_noise_source_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_impulse_noise_0</source_block_id>
-    <sink_block_id>blocks_file_sink_0_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_mac_0</source_block_id>
@@ -3630,7 +3624,7 @@
   </connection>
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
-    <sink_block_id>blocks_add_xx_0_1</sink_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

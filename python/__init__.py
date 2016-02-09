@@ -32,7 +32,7 @@ except ImportError:
 
 # import any pure python here
 from mac import mac
-from impulse_noise import impulse_noise
+
 
 
 #

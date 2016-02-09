@@ -134,7 +134,7 @@ namespace gr {
               sync_tone_mask[j] = sync_tone_mask_blob[j];
 
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask);
-            //d_phy_service.debug(d_debug);
+            d_phy_service.debug(d_debug);
           }
 
           if (pmt::dict_has_key(dict,pmt::mp("id"))) 
@@ -160,7 +160,7 @@ namespace gr {
       if (d_receiver_state == SYNC) {
         ninput_items_required[0] = COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE;
       } else if (d_receiver_state == COPY_PREAMBLE) {
-        ninput_items_required[0] = d_frame_start;
+        ninput_items_required[0] = d_frame_start + SYNCP_SIZE;
       } else if (d_receiver_state == RESET) {
         ninput_items_required[0] = 2 * SYNCP_SIZE;
       } else {
@@ -216,14 +216,14 @@ namespace gr {
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
             d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            float correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
+            float correlation = d_search_corr / std::sqrt(d_energy_a * d_energy_b);
             if (correlation < d_sync_min) {
                 d_sync_min = correlation;
                 d_sync_min_index = d_preamble_offset;
             }
             i++;
           }
-          i += 2 * SYNCP_SIZE;
+          i += SYNCP_SIZE + SYNCP_SIZE / 2; // leaving extra SYNCP_SIZE/2 room for sync error, which may be fixed in preamble FFT analysis
           dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
 
           // Perform fine sync
@@ -261,7 +261,7 @@ namespace gr {
           while (i < d_frame_start) {
             d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
-            d_preamble[d_preamble_offset] = in[i];
+            d_preamble[d_preamble_offset] = in[i + SYNCP_SIZE / 2];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
             i++;
           }
@@ -270,7 +270,10 @@ namespace gr {
           light_plc::vector_float::iterator preamble_aligned_iter (preamble_aligned.begin());
           preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
           std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
-          d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
+          int delay = d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
+          dout << d_name << ": state = COPY_PREAMBLE, delay fix = " << delay << std::endl;
+
+          i += delay + SYNCP_SIZE / 2; // adjusting sync point according for preable FFT analylsis
 
           // Process noise
           light_plc::vector_float noise_aligned (d_noise.size());

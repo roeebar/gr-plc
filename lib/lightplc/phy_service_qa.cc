@@ -46,7 +46,7 @@ bool phy_service_qa::random_test(int number_of_tests, bool encode_only) {
             if (!test_sack(encode_only))
                 return false;
         } else if (test_type < 100) { // sof test
-            tone_mode_t tone_mode;
+            tone_mode_t tone_mode = TM_NO_ROBO;
             int mode = integer_random(3);
             switch (mode){
                 case 0: tone_mode = TM_STD_ROBO; break;
@@ -81,7 +81,8 @@ bool phy_service_qa::test_sof(tone_mode_t tone_mode, int number_of_blocks, float
     vector_int fc = create_sof_frame_control(tone_mode, pb_size);
     vector_float datastream = d_phy.create_ppdu(fc, payload);
 
-    add_noise(datastream.begin(), datastream.end(), SNRdb);
+    vector_float noise = add_noise(datastream.begin(), datastream.end(), SNRdb);
+    d_phy.process_noise(noise.begin(), noise.end());
 
     std::cout << "Datastream length: " << datastream.size() << std::endl;
     if (!encode_only) {
@@ -94,7 +95,6 @@ bool phy_service_qa::test_sof(tone_mode_t tone_mode, int number_of_blocks, float
         }
         vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += d_phy.get_ppdu_payload_length();
-        d_phy.process_noise(iter, iter + d_phy.get_inter_frame_space());
         if (std::equal(payload.begin(), payload.end(), return_payload.begin())) {
             d_phy.utilize_payload();
             stats_t stats = d_phy.get_stats();
@@ -155,7 +155,8 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
     vector_float datastream = d_phy.create_ppdu(fc, mpdu_payload);
     std::cout << "Datastream length: " << datastream.size() << std::endl;
 
-    add_noise(datastream.begin(), datastream.end(), SNRdb);
+    vector_float noise = add_noise(datastream.begin(), datastream.end(), SNRdb);
+    d_phy.process_noise(noise.begin(), noise.end());
 
     if (!encode_only) {
         vector_float::const_iterator iter = datastream.begin();
@@ -167,7 +168,6 @@ bool phy_service_qa::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
         }
         vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += d_phy.get_ppdu_payload_length();
-        d_phy.process_noise(iter, iter + d_phy.get_inter_frame_space());
         d_phy.utilize_payload();
         d_tone_map = d_phy.calculate_tone_map(0.001);
         d_phy.set_tone_map(d_tone_map);
@@ -250,10 +250,11 @@ bool phy_service_qa::encode_to_file (tone_mode_t tone_mode, int number_of_blocks
     return true;
 }
 
-float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb) {
+vector_float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb) {
     // Calculating signal variance    
     float datastream_var = 0;
     int size = iter_end - iter_begin;
+    vector_float noise(size);
     for (vector_float::const_iterator iter = iter_begin; iter != iter_end; iter++)
         datastream_var += (*iter)*(*iter)/size;
 
@@ -262,12 +263,14 @@ float phy_service_qa::add_noise(vector_float::iterator iter_begin, vector_float:
     float var = datastream_var/SNR;
     std::normal_distribution<float> n(0,std::sqrt(var));
     std::default_random_engine g;
+    vector_float::iterator noise_iter = noise.begin();
     for (vector_float::iterator iter = iter_begin; iter != iter_end; iter++) {
         float y = n(g);
+        *noise_iter++ = y;
         *iter = *iter + y;
     }
     std::cout << "SNR: " << SNRdb << " (var=" << var << ")" << std::endl;
-    return var;
+    return noise;
 }
 
 vector_int phy_service_qa::create_sof_frame_control (tone_mode_t tone_mode, pb_size_t pb_size)  {

@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <block>
   <name>Impulse Noise Source</name>
-  <key>plc_impulse_noise</key>
+  <key>plc_impulse_noise_source</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.impulse_noise($samp_rate)
+  <make>plc.impulse_noise_source($samp_rate)
 #if $n_noises() > 0
 self.$(id).add_noise($(iat)[0], $(a)[0], $(l)[0], $(f)[0], $(o)[0])
 #end if
