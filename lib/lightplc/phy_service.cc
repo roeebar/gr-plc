@@ -1494,7 +1494,7 @@ bool phy_service::crc24_check(const vector_int &bit_vector) {
     return (crc24(bit_vector) == 0x7FF01C); // The one's complement of 0x800FE3
 }
 
-vector_float::iterator phy_service::demodulate_symbols (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_float::iterator soft_bits_iter, const tone_map_t& tone_map, const channel_response &channel_response) {
+vector_float::iterator phy_service::demodulate_symbols (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_float::iterator soft_bits_iter, const tone_map_t& tone_map, const channel_response_t &channel_response) {
     int i = 0;
     while (iter != iter_end) {
         if (tone_map[i] != MT_NULLED) {  // If carrier is ON
@@ -1502,7 +1502,7 @@ vector_float::iterator phy_service::demodulate_symbols (vector_complex::const_it
             complex p = ANGLE_NUMBER_TO_VALUE[CARRIERS_ANGLE_NUMBER[i]*2]; // Convert the angle number to its value
             complex mapped_value(r.real() * p.real() + r.imag() * p.imag(), 
                                              -r.real() * p.imag() + r.imag() * p.real()); // Rotate channel value by minus angel_number to get the original mapped value
-            soft_bits_iter = demodulate_soft_bits(mapped_value, tone_map[i], 2 * d_noise_psd[i] / std::norm(d_broadcast_channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS), soft_bits_iter);
+            soft_bits_iter = demodulate_soft_bits(mapped_value, tone_map[i], 2 * d_noise_psd[i] / std::norm(channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS), soft_bits_iter);
         }
         i = (i + 1) % (NUMBER_OF_CARRIERS + 1);
         iter++;
@@ -1835,7 +1835,7 @@ vector_complex phy_service::fft_real_syncp(const vector_float& data) {
     return output; 
 }
 
-void phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end) {
+int phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end) {
     static const vector_complex SYNCP_FREQ = calc_syncp_fft(PREAMBLE);
     DEBUG_VECTOR_RANGE("preamble",iter, iter_end);
     assert (iter_end - iter == PREAMBLE_SIZE);
@@ -1845,11 +1845,12 @@ void phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vecto
     DEBUG_VECTOR(syncp);
     vector_complex syncp_freq = fft_real_syncp(syncp);
     DEBUG_VECTOR(syncp_freq);
-    estimate_channel_phase(syncp_freq.begin(), syncp_freq.end(), SYNCP_FREQ.begin(), d_broadcast_channel_response);
+    int delay = estimate_channel_phase(syncp_freq.begin(), syncp_freq.end(), SYNCP_FREQ.begin(), d_broadcast_channel_response);
     DEBUG_VECTOR(d_broadcast_channel_response.carriers);
+    return delay;
 }
 
-void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response) {
+void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
     int nsymbols = (iter_end - iter) / (NUMBER_OF_CARRIERS + 1);
     if (nsymbols) 
         channel_response.carriers_gain.fill(0); // zero the carriers_gain array
@@ -1864,47 +1865,45 @@ void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vec
     return;
 }
 
-void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response) {
-    vector_float x(N_SYNC_ACTIVE_TONES);
-    vector_float y(N_SYNC_ACTIVE_TONES);
-    int i=0, j=0;
+int phy_service::estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
+    vector_float y;
+    int L = iter_end - iter;
+    int M = 0;
+    int i=0;
+    float arg, arg_prev = 0, d = 0;
+
+    //std::cout << "arg: ";
     while (iter != iter_end) { 
+        arg = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI); // returns the arg in [-pi,pi]
         if (SYNC_TONE_MASK[i]) {
-            x[j] = i * (float)NUMBER_OF_CARRIERS / (float)N_SYNC_CARRIERS;  // corresponded OFDM symbol carrier number
-            y[j] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI);
-            j++;
+            //std::cout << arg << " ";
+            y.push_back(arg);
+            if (i > 0 && SYNC_TONE_MASK[i-1]) {
+                // Phase unwrapping
+                if (arg - arg_prev > M_PI) 
+                    arg_prev = arg_prev + 2 * M_PI;
+                else if (arg_prev - arg > M_PI)
+                    arg_prev = arg_prev - 2 * M_PI;
+                // Delay averaging
+                d += (arg_prev - arg);
+                M++;
+            }
+            arg_prev = arg;
         }
         iter++;
         ref_iter++;
         i++;
     }
-    DEBUG_VECTOR(x);
-    DEBUG_VECTOR(y);
+    d = d / M * L / 2 / M_PI;
+    int delay = (d > 0) ? (int)(d + 0.5) : (int)(d - 0.5); // execute: delay=(int)round(d)   
+    float phase = d - delay; 
+    DEBUG_VAR(delay);
+    DEBUG_VAR(phase);
 
-    // Linear interpolation of channel phase 
-    for (j=0; j<N_SYNC_ACTIVE_TONES-1; j++){
-        int start = 0, end = 0;
-        if (std::abs(y[j+1]-y[j]) > M_PI) { // phase unwrapping
-            if (y[j+1] > y[j])
-                y[j] = y[j] + 2 * M_PI;
-            else
-                y[j] = y[j] - 2 * M_PI;
-        }
-        float a = (y[j+1] - y[j]) / (x[j+1] - x[j]);
+    for (int k=0; k<NUMBER_OF_CARRIERS; k++)
+        channel_response.carriers[k] = channel_response.carriers_gain[k] * std::exp(complex(0, -2 * M_PI * k * phase / NUMBER_OF_CARRIERS));
 
-        if (j==0) // special case for first interval
-            start = 0;
-        else
-            start = x[j];
-        
-        if (j==N_SYNC_ACTIVE_TONES-2) // special case for last interval
-            end = NUMBER_OF_CARRIERS + 1;
-        else
-            end = x[j+1];
-
-        for (i=start; i<end; i++)
-            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0,a * (i - x[j]) + y[j]));
-    }
+    return delay;
 }
 
 std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming_window() {

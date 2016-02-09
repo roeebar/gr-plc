@@ -12,6 +12,7 @@
 #include "plc/phy_rx.h"
 #include "plc/app_out.h"
 #include "plc/app_in.h"
+#include "plc/impulse_noise_source.h"
 %}
 
 %include "plc/phy_tx.h"
@@ -27,3 +28,5 @@ GR_SWIG_BLOCK_MAGIC2(plc, app_out);
 %include "plc/app_in.h"
 GR_SWIG_BLOCK_MAGIC2(plc, app_in);
 
+%include "plc/impulse_noise_source.h"
+GR_SWIG_BLOCK_MAGIC2(plc, impulse_noise_source);

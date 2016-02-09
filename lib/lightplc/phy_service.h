@@ -28,11 +28,11 @@ private:
         const float scale;
     };
    
-    typedef struct channel_response {
+    typedef struct channel_response_t {
         tone_mask_t mask;
         std::array<complex, IEEE1901_NUMBER_OF_CARRIERS+1> carriers;
         tones_float carriers_gain;
-    } channel_response;
+    } channel_response_t;
 
     typedef struct tone_info_t {
         tone_map_t tone_map;
@@ -92,7 +92,7 @@ public:
 
     vector_float create_ppdu(const unsigned char *mpdu_fc_bin, size_t mpdu_fc_len, const unsigned char *mpdu_payload_bin = NULL, size_t mpdu_payload_len = 0);
     vector_float create_ppdu(vector_int &mpdu_fc_int, const vector_int &mpdu_payload_int = vector_int());
-    void process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
+    int process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
     bool process_ppdu_frame_control(vector_float::const_iterator iter, vector_int &mpdu_fc_int);
     bool process_ppdu_frame_control(vector_float::const_iterator iter, unsigned char* mpdu_fc_bin = NULL);
     void process_ppdu_payload(vector_float::const_iterator iter, unsigned char *mpdu_payload_bin);
@@ -149,7 +149,7 @@ private:
     static void update_tone_info_capacity(tone_info_t& tone_info);
     bool get_rx_params (const vector_int &fc_bits, rx_params_t &rx_params);
     static bool crc24_check(const vector_int &bit_vector);
-    vector_float::iterator demodulate_symbols (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_float::iterator soft_bits_iter, const tone_map_t& tone_map, const channel_response &channel_response);
+    vector_float::iterator demodulate_symbols (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_float::iterator soft_bits_iter, const tone_map_t& tone_map, const channel_response_t &channel_response);
     vector_float::iterator demodulate_soft_bits_helper(int n_bits, float r, float scale, float n0, vector_float::iterator iter);
     vector_float::iterator demodulate_soft_bits(const complex &value, modulation_type_t modulation, float n0, vector_float::iterator iter);
     int qam_demodulate(int v, int l);
@@ -163,11 +163,11 @@ private:
     tone_info_t build_broadcast_tone_info(modulation_type_t modulation = MT_QPSK);
     void create_fftw_vars ();
     vector_complex fft_real_syncp(const vector_float& data);
-    void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response);
-    void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response &channel_response);
+    void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
+    int estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
     static std::array<float, NUMBER_OF_CARRIERS*2> create_hamming_window();
     tone_info_t d_custom_tone_info;
-    channel_response d_broadcast_channel_response;
+    channel_response_t d_broadcast_channel_response;
     tones_float d_noise_psd;
     stats_t d_stats;
     rx_params_t d_rx_params;

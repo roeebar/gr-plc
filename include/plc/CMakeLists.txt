@@ -25,5 +25,6 @@ install(FILES
     # app_out.h
     app_in.h
     phy_tx.h
-    phy_rx.h DESTINATION include/plc
+    phy_rx.h
+    impulse_noise_source.h DESTINATION include/plc
 )

@@ -10,7 +10,7 @@ public:
     bool test_sof(tone_mode_t tone_mode, int number_of_blocks, float SNRdb = 30, bool encode_only = false);
 	bool test_sack(float SNRdb = 30, bool encode_only = false);
 	bool test_sound(tone_mode_t tone_mode, float SNRdb = 30, bool encode_only = false);
-	float add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb);
+	vector_float add_noise(vector_float::iterator iter_begin, vector_float::iterator iter_end, float SNRdb);
     bool encode_to_file(tone_mode_t tone_mode, int number_of_blocks, std::string input_filename, std::string output_filename);
     void calc_capacity();
 
