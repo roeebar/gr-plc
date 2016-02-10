@@ -1840,7 +1840,7 @@ int phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vector
     DEBUG_VECTOR_RANGE("preamble",iter, iter_end);
     assert (iter_end - iter == PREAMBLE_SIZE);
     DEBUG_VECTOR(SYNCP_FREQ);
-    iter += SYNCP_SIZE / 2 + SYNCP_SIZE;
+    iter += SYNCP_SIZE * 3 / 2 + SYNCP_SIZE; // estimate the SYNCP between [3.5-4.5]
     vector_float syncp(iter, iter + SYNCP_SIZE);
     DEBUG_VECTOR(syncp);
     vector_complex syncp_freq = fft_real_syncp(syncp);
@@ -1866,44 +1866,42 @@ void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vec
 }
 
 int phy_service::estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
-    vector_float y;
-    int L = iter_end - iter;
     int M = 0;
-    int i=0;
-    float arg, arg_prev = 0, d = 0;
+    int i = 0;
+    float d = 0;
+    vector_float args(iter_end-iter);
 
-    //std::cout << "arg: ";
     while (iter != iter_end) { 
-        arg = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI); // returns the arg in [-pi,pi]
+        args[i] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI); // returns the arg in [-pi,pi]
         if (SYNC_TONE_MASK[i]) {
-            //std::cout << arg << " ";
-            y.push_back(arg);
             if (i > 0 && SYNC_TONE_MASK[i-1]) {
                 // Phase unwrapping
-                if (arg - arg_prev > M_PI) 
-                    arg_prev = arg_prev + 2 * M_PI;
-                else if (arg_prev - arg > M_PI)
-                    arg_prev = arg_prev - 2 * M_PI;
+                if (args[i] - args[i-1] > M_PI) 
+                    args[i-1] += 2 * M_PI;
+                else if (args[i-1] - args[i] > M_PI)
+                    args[i-1] -= 2 * M_PI;
                 // Delay averaging
-                d += (arg_prev - arg);
+                d += (args[i-1] - args[i]);
                 M++;
             }
-            arg_prev = arg;
         }
         iter++;
         ref_iter++;
         i++;
     }
-    d = d / M * L / 2 / M_PI;
-    int delay = (d > 0) ? (int)(d + 0.5) : (int)(d - 0.5); // execute: delay=(int)round(d)   
-    float phase = d - delay; 
-    DEBUG_VAR(delay);
-    DEBUG_VAR(phase);
+    d = d / M * SYNCP_SIZE / 2 / M_PI; // perform average and extract the phase shift
+    int delay_int = (d > 0) ? (int)(d + 0.5) : (int)(d - 0.5); // get delay nearest integer: delay_int=(int)round(d)   
+    float delay_frac = d - delay_int; // the fractional part of the delay
 
+    DEBUG_VAR(args);
+    DEBUG_VAR(delay_int);
+    DEBUG_VAR(delay_frac);
+    
+    float phase = -2 * M_PI * delay_frac / 2 / NUMBER_OF_CARRIERS; // calculate the phase coefficient
     for (int k=0; k<NUMBER_OF_CARRIERS; k++)
-        channel_response.carriers[k] = channel_response.carriers_gain[k] * std::exp(complex(0, -2 * M_PI * k * phase / NUMBER_OF_CARRIERS));
+        channel_response.carriers[k] = channel_response.carriers_gain[k] * std::exp(complex(0, phase * k));
 
-    return delay;
+    return delay_int;
 }
 
 std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming_window() {
