@@ -31,7 +31,7 @@ private:
     typedef struct channel_response_t {
         tone_mask_t mask;
         std::array<complex, IEEE1901_NUMBER_OF_CARRIERS+1> carriers;
-        tones_float carriers_gain;
+        tones_float_t carriers_gain;
     } channel_response_t;
 
     typedef struct tone_info_t {
@@ -92,7 +92,7 @@ public:
 
     vector_float create_ppdu(const unsigned char *mpdu_fc_bin, size_t mpdu_fc_len, const unsigned char *mpdu_payload_bin = NULL, size_t mpdu_payload_len = 0);
     vector_float create_ppdu(vector_int &mpdu_fc_int, const vector_int &mpdu_payload_int = vector_int());
-    int process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
+    void process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end);
     bool process_ppdu_frame_control(vector_float::const_iterator iter, vector_int &mpdu_fc_int);
     bool process_ppdu_frame_control(vector_float::const_iterator iter, unsigned char* mpdu_fc_bin = NULL);
     void process_ppdu_payload(vector_float::const_iterator iter, unsigned char *mpdu_payload_bin);
@@ -104,7 +104,7 @@ public:
     int get_mpdu_payload_size();
     int get_ppdu_payload_length();
     int get_inter_frame_space();
-    stats_t get_stats();
+    const stats_t& get_stats();
     vector_float::const_iterator preamble();
     int max_blocks (tone_mode_t tone_mode);
     void debug(bool debug) {d_debug = debug; return;};
@@ -164,11 +164,11 @@ private:
     void create_fftw_vars ();
     vector_complex fft_real_syncp(const vector_float& data);
     void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
-    int estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
+    void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
     static std::array<float, NUMBER_OF_CARRIERS*2> create_hamming_window();
     tone_info_t d_custom_tone_info;
     channel_response_t d_broadcast_channel_response;
-    tones_float d_noise_psd;
+    tones_float_t d_noise_psd;
     stats_t d_stats;
     rx_params_t d_rx_params;
     vector_float d_rx_soft_bits;

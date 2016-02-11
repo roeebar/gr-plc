@@ -605,7 +605,7 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
-        if self.info and self.info_type['tx_tone_map']: print self.name + ": tx_tone_map: " + str(self.tx_tone_map)
+        if self.info and self.info_type['tx_tone_map']: print "'" + self.name + "'; txToneMap = " + str(self.tx_tone_map) + ";"
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)

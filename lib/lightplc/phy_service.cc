@@ -1314,7 +1314,7 @@ void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_
 
 tone_map_t phy_service::calculate_tone_map(float P_t) {
     // Calculating the SNR. The constant in the denominator normalizes the received symbols which has unity power
-    tones_float snr;
+    tones_float_t snr;
     for (size_t i=0; i<NUMBER_OF_CARRIERS+1; i++)
         if (d_broadcast_channel_response.mask[i])
             snr[i] = std::norm(d_broadcast_channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS) / d_noise_psd[i];
@@ -1417,7 +1417,7 @@ int phy_service::get_inter_frame_space() {
     return d_rx_params.inter_frame_space;
 }
 
-stats_t phy_service::get_stats() {
+const stats_t& phy_service::get_stats() {
     return d_stats;
 }
 
@@ -1835,19 +1835,26 @@ vector_complex phy_service::fft_real_syncp(const vector_float& data) {
     return output; 
 }
 
-int phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end) {
+void phy_service::process_ppdu_preamble(vector_float::const_iterator iter, vector_float::const_iterator iter_end) {
     static const vector_complex SYNCP_FREQ = calc_syncp_fft(PREAMBLE);
     DEBUG_VECTOR_RANGE("preamble",iter, iter_end);
     assert (iter_end - iter == PREAMBLE_SIZE);
     DEBUG_VECTOR(SYNCP_FREQ);
-    iter += SYNCP_SIZE * 3 / 2 + SYNCP_SIZE; // estimate the SYNCP between [3.5-4.5]
-    vector_float syncp(iter, iter + SYNCP_SIZE);
-    DEBUG_VECTOR(syncp);
-    vector_complex syncp_freq = fft_real_syncp(syncp);
+
+    auto iter_1 = iter + SYNCP_SIZE / 2 + 3 * SYNCP_SIZE; // SYNCP between [3.5-4.5]
+    auto iter_2 = iter + SYNCP_SIZE / 2 + 4 * SYNCP_SIZE; // SYNCP between [4.5-5.5]
+    auto iter_3 = iter + SYNCP_SIZE / 2 + 5 * SYNCP_SIZE; // SYNCP between [5.5-6.5]
+    vector_float syncp_avg(SYNCP_SIZE);
+    for (auto avg_iter = syncp_avg.begin(); avg_iter!=syncp_avg.end(); avg_iter++) // average all 3 SYNCPs
+        *avg_iter = (*iter_1++ + *iter_2++ + *iter_3++) / (float)3;
+    DEBUG_VECTOR(syncp_avg);
+
+    vector_complex syncp_freq = fft_real_syncp(syncp_avg);
     DEBUG_VECTOR(syncp_freq);
-    int delay = estimate_channel_phase(syncp_freq.begin(), syncp_freq.end(), SYNCP_FREQ.begin(), d_broadcast_channel_response);
+
+    estimate_channel_phase(syncp_freq.begin(), syncp_freq.end(), SYNCP_FREQ.begin(), d_broadcast_channel_response);
     DEBUG_VECTOR(d_broadcast_channel_response.carriers);
-    return delay;
+    return;
 }
 
 void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
@@ -1865,43 +1872,52 @@ void phy_service::estimate_channel_gain(vector_complex::const_iterator iter, vec
     return;
 }
 
-int phy_service::estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
-    int M = 0;
-    int i = 0;
-    float d = 0;
-    vector_float args(iter_end-iter);
-
+void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response) {
+    vector_float x(N_SYNC_ACTIVE_TONES);
+    vector_float y(N_SYNC_ACTIVE_TONES);
+    int i=0, j=0;
     while (iter != iter_end) { 
-        args[i] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI); // returns the arg in [-pi,pi]
         if (SYNC_TONE_MASK[i]) {
-            if (i > 0 && SYNC_TONE_MASK[i-1]) {
-                // Phase unwrapping
-                if (args[i] - args[i-1] > M_PI) 
-                    args[i-1] += 2 * M_PI;
-                else if (args[i-1] - args[i] > M_PI)
-                    args[i-1] -= 2 * M_PI;
-                // Delay averaging
-                d += (args[i-1] - args[i]);
-                M++;
-            }
+            x[j] = i * (float)NUMBER_OF_CARRIERS / (float)N_SYNC_CARRIERS;  // corresponded OFDM symbol carrier number
+            y[j] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI);
+            j++;
         }
         iter++;
         ref_iter++;
         i++;
     }
-    d = d / M * SYNCP_SIZE / 2 / M_PI; // perform average and extract the phase shift
-    int delay_int = (d > 0) ? (int)(d + 0.5) : (int)(d - 0.5); // get delay nearest integer: delay_int=(int)round(d)   
-    float delay_frac = d - delay_int; // the fractional part of the delay
+    DEBUG_VECTOR(x);
+    DEBUG_VECTOR(y);
 
-    DEBUG_VAR(args);
-    DEBUG_VAR(delay_int);
-    DEBUG_VAR(delay_frac);
-    
-    float phase = -2 * M_PI * delay_frac / 2 / NUMBER_OF_CARRIERS; // calculate the phase coefficient
-    for (int k=0; k<NUMBER_OF_CARRIERS; k++)
-        channel_response.carriers[k] = channel_response.carriers_gain[k] * std::exp(complex(0, phase * k));
+    // Linear interpolation of channel phase 
+    for (j=0; j<N_SYNC_ACTIVE_TONES-1; j++){
+        int start = 0, end = 0;
+        if (std::abs(y[j+1]-y[j]) > M_PI) { // phase unwrapping
+            if (y[j+1] > y[j])
+                y[j+1] -= 2 * M_PI;
+            else
+                y[j+1] += 2 * M_PI;
+        }
+        float a = (y[j+1] - y[j]) / (x[j+1] - x[j]);
 
-    return delay_int;
+        if (j==0) // special case for first interval
+            start = 0;
+        else
+            start = x[j];
+        
+        if (j==N_SYNC_ACTIVE_TONES-2) // special case for last interval
+            end = NUMBER_OF_CARRIERS + 1;
+        else
+            end = x[j+1];
+
+        for (i=start; i<end; i++) {
+            float phase = a * (i - x[j]) + y[j];
+            channel_response.carriers[i] = channel_response.carriers_gain[i] * std::exp(complex(0, phase));
+            d_stats.channel_phase[i] = phase;
+        }
+    }
+
+    return;
 }
 
 std::array<float, phy_service::NUMBER_OF_CARRIERS*2> phy_service::create_hamming_window() {

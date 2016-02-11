@@ -97,14 +97,14 @@ namespace gr {
       else if (cmd == "PHY-RXUTILPAYLOAD") {
         dout << d_name << ": utilizing payload" << std::endl;
         d_phy_service.utilize_payload();
-        light_plc::stats_t stats = d_phy_service.get_stats();
         if (d_info) {
-          std::cout << d_name << ": NBITS = " << stats.n_bits << std::endl;
-          std::cout << d_name << ": BER = " << stats.ber << std::endl;
-          std::cout << d_name << ": Channel = [";
+          const light_plc::stats_t &stats = d_phy_service.get_stats();
+          std::cout << "'" << d_name << "'; nBits = " << stats.n_bits << ";" << std::endl;
+          std::cout << "'" << d_name << "'; ber = " << stats.ber << ";" << std::endl;
+          std::cout << "'" << d_name << "'; channelGain = [";
           for (auto iter=stats.channel_gain.begin(); iter != stats.channel_gain.end(); iter++)
             std::cout << *iter << " ";
-          std::cout << "]" << std::endl;
+          std::cout << "];" << std::endl;
         }
       } 
 
@@ -160,7 +160,7 @@ namespace gr {
       if (d_receiver_state == SYNC) {
         ninput_items_required[0] = COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE;
       } else if (d_receiver_state == COPY_PREAMBLE) {
-        ninput_items_required[0] = d_frame_start + SYNCP_SIZE;
+        ninput_items_required[0] = d_frame_start;
       } else if (d_receiver_state == RESET) {
         ninput_items_required[0] = 2 * SYNCP_SIZE;
       } else {
@@ -223,7 +223,7 @@ namespace gr {
             }
             i++;
           }
-          i += SYNCP_SIZE + SYNCP_SIZE / 2; // leaving extra SYNCP_SIZE/2 room for sync error, which may be fixed in preamble FFT analysis
+          i += 2 * SYNCP_SIZE;
           dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
 
           // Perform fine sync
@@ -261,7 +261,7 @@ namespace gr {
           while (i < d_frame_start) {
             d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); 
-            d_preamble[d_preamble_offset] = in[i + SYNCP_SIZE / 2];
+            d_preamble[d_preamble_offset] = in[i];
             d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
             i++;
           }
@@ -270,10 +270,16 @@ namespace gr {
           light_plc::vector_float::iterator preamble_aligned_iter (preamble_aligned.begin());
           preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
           std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
-          int delay = d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
-          dout << d_name << ": state = COPY_PREAMBLE, delay fix = " << delay << std::endl;
-
-          i += delay + SYNCP_SIZE / 2; // adjusting sync point according for preable FFT analylsis
+          d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
+          
+          // Print the calculated channel phase
+          if (d_info) {
+            const light_plc::stats_t &stats = d_phy_service.get_stats();
+            std::cout << "'" << d_name << "'; channelPhase = [";
+            for (auto iter=stats.channel_phase.begin(); iter != stats.channel_phase.end(); iter++)
+              std::cout << *iter << " ";
+            std::cout << "];" << std::endl;
+          }
 
           // Process noise
           light_plc::vector_float noise_aligned (d_noise.size());
