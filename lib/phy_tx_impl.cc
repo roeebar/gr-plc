@@ -100,8 +100,8 @@ namespace gr {
             for (size_t j = 0; j<sync_tone_mask_len; j++)
               sync_tone_mask[j] = sync_tone_mask_blob[j];
 
-            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask);
-            //d_phy_service.debug(d_debug);
+            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, d_debug);
+            d_phy_service.debug(d_debug);
           }
 
           if (pmt::dict_has_key(dict,pmt::mp("id"))) 

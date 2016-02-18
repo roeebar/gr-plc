@@ -12,3 +12,7 @@ To disable thread priority UHD warning, add the following to */etc/security/limi
     @<group> - rtprio 99  
 
 Where *&lt;group>* should be replaced with the user group
+
+For a 'release' build, replace the cmake above with:
+
+	cmake ../ -DCMAKE_BUILD_TYPE="Release"

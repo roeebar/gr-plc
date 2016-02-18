@@ -97,7 +97,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>12.5e6</value>
+      <value>0</value>
     </param>
   </block>
   <block>
@@ -467,7 +467,7 @@
     </param>
     <param>
       <key>value2</key>
-      <value>[0]+[0,0,0,1]*450+[0,0,0,0]*62</value>
+      <value>[0]+[0,0,0,1]*511+[0,0,0,0]</value>
     </param>
     <param>
       <key>value6</key>
@@ -475,7 +475,7 @@
     </param>
     <param>
       <key>value7</key>
-      <value>[0]+[1]*225+[0]*31</value>
+      <value>[0]+[1]*255+[0]</value>
     </param>
     <param>
       <key>value8</key>
@@ -725,7 +725,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(401, 224)</value>
+      <value>(401, 312)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -752,7 +752,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>1e-3</value>
+      <value>0.0022160*2**0.5</value>
     </param>
     <param>
       <key>alias</key>
@@ -772,11 +772,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1016, 171)</value>
+      <value>(595, 248)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>180</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -831,7 +831,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(259, 608)</value>
+      <value>(155, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -878,7 +878,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(792, 177)</value>
+      <value>(800, 145)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -929,7 +929,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(417, 472)</value>
+      <value>(417, 480)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -953,7 +953,7 @@
     </param>
     <param>
       <key>num_inputs</key>
-      <value>2</value>
+      <value>3</value>
     </param>
     <param>
       <key>vlen</key>
@@ -984,15 +984,15 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/gr-plc/Testing/data/received_payload.dat</value>
+      <value>/home/roee/signal.raw</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(347, 600)</value>
+      <value>(347, 584)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1000,62 +1000,11 @@
     </param>
     <param>
       <key>type</key>
-      <value>byte</value>
-    </param>
-    <param>
-      <key>unbuffered</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_file_sink</key>
-    <param>
-      <key>append</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>file</key>
-      <value>/home/roee/gr-plc/Testing/data/transmitted_raw.dat</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(667, 232)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>90</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_file_sink_2</value>
-    </param>
-    <param>
-      <key>type</key>
       <value>complex</value>
     </param>
     <param>
       <key>unbuffered</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1082,15 +1031,15 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/Sesame Street - Elmo's Ducks - low.mkv</value>
+      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/1516_x_334.mkv</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(8, 667)</value>
+      <value>(75, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>0</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -1133,19 +1082,19 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/data/car2.dat</value>
+      <value>/home/roee/noise.raw</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(216, 491)</value>
+      <value>(1091, 208)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>0</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1165,7 +1114,58 @@
     </param>
     <param>
       <key>repeat</key>
-      <value>False</value>
+      <value>True</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_multiply_const_vxx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>const</key>
+      <value>0.012461</value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(952, 379)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>180</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_multiply_const_vxx_0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>complex</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1239,11 +1239,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(129, 216)</value>
+      <value>(145, 296)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>2.518466, 0.083988, 0.083880, 0.083860, 0.083853</value>
+      <value>0.343721, 0.342648, 0.342449, 0.342379, 0.342347</value>
     </param>
     <param>
       <key>alias</key>
@@ -1282,15 +1282,15 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>f</key>
-      <value>samp_rate/4096*1, samp_rate/4096*512, samp_rate/4096*1024, samp_rate/4096*1535, samp_rate/4096*2047</value>
+      <value>samp_rate/4096*round(0.8*2048/5), samp_rate/4096*round(0.8*2048/5)*2, samp_rate/4096*round(0.8*2048/5)*3, samp_rate/4096*round(0.8*2048/5)*4, samp_rate/4096*round(0.8*2048/5)*5</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(483, 224)</value>
+      <value>(475, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1314,7 +1314,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>0</value>
+      <value>5</value>
     </param>
     <param>
       <key>o</key>
@@ -1495,7 +1495,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(217, 608)</value>
+      <value>(241, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1585,11 +1585,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(51, 216)</value>
+      <value>(3, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -2292,7 +2292,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(611, 224)</value>
+      <value>(699, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3107,7 +3107,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(843, 568)</value>
+      <value>(819, 568)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3276,13 +3276,7 @@
     <source_block_id>PHY_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>1</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>PHY_0_0</source_block_id>
-    <sink_block_id>blocks_file_sink_2</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>2</sink_key>
   </connection>
   <connection>
     <source_block_id>analog_fastnoise_source_x_0</source_block_id>
@@ -3328,7 +3322,13 @@
   </connection>
   <connection>
     <source_block_id>blocks_file_source_1</source_block_id>
-    <sink_block_id>PHY_0</sink_block_id>
+    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3337,12 +3337,6 @@
     <sink_block_id>blks2_error_rate_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_app_in_0</source_block_id>
-    <sink_block_id>blocks_file_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_app_in_0</source_block_id>
@@ -3360,7 +3354,7 @@
     <source_block_id>plc_impulse_noise_source_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>1</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_mac_0</source_block_id>

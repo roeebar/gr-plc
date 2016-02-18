@@ -15,8 +15,6 @@ class mac(gr.basic_block):
     SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
 
-    info_type = {'tx_tone_map': 1}
-
     ( state_waiting_for_app,        # 0  
       state_sending_sof,            # 1 
       state_sending_sound,          # 2 
@@ -39,6 +37,7 @@ class mac(gr.basic_block):
     last_rx_frame_type = ""
     last_tx_sound_frame = datetime.min # last time a sound frame was transmitted
     last_tx_frame_n_blocks = 0 # number of PHY blocks in last sent frame
+    last_tx_n_errors = 0 # number of error PHY blocks in the last frame sent
     rx_tone_map = []
     tx_tone_map = []
     tx_capacity = 0
@@ -118,14 +117,14 @@ class mac(gr.basic_block):
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SACK) from PHY"
                         self.cancel_sack_timer()
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
-                        n_errors = self.parse_sackd(sackd)
-                        if (n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(n_errors) + " blocks error\n")
-                        self.stats['n_blocks_tx_fail'] += n_errors
-                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks
+                        self.last_tx_n_errors = self.parse_sackd(sackd)
+                        if (self.last_tx_n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error\n")
                
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
                     if self.state == self.state_waiting_for_sack and self.last_rx_frame_type == "SACK":
+                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks
+                        self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
                         self.transmit_sof()
                     elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOF":
                         self.transmit_sack()
@@ -605,7 +604,9 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
-        if self.info and self.info_type['tx_tone_map']: print "'" + self.name + "'; txToneMap = " + str(self.tx_tone_map) + ";"
+        if self.info: 
+            print "'" + self.name + "'; txToneMap = " + str(self.tx_tone_map) + ";"
+            print "'" + self.name + "'; txCapacity = " + str(self.tx_capacity) + ";"
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)

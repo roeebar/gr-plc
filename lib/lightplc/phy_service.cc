@@ -409,6 +409,7 @@ vector_float phy_service::create_payload_symbols(const vector_int &payload_bits,
         symbols_iter = ifft_real(symbols_freq_iter, symbols_freq_iter + NUMBER_OF_CARRIERS + 1, symbols_iter);
         symbols_freq_iter += NUMBER_OF_CARRIERS + 1;
         DEBUG_VECTOR_RANGE("symbols_freq", symbols_freq_iter - (NUMBER_OF_CARRIERS + 1), symbols_freq_iter);
+        DEBUG_VECTOR_RANGE("symbols", symbols_iter - 2 * NUMBER_OF_CARRIERS , symbols_iter);
     }
 
     return symbols;
@@ -1287,7 +1288,9 @@ bool phy_service::process_ppdu_frame_control(vector_float::const_iterator iter, 
 
     // Determine parameters
     d_rx_params = rx_params_t();
-    return get_rx_params(mpdu_fc_int, d_rx_params);
+    bool result = get_rx_params(mpdu_fc_int, d_rx_params);
+    d_stats.tone_mode = d_rx_params.tone_mode;
+    return result;
 }
 
 void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_float::const_iterator iter_end) {
@@ -1305,9 +1308,9 @@ void phy_service::process_noise(vector_float::const_iterator iter_begin, vector_
         fft_real(w.begin(), w.end(), fft.begin());
         // Calculate the PSD, and average with previous values
         for (int i=0; i<N/2+1; i++) 
-           d_noise_psd[i] = d_noise_psd[i] + std::norm(fft[i]) / K;       
+           d_noise_psd[i] += std::norm(fft[i]) / K;       
     }
-
+    d_stats.noise_psd = d_noise_psd;
     DEBUG_VECTOR(d_noise_psd);  
     return;
 }
@@ -1880,6 +1883,14 @@ void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, v
         if (SYNC_TONE_MASK[i]) {
             x[j] = i * (float)NUMBER_OF_CARRIERS / (float)N_SYNC_CARRIERS;  // corresponded OFDM symbol carrier number
             y[j] = std::fmod(std::arg(*iter / *ref_iter) + 2 * M_PI, 2 * M_PI);
+            if (i>0 && SYNC_TONE_MASK[i-1]) {
+                if (std::abs(y[j]-y[j-1]) >= M_PI) { // phase unwrapping
+                    if (y[j] > y[j-1])
+                        y[j] -= 2 * M_PI;
+                    else
+                        y[j] += 2 * M_PI;
+                }
+            }
             j++;
         }
         iter++;
@@ -1892,12 +1903,7 @@ void phy_service::estimate_channel_phase (vector_complex::const_iterator iter, v
     // Linear interpolation of channel phase 
     for (j=0; j<N_SYNC_ACTIVE_TONES-1; j++){
         int start = 0, end = 0;
-        if (std::abs(y[j+1]-y[j]) > M_PI) { // phase unwrapping
-            if (y[j+1] > y[j])
-                y[j+1] -= 2 * M_PI;
-            else
-                y[j+1] += 2 * M_PI;
-        }
+
         float a = (y[j+1] - y[j]) / (x[j+1] - x[j]);
 
         if (j==0) // special case for first interval

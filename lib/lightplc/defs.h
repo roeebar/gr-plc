@@ -55,6 +55,8 @@ typedef struct stats_t {
     size_t n_bits;
     tones_float_t channel_gain;
     tones_float_t channel_phase;
+    tones_float_t noise_psd;
+    tone_mode_t tone_mode;
 } stats_t;
 
 
