@@ -97,11 +97,12 @@ namespace gr {
         d_phy_service.utilize_payload();
         if (d_info) {
           const light_plc::stats_t &stats = d_phy_service.get_stats();
+          std::cout << "'" << d_name << "'; toneMode = " << stats.tone_mode << ";" << std::endl;
           std::cout << "'" << d_name << "'; nBits = " << stats.n_bits << ";" << std::endl;
           std::cout << "'" << d_name << "'; ber = " << stats.ber << ";" << std::endl;
           std::cout << "'" << d_name << "'; channelGain = [";
           for (auto iter=stats.channel_gain.begin(); iter != stats.channel_gain.end(); iter++)
-            std::cout << *iter << " ";
+            std::cout << *iter << ",";
           std::cout << "];" << std::endl;
         }
       }
@@ -276,7 +277,7 @@ namespace gr {
             const light_plc::stats_t &stats = d_phy_service.get_stats();
             std::cout << "'" << d_name << "'; channelPhase = [";
             for (auto iter=stats.channel_phase.begin(); iter != stats.channel_phase.end(); iter++)
-              std::cout << *iter << " ";
+              std::cout << *iter << ",";
             std::cout << "];" << std::endl;
           }
 
@@ -286,6 +287,15 @@ namespace gr {
           noise_aligned_iter = std::copy(d_noise.begin() + d_noise_offset, d_noise.end(), noise_aligned_iter);
           std::copy(d_noise.begin(), d_noise.begin() + d_noise_offset, noise_aligned_iter);
           d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
+
+          // Print the calculated noise PSD
+          if (d_info) {
+            const light_plc::stats_t &stats = d_phy_service.get_stats();
+            std::cout << "'" << d_name << "'; noisePsd = [";
+            for (auto iter=stats.noise_psd.begin(); iter != stats.noise_psd.end(); iter++)
+              std::cout << *iter << ",";
+            std::cout << "];" << std::endl;
+          }
 
           d_receiver_state = COPY_FRAME_CONTROL;
           break;
