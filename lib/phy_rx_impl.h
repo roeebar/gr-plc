@@ -29,25 +29,24 @@ namespace gr {
       const bool d_info;
       bool d_init_done;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
-      float d_search_corr;
+      gr_complex d_search_corr;
       float d_energy_a, d_energy_b;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
-      light_plc::vector_float d_preamble;
-      light_plc::vector_float d_frame_control;
-      light_plc::vector_float d_payload;
+      light_plc::vector_complex d_preamble;
+      light_plc::vector_complex d_frame_control;
+      light_plc::vector_complex d_payload;
       pmt::pmt_t d_frame_control_pmt;
       float d_sync_min;
       int d_sync_min_index;
       int d_frame_control_offset;
       int d_preamble_offset;
-      float *d_preamble_corr;
       int d_frame_start;
       light_plc::vector_int d_output_datastream;
       int d_output_datastream_offset;
       int d_output_datastream_len;
-      std::vector<float> d_noise;
+      light_plc::vector_complex d_noise;
       int d_noise_offset;
       int d_inter_frame_space_offset;
       std::string d_name;
@@ -68,4 +67,3 @@ namespace gr {
 } // namespace gr
 
 #endif /* INCLUDED_PLC_PHY_RX_IMPL_H */
-

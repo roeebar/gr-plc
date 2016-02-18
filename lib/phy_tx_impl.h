@@ -18,7 +18,7 @@ namespace gr {
       light_plc::phy_service d_phy_service;
       const bool d_debug;
       bool d_init_done;
-      light_plc::vector_float d_datastream;
+      light_plc::vector_complex d_datastream;
       int d_datastream_offset;
       int d_datastream_len;
       unsigned int d_samples_since_last_tx;
@@ -44,4 +44,3 @@ namespace gr {
 } // namespace gr
 
 #endif /* INCLUDED_PLC_PHY_TX_IMPL_H */
-

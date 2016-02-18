@@ -28,7 +28,7 @@ namespace gr {
     phy_tx_impl::phy_tx_impl(bool debug)
       : gr::sync_block("phy_tx",
               gr::io_signature::make(0, 0, 0),
-              gr::io_signature::make(1, 1, sizeof(float))),
+              gr::io_signature::make(1, 1, sizeof(gr_complex))),
             d_debug (debug),
             d_init_done(false),
             d_datastream_offset(0),
@@ -50,13 +50,13 @@ namespace gr {
     {
     }
 
-    void phy_tx_impl::mac_in (pmt::pmt_t msg) {     
+    void phy_tx_impl::mac_in (pmt::pmt_t msg) {
       if (!(pmt::is_pair(msg) && pmt::is_symbol(pmt::car(msg)) && pmt::is_dict(pmt::cdr(msg))))
           return;
 
       std::string cmd = pmt::symbol_to_string(pmt::car(msg));
       pmt::pmt_t dict = pmt::cdr(msg);
-        
+
       if (cmd == "PHY-TXCONFIG") {
         if (d_transmitter_state == PREPARING) {
           std::cerr << d_name << ": ERROR: cannot config while preparing for tx" << std::endl;
@@ -80,7 +80,7 @@ namespace gr {
           light_plc::tone_mask_t tone_mask;
           light_plc::sync_tone_mask_t sync_tone_mask;
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
-              pmt::dict_has_key(dict,pmt::mp("sync_tone_mask"))) 
+              pmt::dict_has_key(dict,pmt::mp("sync_tone_mask")))
           {
             dout << d_name << ": setting tone masks" << std::endl;
 
@@ -104,13 +104,13 @@ namespace gr {
             //d_phy_service.debug(d_debug);
           }
 
-          if (pmt::dict_has_key(dict,pmt::mp("id"))) 
+          if (pmt::dict_has_key(dict,pmt::mp("id")))
             d_name = "PHY Tx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
 
           d_transmitter_state = READY;
           d_init_done = true;
           dout << d_name << ": init done" << std::endl;
-        } else 
+        } else
           std::cerr << d_name << ": ERROR: cannot init more than once" << std::endl;
       }
 
@@ -134,8 +134,8 @@ namespace gr {
           d_transmitter_state = PREPARING;
           std::thread{&phy_tx_impl::create_ppdu, this}.detach(); // creating the PPDU in a new thread not to starve the work routine
         } else {
-          std::cerr << d_name << ": received MPDU while transmitter is not ready, dropping MPDU" << std::endl;             
-        }            
+          std::cerr << d_name << ": received MPDU while transmitter is not ready, dropping MPDU" << std::endl;
+        }
       }
     }
 
@@ -152,7 +152,7 @@ namespace gr {
               gr_vector_void_star &output_items)
     {
       int i = 0;
-      float *out = (float *) output_items[0];
+      gr_complex *out = (gr_complex *) output_items[0];
 
         switch (d_transmitter_state) {
           case TX: {
@@ -165,7 +165,7 @@ namespace gr {
               add_item_tag(0, nitems_written(0), key, value, srcid);
             }
 
-            std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_float::value_type)*i);
+            std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_complex::value_type)*i);
             dout << d_name << ": state = TX, copied " << i << "/" << d_datastream_len << std::endl;
 
             d_datastream_offset += i;
@@ -174,11 +174,11 @@ namespace gr {
               dout << d_name << ": state = TX, MPDU sent!" << std::endl;
               d_datastream_offset = 0;
               d_datastream_len = 0;
-              d_samples_since_last_tx = 0;            
+              d_samples_since_last_tx = 0;
               d_transmitter_state = READY;
-              d_frame_ready = false;        
+              d_frame_ready = false;
               pmt::pmt_t dict = pmt::make_dict();
-              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-TXEND"), dict));  
+              message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-TXEND"), dict));
             }
             break;
           }
@@ -190,14 +190,14 @@ namespace gr {
               else {
                 i = std::min(MIN_INTERFRAME_SPACE - d_samples_since_last_tx, (unsigned int)noutput_items);
                 d_samples_since_last_tx += i;
-                std::memset(out, 0, sizeof(float)*i);            
+                std::memset(out, 0, sizeof(gr_complex)*i);
               }
               break;
             }
 
           case READY: {
             i = noutput_items;
-            std::memset(out, 0, sizeof(float)*i);            
+            std::memset(out, 0, sizeof(gr_complex)*i);
             pmt::pmt_t key = pmt::string_to_symbol("packet_len");
             pmt::pmt_t value = pmt::from_long(i);
             pmt::pmt_t srcid = pmt::string_to_symbol(alias());
@@ -206,7 +206,7 @@ namespace gr {
             break;
           }
 
-          case HALT: 
+          case HALT:
             break;
         }
       // Tell runtime system how many output items we produced.
