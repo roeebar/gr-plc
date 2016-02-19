@@ -72,7 +72,7 @@ phy_service::phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask
     TONE_INFO_STD_ROBO = calc_robo_tone_info(TM_STD_ROBO);
     TONE_INFO_MINI_ROBO = calc_robo_tone_info(TM_MINI_ROBO);
     TONE_INFO_HS_ROBO = calc_robo_tone_info(TM_HS_ROBO);
-    PREAMBLE = calc_preamble();
+    calc_preamble(PREAMBLE, SYNCP_FREQ);
     TURBO_INTERLEAVER_SEQUENCE = calc_turbo_interleaver_sequence();
     d_custom_tone_info = build_broadcast_tone_info();
     d_broadcast_channel_response.mask = BROADCAST_TONE_MASK;
@@ -95,6 +95,7 @@ phy_service::phy_service (const phy_service &obj) :
     TONE_INFO_MINI_ROBO(obj.TONE_INFO_MINI_ROBO),
     TONE_INFO_HS_ROBO(obj.TONE_INFO_HS_ROBO),
     PREAMBLE(obj.PREAMBLE),
+    SYNCP_FREQ(obj.SYNCP_FREQ),
     TURBO_INTERLEAVER_SEQUENCE(obj.TURBO_INTERLEAVER_SEQUENCE),
     d_custom_tone_info(obj.d_custom_tone_info),
     d_broadcast_channel_response(obj.d_broadcast_channel_response),
@@ -122,6 +123,7 @@ phy_service& phy_service::operator=(const phy_service& rhs) {
     std::swap(TONE_INFO_MINI_ROBO, tmp.TONE_INFO_MINI_ROBO);
     std::swap(TONE_INFO_HS_ROBO, tmp.TONE_INFO_HS_ROBO);
     std::swap(PREAMBLE, tmp.PREAMBLE);
+    std::swap(SYNCP_FREQ, tmp.SYNCP_FREQ);
     std::swap(TURBO_INTERLEAVER_SEQUENCE, tmp.TURBO_INTERLEAVER_SEQUENCE);
     std::swap(d_custom_tone_info, tmp.d_custom_tone_info);
     std::swap(d_broadcast_channel_response, tmp.d_broadcast_channel_response);
@@ -246,7 +248,7 @@ void phy_service::update_frame_control (vector_int &mpdu_fc_int, tx_params_t tx_
     if (dt == DT_SOF || dt == DT_SOUND) {
         // Calculate frame length
         tone_info_t tone_info = get_tone_info(tx_params.tone_mode);
-        int n_blocks = tx_params.pb_size == PB520 ? payload_size / calc_phy_block_size(tx_params.pb_size) : payload_size / calc_phy_block_size(tx_params.pb_size);
+        int n_blocks = payload_size / calc_phy_block_size(tx_params.pb_size);
         int fec_block_size = calc_fec_block_size(tx_params.tone_mode, tone_info.rate, tx_params.pb_size);
         int n_bits = n_blocks * fec_block_size;
         int n_symbols = (n_bits % tone_info.capacity) ? n_bits / tone_info.capacity + 1 : n_bits / tone_info.capacity;
@@ -488,28 +490,6 @@ vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_siz
     }
 
     return parity;
-
-    /* Standard encoder:
-    vector_int p,q;
-    p = consistuent_encoder(bitstream, pb_size);
-    DEBUG_VECTOR(p);
-
-    q = turbo_interleaver(bitstream, pb_size);
-    q = consistuent_encoder(q, pb_size);
-    DEBUG_VECTOR(q);
-
-    puncture(p, rate);
-    DEBUG_VECTOR(p);
-
-    puncture(q, rate);
-    DEBUG_VECTOR(q);
-
-    vector_int parity(p.size()*2);
-    for (unsigned int i = 0; i<p.size(); i++) {
-        parity[2*i] = p[i];
-        parity[2*i+1] = q[i];
-    }
-    return parity; */
 }
 
 vector_int phy_service::tc_decoder(const vector_float &received_info, const vector_float &received_parity, pb_size_t pb_size, code_rate_t rate) {
@@ -564,82 +544,6 @@ vector_int phy_service::to_vector_int (const itpp::bvec in) {
     for (unsigned int i = 0; i< out.size(); i++)
         out[i] = in(i);
     return out;
-}
-
-vector_int phy_service::consistuent_encoder(const vector_int& in, pb_size_t pb_size) {
-    int s1 = 0;
-    int s2 = 0;
-    int s3 = 0;
-    int u1, u2;
-    int x0;
-    int s1_new, s2_new, s3_new;
-    vector_int out(in.size()/2);
-
-    // First pass
-    for(unsigned int i = 0; i < in.size(); i+=2) {
-        u1 = in[i];
-        u2 = in[i+1];
-        x0 = u1 ^ u2 ^ s3;
-        s3 = s2 ^ u2 ^ x0; // s3 = s2 ^ u1  ^ s3
-        s2 = s1 ^ u1 ^ u2;
-        s1 = u1 ^ u2 ^ x0; // s1 = s3
-    }
-
-    if (pb_size != PB136) {
-        s1_new = s2 ^ s3;
-        s2_new = s3;
-        s3_new = s1 ^ s2 ^ s3;
-    } else {
-        s1_new = s2;
-        s2_new = s1 ^ s3;
-        s3_new = s1;
-    }
-
-    s1 = s1_new;
-    s2 = s2_new;
-    s3 = s3_new;
-
-    // Second pass
-    for(unsigned int i = 0; i < in.size(); i+=2) {
-        u1 = in[i];
-        u2 = in[i+1];
-        x0 = u1 ^ u2 ^ s3;
-        s3 = s2 ^ u2 ^ x0; // s3 = s2 ^ u1 ^ s3
-        s2 = s1 ^ u1 ^ u2;
-        s1 = u1 ^ u2 ^ x0; // s1 = s3
-        out[i/2] = x0;
-    }
-    return out;
-}
-
-void phy_service::puncture(vector_int &bitstream, code_rate_t rate) {
-    switch (rate) {
-        case RATE_1_2:
-            break;
-        case RATE_16_21: {
-            vector_int new_bitstream(bitstream.size() / 16 * 5);
-            vector_int::iterator iter = new_bitstream.begin();
-            for (unsigned int i = 0 ; i<bitstream.size(); i++)
-                if (((i % 16) % 3 == 0) && ((i % 16) != 15)) {
-                    *iter = bitstream[i];
-                    iter++;
-                }
-            bitstream = new_bitstream;
-            break;
-        }
-        case RATE_16_18: {
-            vector_int new_bitstream(bitstream.size() / 16 * 2);
-            vector_int::iterator iter = new_bitstream.begin();
-            for (unsigned int i = 0 ; i<bitstream.size(); i++)
-                if ((i % 8) == 0) {
-                    *iter = bitstream[i];
-                    iter++;
-                }
-            bitstream = new_bitstream;
-            break;
-        }
-    }
-    return;
 }
 
 std::array<vector_int, 3>  phy_service::calc_turbo_interleaver_sequence(){
@@ -920,7 +824,7 @@ vector_complex phy_service::modulate(const vector_int& bits, const phy_service::
                 // Convert the angle number to its value
                 complex p = ANGLE_NUMBER_TO_VALUE[CARRIERS_ANGLE_NUMBER[i] * 2];
                 // Calculate the mapped value. Multiplying by the scale for unity average power.
-                // Multiplying by N/2 so in time domain this will produce cos() with unit amplitude
+                // Multiplying by N so in time domain this will produce cos() with unit amplitude
                 complex m = modulation_map.map[decimal] * modulation_map.scale * (float)NUMBER_OF_CARRIERS;
                  // Rotate the mapped value using the angle number and add it to the mapped values vector
                 *symbols_freq_iter = complex(m.real() * p.real() - m.imag() * p.imag(),
@@ -936,7 +840,9 @@ vector_complex phy_service::modulate(const vector_int& bits, const phy_service::
 
 vector_complex::iterator phy_service::ifft(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out) {
     assert (iter_end - iter_begin == NUMBER_OF_CARRIERS);
-    std::copy(iter_begin, iter_end, (complex*)d_ifft_input);
+    // Wrap the carrier by N/2, so N/2 carrier becomes first and so on...
+    std::copy(iter_begin + NUMBER_OF_CARRIERS/2, iter_end, (complex*)d_ifft_input);
+    std::copy(iter_begin, iter_begin + NUMBER_OF_CARRIERS/2, (complex*)d_ifft_input + NUMBER_OF_CARRIERS/2);
     fftwf_execute(d_fftw_rev_plan);
     iter_out = std::copy ((complex*)d_ifft_output, (complex*)d_ifft_output + NUMBER_OF_CARRIERS, iter_out);
     return iter_out;
@@ -946,7 +852,9 @@ vector_complex::iterator phy_service::fft(vector_complex::const_iterator iter_be
     assert (iter_end - iter_begin ==  NUMBER_OF_CARRIERS);
     std::copy(iter_begin, iter_end, (complex*)d_fft_input);
     fftwf_execute(d_fftw_fwd_plan);
-    iter_out = std::copy ((complex*)d_fft_output, (complex*)d_fft_output + NUMBER_OF_CARRIERS, iter_out);
+    // Unwrap the carriers by N/2, 1st carrier becomes N/2  and so on...
+    iter_out = std::copy ((complex*)d_fft_output + NUMBER_OF_CARRIERS / 2, (complex*)d_fft_output + NUMBER_OF_CARRIERS, iter_out);
+    iter_out = std::copy ((complex*)d_fft_output, (complex*)d_fft_output + NUMBER_OF_CARRIERS / 2, iter_out);
     return iter_out;
 }
 
@@ -1012,33 +920,26 @@ int phy_service::pn_generator_init(void) {
     return 0x3FF;
 }
 
-vector_complex phy_service::calc_preamble() {
+void phy_service::calc_preamble(vector_complex &preamble, vector_complex &syncp_freq) {
     static const int SYNCP_CARRIERS_ANGLE_NUMBER [SYNCP_SIZE] = {IEEE1901_SYNCP_CARRIERS_ANGLE_NUMBER};
 
     // Calculate SYNCP
-    vector_complex syncp_fft(SYNCP_SIZE);
-    for (unsigned int i = 0; i<syncp_fft.size(); i++) {
+    syncp_freq = vector_complex(SYNCP_SIZE);
+    for (unsigned int i = 0; i<syncp_freq.size(); i++) {
         if (SYNC_TONE_MASK[i])
-            syncp_fft[i] = ANGLE_NUMBER_TO_VALUE[SYNCP_CARRIERS_ANGLE_NUMBER[i]];
+            syncp_freq[i] = ANGLE_NUMBER_TO_VALUE[SYNCP_CARRIERS_ANGLE_NUMBER[i]];
     }
 
-    // Calculate IFFT(syncp_fft)
+    // Calculate IFFT(syncp_freq)
     vector_complex syncp(SYNCP_SIZE);
-    {
-        std::lock_guard<std::mutex> lck (fftw_mtx); // lock this part since fftw plan creation is not thread safe
-        fftwf_execute(fftwf_plan_dft_1d (SYNCP_SIZE,
-                                             reinterpret_cast<fftwf_complex *>(syncp_fft.data()),
-                                             reinterpret_cast<fftwf_complex *>(syncp.data()),
-                                             FFTW_BACKWARD,
-                                             FFTW_ESTIMATE));
-    }
+    ifft_syncp(syncp_freq.begin(), syncp_freq.end(), syncp.begin());
 
     // Calculate SYNCM
     vector_complex syncm = vector_complex(syncp);
     std::transform(syncm.begin(), syncm.end(), syncm.begin(), std::negate<vector_complex::value_type>());
 
     // Build preamble: [P/2 P P P P P M M M/2]
-    vector_complex preamble;
+    preamble = vector_complex();
     preamble.reserve(syncp.size() * 10);
     preamble.insert(preamble.end(),syncp.begin()+syncp.size()/2,syncp.end());
     preamble.insert(preamble.end(),syncp.begin(),syncp.end());
@@ -1053,8 +954,6 @@ vector_complex phy_service::calc_preamble() {
     preamble.insert(preamble.end(),syncm.begin(),std::next(syncm.begin(),syncm.size()/2));
 
     DEBUG_VECTOR(preamble);
-
-    return preamble;
 }
 
 unsigned int phy_service::count_non_masked_carriers(tone_mask_t::const_iterator begin, tone_mask_t::const_iterator end) {
@@ -1762,6 +1661,14 @@ void phy_service::create_fftw_vars () {
                                             FFTW_FORWARD,
                                             FFTW_MEASURE);
 
+    d_ifft_syncp_input = fftwf_alloc_complex(SYNCP_SIZE);
+    d_ifft_syncp_output = fftwf_alloc_complex(SYNCP_SIZE);
+    d_fftw_syncp_rev_plan = fftwf_plan_dft_1d (SYNCP_SIZE,
+                                            d_ifft_syncp_input,
+                                            d_ifft_syncp_output,
+                                            FFTW_BACKWARD,
+                                            FFTW_MEASURE);
+
     d_fft_syncp_input = fftwf_alloc_complex(SYNCP_SIZE);
     d_fft_syncp_output = fftwf_alloc_complex(SYNCP_SIZE);
     d_fftw_syncp_fwd_plan = fftwf_plan_dft_1d (SYNCP_SIZE,
@@ -1771,20 +1678,28 @@ void phy_service::create_fftw_vars () {
                                             FFTW_MEASURE);
 }
 
-vector_complex phy_service::fft_syncp(const vector_complex& data) {
-    assert (data.size() == SYNCP_SIZE);
-    memcpy(d_fft_syncp_input, data.data(), sizeof(complex) * SYNCP_SIZE);
+vector_complex::iterator phy_service::fft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out) {
+    assert (iter_end - iter_begin ==  SYNCP_SIZE);
+    std::copy(iter_begin, iter_end, (complex*)d_fft_syncp_input);
     fftwf_execute(d_fftw_syncp_fwd_plan);
-    vector_complex output(SYNCP_SIZE);
-    memcpy (output.data(), d_fft_syncp_output, SYNCP_SIZE * sizeof(fftwf_complex));
-    return output;
+    // Unwrap the carriers by N/2, 1st carrier becomes N/2  and so on...
+    iter_out = std::copy((complex*)d_fft_syncp_output + SYNCP_SIZE / 2, (complex*)d_fft_syncp_output + SYNCP_SIZE, iter_out);
+    iter_out = std::copy((complex*)d_fft_syncp_output, (complex*)d_fft_syncp_output + SYNCP_SIZE / 2, iter_out);
+    return iter_out;
+}
+
+vector_complex::iterator phy_service::ifft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out) {
+    assert (iter_end - iter_begin == SYNCP_SIZE);
+    // Wrap the carriers by N/2, so N/2 carrier becomes first and so on...
+    std::copy(iter_begin + SYNCP_SIZE / 2, iter_end, (complex*)d_ifft_syncp_input);
+    std::copy(iter_begin, iter_begin + SYNCP_SIZE / 2, (complex*)d_ifft_syncp_input + SYNCP_SIZE / 2);
+    fftwf_execute(d_fftw_syncp_rev_plan);
+    iter_out = std::copy ((complex*)d_ifft_syncp_output, (complex*)d_ifft_syncp_output + SYNCP_SIZE, iter_out);
+    return iter_out;
 }
 
 void phy_service::process_ppdu_preamble(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end) {
-    static const vector_complex SYNCP_FREQ = fft_syncp(vector_complex(PREAMBLE.begin() + SYNCP_SIZE / 2 + SYNCP_SIZE, PREAMBLE.begin() + SYNCP_SIZE / 2 + 2 * SYNCP_SIZE));
-    DEBUG_VECTOR_RANGE("preamble", iter, iter_end);
     assert (iter_end - iter == PREAMBLE_SIZE);
-    DEBUG_VECTOR(SYNCP_FREQ);
 
     auto iter_1 = iter + SYNCP_SIZE / 2 + 3 * SYNCP_SIZE; // SYNCP between [3.5-4.5]
     auto iter_2 = iter + SYNCP_SIZE / 2 + 4 * SYNCP_SIZE; // SYNCP between [4.5-5.5]
@@ -1794,7 +1709,8 @@ void phy_service::process_ppdu_preamble(vector_complex::const_iterator iter, vec
         *avg_iter = (*iter_1++ + *iter_2++ + *iter_3++) / (float)3;
     DEBUG_VECTOR(syncp_avg);
 
-    vector_complex syncp_freq = fft_syncp(syncp_avg);
+    vector_complex syncp_freq(SYNCP_SIZE);
+    fft_syncp(syncp_avg.begin(), syncp_avg.end(), syncp_freq.begin());
     DEBUG_VECTOR(syncp_freq);
 
     estimate_channel_phase(syncp_freq.begin(), syncp_freq.end(), SYNCP_FREQ.begin(), d_broadcast_channel_response);

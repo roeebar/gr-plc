@@ -75,6 +75,7 @@ private:
     tone_info_t TONE_INFO_MINI_ROBO;
     tone_info_t TONE_INFO_HS_ROBO;
     vector_complex PREAMBLE;
+    vector_complex SYNCP_FREQ;
     std::array<vector_int, 3> TURBO_INTERLEAVER_SEQUENCE;
 
 public:
@@ -132,16 +133,14 @@ private:
     static itpp::bvec to_bvec (const vector_int in);
     static itpp::ivec to_ivec (const vector_int in);
     static vector_int to_vector_int (const itpp::bvec in);
-    static vector_int consistuent_encoder(const vector_int& in, pb_size_t pb_size);
     static std::array<vector_int, 3> calc_turbo_interleaver_sequence();
     static vector_int turbo_interleaver(const vector_int &bitstream, pb_size_t pb_size);
-    static void puncture(vector_int &bitstream, code_rate_t rate);
     static int pn_generator(int n_bits, int &pn_state);
     static int pn_generator_init(void);
     static bool channel_interleaver_row(const vector_int& bitstream, vector_int::iterator &iter, int step_size, int& row_no, int& rows_done, int& nibble_no, bool wrap = false);
     vector_complex::iterator fft(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
     vector_complex::iterator ifft(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
-    vector_complex calc_preamble();
+    void calc_preamble(vector_complex &preamble, vector_complex &syncp_freq);
     vector_complex::iterator append_datastream(vector_complex::const_iterator symbol_iter_begin, vector_complex::const_iterator symbol_iter_end, vector_complex::iterator iter_out, size_t cp_length, float gain=1);
     static unsigned int count_non_masked_carriers(tone_mask_t::const_iterator begin, tone_mask_t::const_iterator end);
     static void update_tone_info_capacity(tone_info_t& tone_info);
@@ -160,7 +159,8 @@ private:
     static int calc_encoded_block_size(code_rate_t rate, pb_size_t pb_size);
     tone_info_t build_broadcast_tone_info(modulation_type_t modulation = MT_QPSK);
     void create_fftw_vars ();
-    vector_complex fft_syncp(const vector_complex& data);
+    vector_complex::iterator fft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
+    vector_complex::iterator ifft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
     void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
     void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
     tone_info_t d_custom_tone_info;
@@ -172,9 +172,8 @@ private:
     vector_int d_rx_mpdu_payload;
     vector_complex d_rx_symbols_freq;
     static std::mutex fftw_mtx;
-    fftwf_complex *d_ifft_input, *d_fft_output, *d_fft_syncp_output;
-    fftwf_complex *d_ifft_output, *d_fft_input, *d_fft_syncp_input;
-    fftwf_plan d_fftw_rev_plan, d_fftw_fwd_plan, d_fftw_syncp_fwd_plan;
+    fftwf_complex *d_ifft_input, *d_ifft_output, *d_fft_input, *d_fft_output, *d_fft_syncp_input, *d_fft_syncp_output, *d_ifft_syncp_input, *d_ifft_syncp_output;
+    fftwf_plan d_fftw_rev_plan, d_fftw_fwd_plan, d_fftw_syncp_rev_plan, d_fftw_syncp_fwd_plan;
     itpp::Punctured_Turbo_Codec d_turbo_codec;
 };
 

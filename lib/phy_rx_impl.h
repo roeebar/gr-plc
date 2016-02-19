@@ -42,6 +42,7 @@ namespace gr {
       int d_sync_min_index;
       int d_frame_control_offset;
       int d_preamble_offset;
+      float *d_preamble_corr;      
       int d_frame_start;
       light_plc::vector_int d_output_datastream;
       int d_output_datastream_offset;

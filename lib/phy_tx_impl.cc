@@ -77,6 +77,9 @@ namespace gr {
 
       else if (cmd == "PHY-TXINIT") {
         if (!d_init_done) {
+          if (pmt::dict_has_key(dict,pmt::mp("id")))
+            d_name = "PHY Tx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
+
           light_plc::tone_mask_t tone_mask;
           light_plc::sync_tone_mask_t sync_tone_mask;
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
@@ -103,9 +106,6 @@ namespace gr {
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, d_debug);
             d_phy_service.debug(d_debug);
           }
-
-          if (pmt::dict_has_key(dict,pmt::mp("id")))
-            d_name = "PHY Tx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
 
           d_transmitter_state = READY;
           d_init_done = true;

@@ -35,7 +35,7 @@
   </param>
   <sink>
     <name>in</name>
-    <type>float</type>
+    <type>complex</type>
   </sink>
   <sink>
     <name>mac in</name>

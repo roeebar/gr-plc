@@ -61,6 +61,7 @@ namespace gr {
       message_port_register_out(pmt::mp("mac out"));
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
+      d_preamble_corr = (float*)malloc(SYNCP_SIZE * sizeof(float));
     }
 
     /*
@@ -68,6 +69,7 @@ namespace gr {
      */
     phy_rx_impl::~phy_rx_impl()
     {
+      free(d_preamble_corr);
     }
 
     void phy_rx_impl::mac_in (pmt::pmt_t msg) {
@@ -109,6 +111,10 @@ namespace gr {
 
       else if (cmd == "PHY-RXINIT") {
         if (!d_init_done) {
+
+          if (pmt::dict_has_key(dict,pmt::mp("id")))
+            d_name = "PHY Rx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
+
           light_plc::tone_mask_t tone_mask;
           light_plc::sync_tone_mask_t sync_tone_mask;
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
@@ -135,9 +141,6 @@ namespace gr {
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask);
             d_phy_service.debug(d_debug);
           }
-
-          if (pmt::dict_has_key(dict,pmt::mp("id")))
-            d_name = "PHY Rx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
 
           d_init_done = true;
 
@@ -181,7 +184,7 @@ namespace gr {
         case SEARCH:
           while (i + 2 * SYNCP_SIZE < ninput) {
             d_search_corr += in[i + SYNCP_SIZE] * std::conj(in[i + SYNCP_SIZE * 2]) - in[i] * std::conj(in[i + SYNCP_SIZE]); // update correlation window
-            d_energy_a += std::norm(in[i + SYNCP_SIZE]) - std::norm(in[i] * in[i]); // update energy window
+            d_energy_a += std::norm(in[i + SYNCP_SIZE]) - std::norm(in[i]); // update energy window
             d_energy_b += std::norm(in[i + SYNCP_SIZE * 2]) - std::norm(in[i + SYNCP_SIZE]); // update energy window
             d_noise[d_noise_offset] = d_preamble[d_preamble_offset]; // get noise samples
             d_noise_offset = (d_noise_offset + 1) % d_noise.size(); // update noise pointer
@@ -231,7 +234,6 @@ namespace gr {
           float fine_sync_corr = 0;
           float fine_sync_min = 0;
           int fine_sync_min_index = -1;
-          float old_y = 0;
           for (int k=0; k<N+2*FINE_SYNC_LENGTH; k++) {
             gr_complex p = d_preamble[(start + k + 5 * N) % PREAMBLE_SIZE];
             gr_complex m = d_preamble[(start + k + 6 * N) % PREAMBLE_SIZE];
@@ -240,8 +242,8 @@ namespace gr {
                            d_preamble[(start + k + 2 * N) % PREAMBLE_SIZE] +
                            d_preamble[(start + k + 3 * N) % PREAMBLE_SIZE] +
                            d_preamble[(start + k + 4 * N) % PREAMBLE_SIZE]) * (std::conj(m-p)) + p * std::conj(m));
-            fine_sync_corr = fine_sync_corr + new_y - old_y;
-            old_y = new_y;
+            fine_sync_corr = fine_sync_corr + new_y - d_preamble_corr[k % N];
+            d_preamble_corr[k % N] = new_y;
             if (k == N-1) {
               fine_sync_min = fine_sync_corr;
               fine_sync_min_index = k;
@@ -367,6 +369,7 @@ namespace gr {
           d_noise_offset = 0;
           for (int j=0; j<SYNCP_SIZE; j++) {
             d_preamble[d_preamble_offset++] = in[j];
+            d_preamble_corr[j] = 0;
           }
           for (int j=0; j<SYNCP_SIZE-1; j++) {
             d_search_corr += in[j] * std::conj(in[j + SYNCP_SIZE]);
