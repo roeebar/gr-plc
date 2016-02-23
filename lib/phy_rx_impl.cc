@@ -8,20 +8,21 @@
 #include "phy_rx_impl.h"
 #include "debug.h"
 #include <gnuradio/fft/fft.h>
+#include <volk/volk.h>
 
 namespace gr {
   namespace plc {
 
     const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
-    //const int phy_rx_impl::COARSE_SYNC_LENGTH = phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
     const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
     const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
     const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
-    const float phy_rx_impl::MIN_ENERGY = 1e-3; // signal minimum energy
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
     const int phy_rx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
+    const size_t phy_rx_impl::BUFFER_SIZE = light_plc::phy_service::MIN_INTERFRAME_SPACE + phy_rx_impl::PREAMBLE_SIZE;
+    const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // Maximum search length determines the volk memory allocation
 
     phy_rx::sptr
     phy_rx::make(bool info, bool debug)
@@ -48,16 +49,10 @@ namespace gr {
             d_payload_size(0),
             d_payload_offset(0),
             d_frame_control_offset(0),
-            d_preamble_offset(0),
+            d_buffer_offset(0),
             d_frame_start(0),
-            d_output_datastream_offset(0),
-            d_output_datastream_len(0),
-            d_noise(0),
-            d_noise_offset(0),
-            d_inter_frame_space_offset(0),
             d_name("PHY Rx")
     {
-
       message_port_register_out(pmt::mp("mac out"));
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
@@ -69,6 +64,9 @@ namespace gr {
      */
     phy_rx_impl::~phy_rx_impl()
     {
+      volk_free(d_mult);
+      volk_free(d_real);
+      volk_free(d_energy);
       free(d_preamble_corr);
     }
 
@@ -145,9 +143,14 @@ namespace gr {
           d_init_done = true;
 
           // Init some vectors
-          d_preamble = light_plc::vector_complex(PREAMBLE_SIZE);
+          d_buffer = light_plc::vector_complex(BUFFER_SIZE);
           d_frame_control = light_plc::vector_complex(FRAME_CONTROL_SIZE);
-          d_noise = light_plc::vector_complex(MIN_INTERFRAME_SPACE);
+
+          unsigned int alignment = volk_get_alignment();
+          d_mult = (gr_complex*)volk_malloc(sizeof(gr_complex) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment);
+          d_real = (float*)volk_malloc(sizeof(float) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment);
+          d_energy = (float*)volk_malloc(sizeof(float) * MAX_SEARCH_LENGTH, alignment);
+          assert (MAX_SEARCH_LENGTH > COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE); // the volk vectors are used during SYNC as well
 
           d_receiver_state = RESET;
           dout << d_name << ": init done" << std::endl;
@@ -170,6 +173,33 @@ namespace gr {
       }
     }
 
+    void phy_rx_impl::copy_to_circular_buffer(void *buffer, size_t buffer_size, size_t &buffer_offset, const void* src, size_t size, size_t datatype_size){
+      buffer_size *= datatype_size;
+      size *= datatype_size;
+      buffer_offset *= datatype_size;
+      buffer_offset = (buffer_offset + size) % buffer_size;
+      size_t count = std::min(buffer_size, size); // number of samples to copy
+      buffer_offset = (buffer_offset + buffer_size - count) % buffer_size;
+      const void *src_start = (const uint8_t *)src + size - count; // position of source first sample
+      size_t first_copy_count = std::min(count, buffer_size - buffer_offset); // length of first part
+      memcpy((uint8_t*)buffer + buffer_offset, src_start, first_copy_count); // copy first part
+      buffer_offset = (buffer_offset + first_copy_count) % buffer_size; // update offset pointer
+      memcpy((uint8_t*)buffer + buffer_offset, (uint8_t*)src_start + first_copy_count, count - first_copy_count); // copy second part (if exists)
+      buffer_offset = (buffer_offset + count - first_copy_count) % buffer_size; // update offset pointer
+      buffer_offset /= datatype_size;
+    }
+
+    void phy_rx_impl::copy_from_circular_buffer(void *dest, void *buffer, size_t buffer_size, size_t buffer_offset, size_t size, size_t datatype_size){
+      assert(size <= buffer_size); // cannot copy more than buffer size
+      buffer_size *= datatype_size;
+      size *= datatype_size;
+      buffer_offset *= datatype_size;
+      size_t start = (buffer_offset + buffer_size) % buffer_size; // first sample to copy
+      size_t first_copy_count = std::min(buffer_size - start, size); // length of first part
+      memcpy(dest, (uint8_t*)buffer + start, first_copy_count);  // copy first part
+      memcpy((uint8_t*)dest + first_copy_count, buffer, size - first_copy_count);  // copy second part (if exists)
+    }
+
     int
     phy_rx_impl::work(int noutput_items,
               gr_vector_const_void_star &input_items,
@@ -181,67 +211,73 @@ namespace gr {
 
       switch(d_receiver_state) {
 
-        case SEARCH:
-          while (i + 2 * SYNCP_SIZE < ninput) {
-            d_search_corr += in[i + SYNCP_SIZE] * std::conj(in[i + SYNCP_SIZE * 2]) - in[i] * std::conj(in[i + SYNCP_SIZE]); // update correlation window
-            d_energy_a += std::norm(in[i + SYNCP_SIZE]) - std::norm(in[i]); // update energy window
-            d_energy_b += std::norm(in[i + SYNCP_SIZE * 2]) - std::norm(in[i + SYNCP_SIZE]); // update energy window
-            d_noise[d_noise_offset] = d_preamble[d_preamble_offset]; // get noise samples
-            d_noise_offset = (d_noise_offset + 1) % d_noise.size(); // update noise pointer
-            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE]; // get preamble samples
-            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE; // update preamble pointer
-            float correlation = std::real(d_search_corr) / std::sqrt(d_energy_a*d_energy_b);
-            i++;
+        case SEARCH: {
+          int search_len = std::min(ninput, MAX_SEARCH_LENGTH);
+          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, search_len - SYNCP_SIZE);
+          volk_32fc_deinterleave_real_32f(d_real, d_mult, search_len - SYNCP_SIZE);
+          volk_32fc_magnitude_squared_32f(d_energy, in, search_len);
+
+          float correlation = 0;
+          while (i + 2 * SYNCP_SIZE < search_len && d_plateau < MIN_PLATEAU) {
+            d_search_corr += d_real[i + SYNCP_SIZE] - d_real[i]; // update correlation window
+            d_energy_a += d_energy[i + SYNCP_SIZE] - d_energy[i]; // update energy window
+            d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
+            correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
             if(correlation > THRESHOLD) {
-              if(d_plateau < MIN_PLATEAU) {
+              if(d_plateau < MIN_PLATEAU)
                 d_plateau++;
-              } else {
-                dout << d_name << ": state = SEARCH, Found frame!" << std::endl;
-                d_receiver_state = SYNC;
-                d_sync_min = correlation;
-                d_sync_min_index = d_preamble_offset;
-                break;
-              }
-            } else {
+            } else { // correlation < THRESHOLD
               d_plateau = 0;
             }
+            i++;
+          }
+
+          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+
+          // If plateau length is reached...
+          if (d_plateau == MIN_PLATEAU) {
+            dout << d_name << ": state = SEARCH, Found frame!" << std::endl;
+            d_sync_min = correlation;
+            d_sync_min_index = d_buffer_offset;
+            d_receiver_state = SYNC;
           }
           break;
+        }
 
         case SYNC: {
           // Perform coarse sync
+          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, COARSE_SYNC_LENGTH + SYNCP_SIZE);
+          volk_32fc_deinterleave_real_32f(d_real, d_mult, COARSE_SYNC_LENGTH + SYNCP_SIZE);
+          volk_32fc_magnitude_squared_32f(d_energy, in, COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE);
           while (i < COARSE_SYNC_LENGTH) {
-            d_search_corr += in[i + SYNCP_SIZE] * std::conj(in[i + SYNCP_SIZE * 2]) - in[i] * std::conj(in[i + SYNCP_SIZE]);
-            d_energy_a += std::norm(in[i + SYNCP_SIZE]) - std::norm(in[i]); // update energy window
-            d_energy_b += std::norm(in[i + SYNCP_SIZE * 2]) - std::norm(in[i + SYNCP_SIZE]); // update energy window
-            d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
-            d_noise_offset = (d_noise_offset + 1) % d_noise.size();
-            d_preamble[d_preamble_offset] = in[i + 2 * SYNCP_SIZE];
-            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            float correlation = std::real(d_search_corr) / std::sqrt(d_energy_a * d_energy_b);
+            d_search_corr += d_real[i + SYNCP_SIZE] - d_real[i]; // update correlation window
+            d_energy_a += d_energy[i + SYNCP_SIZE] - d_energy[i]; // update energy window
+            d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
+            i++;
+            float correlation = d_search_corr / std::sqrt(d_energy_a * d_energy_b);
             if (correlation < d_sync_min) {
                 d_sync_min = correlation;
-                d_sync_min_index = d_preamble_offset;
+                d_sync_min_index = (d_buffer_offset + i) % BUFFER_SIZE;
             }
-            i++;
           }
+          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
           i += 2 * SYNCP_SIZE;
           dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
 
           // Perform fine sync
           int N = SYNCP_SIZE;
-          int start = (PREAMBLE_SIZE + d_sync_min_index - 7 * N - FINE_SYNC_LENGTH) % PREAMBLE_SIZE;
+          int start = (BUFFER_SIZE + d_sync_min_index - 7 * N - FINE_SYNC_LENGTH) % BUFFER_SIZE;
           float fine_sync_corr = 0;
           float fine_sync_min = 0;
           int fine_sync_min_index = -1;
           for (int k=0; k<N+2*FINE_SYNC_LENGTH; k++) {
-            gr_complex p = d_preamble[(start + k + 5 * N) % PREAMBLE_SIZE];
-            gr_complex m = d_preamble[(start + k + 6 * N) % PREAMBLE_SIZE];
-            float new_y = std::real((d_preamble[(start + k) % PREAMBLE_SIZE] +
-                           d_preamble[(start + k + N) % PREAMBLE_SIZE] +
-                           d_preamble[(start + k + 2 * N) % PREAMBLE_SIZE] +
-                           d_preamble[(start + k + 3 * N) % PREAMBLE_SIZE] +
-                           d_preamble[(start + k + 4 * N) % PREAMBLE_SIZE]) * (std::conj(m-p)) + p * std::conj(m));
+            gr_complex p = d_buffer[(start + k + 5 * N) % BUFFER_SIZE];
+            gr_complex m = d_buffer[(start + k + 6 * N) % BUFFER_SIZE];
+            float new_y = std::real((d_buffer[(start + k) % BUFFER_SIZE] +
+                           d_buffer[(start + k + N) % BUFFER_SIZE] +
+                           d_buffer[(start + k + 2 * N) % BUFFER_SIZE] +
+                           d_buffer[(start + k + 3 * N) % BUFFER_SIZE] +
+                           d_buffer[(start + k + 4 * N) % BUFFER_SIZE]) * (std::conj(m-p)) + p * std::conj(m));
             fine_sync_corr = fine_sync_corr + new_y - d_preamble_corr[k % N];
             d_preamble_corr[k % N] = new_y;
             if (k == N-1) {
@@ -252,7 +288,7 @@ namespace gr {
               fine_sync_min_index = k;
             }
           }
-          d_frame_start = 3 * (N / 2) - ((PREAMBLE_SIZE + d_preamble_offset - d_sync_min_index) % PREAMBLE_SIZE) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
+          d_frame_start = 3 * (N / 2) - ((BUFFER_SIZE + d_buffer_offset - d_sync_min_index) % BUFFER_SIZE) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
           dout << d_name << ": state = SYNC, fine sync, min = " << fine_sync_min << ", correction = "  << fine_sync_min_index-N+1-FINE_SYNC_LENGTH<< std::endl;
           d_receiver_state = COPY_PREAMBLE;
           break;
@@ -260,18 +296,12 @@ namespace gr {
 
         case COPY_PREAMBLE: {
           dout << d_name << ": state = COPY_PREAMBLE" << std::endl;
-          while (i < d_frame_start) {
-            d_noise[d_noise_offset] = d_preamble[d_preamble_offset];
-            d_noise_offset = (d_noise_offset + 1) % d_noise.size();
-            d_preamble[d_preamble_offset] = in[i];
-            d_preamble_offset = (d_preamble_offset + 1) % PREAMBLE_SIZE;
-            i++;
-          }
+          i+=d_frame_start;
+          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in, i, sizeof(gr_complex));
+
           // Process preamble
-          light_plc::vector_complex preamble_aligned (d_preamble.size());
-          light_plc::vector_complex::iterator preamble_aligned_iter (preamble_aligned.begin());
-          preamble_aligned_iter = std::copy(d_preamble.begin() + d_preamble_offset, d_preamble.end(), preamble_aligned_iter);
-          std::copy(d_preamble.begin(), d_preamble.begin() + d_preamble_offset, preamble_aligned_iter);
+          light_plc::vector_complex preamble_aligned (PREAMBLE_SIZE);
+          copy_from_circular_buffer(preamble_aligned.data(), d_buffer.data(), BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
           d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
 
           // Print the calculated channel phase
@@ -284,10 +314,8 @@ namespace gr {
           }
 
           // Process noise
-          light_plc::vector_complex noise_aligned (d_noise.size());
-          light_plc::vector_complex::iterator noise_aligned_iter (noise_aligned.begin());
-          noise_aligned_iter = std::copy(d_noise.begin() + d_noise_offset, d_noise.end(), noise_aligned_iter);
-          std::copy(d_noise.begin(), d_noise.begin() + d_noise_offset, noise_aligned_iter);
+          light_plc::vector_complex noise_aligned (MIN_INTERFRAME_SPACE);
+          copy_from_circular_buffer(noise_aligned.data(), d_buffer.data(), BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE - MIN_INTERFRAME_SPACE, MIN_INTERFRAME_SPACE, sizeof(gr_complex));
           d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
 
           // Print the calculated noise PSD
@@ -351,34 +379,33 @@ namespace gr {
           break;
         }
 
-        case RESET:
+        case RESET: {
           dout << d_name << ": state = RESET" << std::endl;
+          d_sync_min = 1;
           d_plateau = 0;
           d_frame_control_offset = 0;
-          d_preamble_offset = 0;
+          d_buffer_offset = 0;
           d_frame_control_offset = 0;
           d_payload_size = 0;
           d_payload_offset = 0;
-          d_output_datastream_offset = 0;
-          d_output_datastream_len = 0;
-          d_noise_offset = 0;
           d_search_corr = 0;
           d_energy_a = 0;
           d_energy_b = 0;
-          d_inter_frame_space_offset = 0;
-          d_noise_offset = 0;
+          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, 2 * SYNCP_SIZE - 1);
+          volk_32fc_deinterleave_real_32f(d_real, d_mult, 2 * SYNCP_SIZE - 1);
+          volk_32fc_magnitude_squared_32f(d_energy, in, 2 * SYNCP_SIZE - 1);
           for (int j=0; j<SYNCP_SIZE; j++) {
-            d_preamble[d_preamble_offset++] = in[j];
             d_preamble_corr[j] = 0;
           }
           for (int j=0; j<SYNCP_SIZE-1; j++) {
-            d_search_corr += in[j] * std::conj(in[j + SYNCP_SIZE]);
-            d_energy_a += std::norm(in[j]);
-            d_energy_b += std::norm(in[j + SYNCP_SIZE]);
-            d_preamble[d_preamble_offset++] = in[j + SYNCP_SIZE];
+            d_search_corr += d_real[j];
+            d_energy_a += d_energy[j];
+            d_energy_b += d_energy[j + SYNCP_SIZE]; // update energy window
           }
+          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
           d_receiver_state = SEARCH;
           break;
+        }
 
        case IDLE:
          dout << d_name << ": state = IDLE, ninput = " << ninput << std::endl;

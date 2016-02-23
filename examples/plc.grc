@@ -97,7 +97,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>12.5e6</value>
+      <value>13.5e6</value>
     </param>
   </block>
   <block>
@@ -296,7 +296,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>25e6/2</value>
+      <value>25e6</value>
     </param>
   </block>
   <block>
@@ -342,6 +342,22 @@
       <value>0</value>
     </param>
     <param>
+      <key>value4</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>value5</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>value7</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>value8</key>
+      <value>0.01</value>
+    </param>
+    <param>
       <key>value9</key>
       <value>0</value>
     </param>
@@ -359,7 +375,7 @@
     </param>
     <param>
       <key>field1</key>
-      <value>RIFS</value>
+      <value>syncMask</value>
     </param>
     <param>
       <key>field10</key>
@@ -407,15 +423,15 @@
     </param>
     <param>
       <key>field3</key>
-      <value>FramesRate</value>
+      <value>targetBer</value>
     </param>
     <param>
       <key>field4</key>
-      <value>SoundRate</value>
+      <value></value>
     </param>
     <param>
       <key>field5</key>
-      <value>TargetBER</value>
+      <value></value>
     </param>
     <param>
       <key>field6</key>
@@ -423,19 +439,15 @@
     </param>
     <param>
       <key>field7</key>
-      <value>syncMask</value>
+      <value></value>
     </param>
     <param>
       <key>field8</key>
-      <value>targetBer</value>
+      <value></value>
     </param>
     <param>
       <key>field9</key>
       <value></value>
-    </param>
-    <param>
-      <key>value3</key>
-      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -450,35 +462,23 @@
       <value>settings</value>
     </param>
     <param>
-      <key>value1</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>value4</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>value5</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>value0</key>
       <value>1</value>
     </param>
     <param>
       <key>value2</key>
-      <value>[0,0,0,1]*511+[0,0,0,0]</value>
+      <value>[0]*324 + [0,1]*700 + [0]*324</value>
     </param>
     <param>
       <key>value6</key>
       <value>[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]</value>
     </param>
     <param>
-      <key>value7</key>
+      <key>value1</key>
       <value>[1]*255+[0]</value>
     </param>
     <param>
-      <key>value8</key>
+      <key>value3</key>
       <value>0.01</value>
     </param>
   </block>
@@ -678,7 +678,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(745, 664)</value>
+      <value>(745, 672)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -690,7 +690,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -752,7 +752,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>0.0022160*2**0.5</value>
+      <value>0.0039406</value>
     </param>
     <param>
       <key>alias</key>
@@ -925,11 +925,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(417, 464)</value>
+      <value>(489, 480)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -953,7 +953,7 @@
     </param>
     <param>
       <key>num_inputs</key>
-      <value>2</value>
+      <value>3</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1082,7 +1082,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>file</key>
@@ -1133,7 +1133,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0</value>
+      <value>0.0010313</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1141,11 +1141,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(952, 379)</value>
+      <value>(960, 395)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>0.343721, 0.342648, 0.342449, 0.342379, 0.342347</value>
+      <value>0.020044, 0.020035, 0.020033, 0.020032, 0.020032</value>
     </param>
     <param>
       <key>alias</key>
@@ -1282,11 +1282,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>f</key>
-      <value>samp_rate/4096*round(0.8*2048/5), samp_rate/4096*round(0.8*2048/5)*2, samp_rate/4096*round(0.8*2048/5)*3, samp_rate/4096*round(0.8*2048/5)*4, samp_rate/4096*round(0.8*2048/5)*5</value>
+      <value>-samp_rate/2/3*2, -samp_rate/2/3, 0, samp_rate/2/3, samp_rate/2/3*2</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1298,11 +1298,11 @@
     </param>
     <param>
       <key>iat</key>
-      <value>((4096+756-496)/samp_rate,)*5</value>
+      <value>((4096+756-496)/2/samp_rate,)*5</value>
     </param>
     <param>
       <key>id</key>
-      <value>plc_impulse_noise_source_0</value>
+      <value>plc_impulse_noise_source_0_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1397,7 +1397,7 @@
     </param>
     <param>
       <key>tmi</key>
-      <value>1</value>
+      <value>3</value>
     </param>
   </block>
   <block>
@@ -2288,7 +2288,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -2428,7 +2428,7 @@
     </param>
     <param>
       <key>sync</key>
-      <value>pc_clock</value>
+      <value></value>
     </param>
     <param>
       <key>otw</key>
@@ -3103,7 +3103,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3274,21 +3274,9 @@
   </connection>
   <connection>
     <source_block_id>PHY_0_0</source_block_id>
-    <sink_block_id>PHY_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>PHY_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>1</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>PHY_0_0</source_block_id>
-    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>2</sink_key>
   </connection>
   <connection>
     <source_block_id>analog_fastnoise_source_x_0</source_block_id>
@@ -3363,7 +3351,7 @@
     <sink_key>app in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_impulse_noise_source_0</source_block_id>
+    <source_block_id>plc_impulse_noise_source_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>
@@ -3395,6 +3383,12 @@
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
     <sink_block_id>PHY_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>uhd_usrp_source_0</source_block_id>
+    <sink_block_id>blocks_file_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

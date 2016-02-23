@@ -1136,7 +1136,7 @@ void phy_service::process_noise(vector_complex::const_iterator iter_begin, vecto
     int R = N/2; // 1-R is the overlapping length
     int M = iter_end - iter_begin; // total signal length
     int K = (M - N) / R + 1; // number of overlapping windows fits in signal
-    vector_complex w(N); // signal segment multiplied by hamming window
+    vector_complex w(N); // signal window
     vector_complex w_fft(NUMBER_OF_CARRIERS);
     d_noise_psd.fill(0); // init vector to zero
     for (int k=0; k<K; k++) {
