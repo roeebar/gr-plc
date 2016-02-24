@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 
+#
 
 import ieee1901
 import binascii
@@ -15,9 +15,9 @@ class mac(gr.basic_block):
     SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
 
-    ( state_waiting_for_app,        # 0  
-      state_sending_sof,            # 1 
-      state_sending_sound,          # 2 
+    ( state_waiting_for_app,        # 0
+      state_sending_sof,            # 1
+      state_sending_sound,          # 2
       state_sending_sack,           # 3
       state_sending_soundack,       # 4
       state_sending_mgmtmsg,        # 5
@@ -65,10 +65,10 @@ class mac(gr.basic_block):
         self.broadcast_tone_mask = broadcast_tone_mask
         self.sync_tone_mask = sync_tone_mask
         self.target_ber = target_ber
-        if self.is_master: 
+        if self.is_master:
             self.name = "MAC (master)"
             self.state = self.state_waiting_for_app
-        else: 
+        else:
             self.name = "MAC (slave)"
             self.state = self.state_waiting_for_sof_sound
 
@@ -119,11 +119,11 @@ class mac(gr.basic_block):
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
                         self.last_tx_n_errors = self.parse_sackd(sackd)
                         if (self.last_tx_n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error\n")
-               
+
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
                     if self.state == self.state_waiting_for_sack and self.last_rx_frame_type == "SACK":
-                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks
+                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks - self.last_tx_n_errors
                         self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
                         self.transmit_sof()
                     elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOF":
@@ -173,7 +173,7 @@ class mac(gr.basic_block):
     def cancel_sack_timer(self):
         if self.sack_timer:
             self.sack_timer.cancel()
-            self.sack_time = None        
+            self.sack_time = None
 
     def transmit_sof(self):
         # Send sound if timout
@@ -183,7 +183,7 @@ class mac(gr.basic_block):
 
         # Else, try to get a new MAC frame from transmission queue
         mpdu_payload, self.last_tx_frame_n_blocks = self.create_mpdu_payload(False)
-        if not mpdu_payload: 
+        if not mpdu_payload:
             self.state = self.state_waiting_for_app
             if self.debug: print self.name + ": state = " + str(self.state) + ", no more data"
             return
@@ -248,7 +248,7 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=1) to PHY"
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))        
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def send_calc_tone_info_to_phy(self):
         dict = gr.pmt.make_dict();
@@ -316,10 +316,10 @@ class mac(gr.basic_block):
         return n
 
     def create_mac_frame(self, dest, payload, mgmt):
-        if (not mgmt): 
+        if (not mgmt):
             mft = 0b01 # MSDU payload
             mac_frame = bytearray(ieee1901.MAC_FRAME_OVERHEAD + len(payload)) # preallocate the frame
-        else: 
+        else:
             mft = 0b11 # management payload
             mac_frame = bytearray(ieee1901.MAC_FRAME_OVERHEAD + ieee1901.MAC_FRAME_CONFOUNDER_WIDTH + len(payload)) # preallocate the frame
 
@@ -334,7 +334,7 @@ class mac(gr.basic_block):
         pos = self.set_bytes_field(mac_frame, dest, pos, ieee1901.MAC_FRAME_ODA_WIDTH)
         pos = self.set_bytes_field(mac_frame, self.device_addr, pos, ieee1901.MAC_FRAME_OSA_WIDTH)
         pos += ieee1901.MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
-        pos = self.set_bytes_field(mac_frame, payload, pos, len(payload))        
+        pos = self.set_bytes_field(mac_frame, payload, pos, len(payload))
         crc = self.crc32(mac_frame[ieee1901.MAC_FRAME_MFH_OFFSET + ieee1901.MAC_FRAME_MFH_WIDTH:-ieee1901.MAC_FRAME_ICV_WIDTH]) # calculate crc excluding MFH and ICV fields
         self.set_bytes_field(mac_frame, crc, pos, ieee1901.MAC_FRAME_ICV_WIDTH)
 
@@ -404,13 +404,13 @@ class mac(gr.basic_block):
         stream = {}
         if not mgmt:
             # Check if buffer is empty
-            if not len(self.tx_frames_queue): 
+            if not len(self.tx_frames_queue):
                 return ([], 0)
             for key in self.tx_frames_queue:
                 if self.tx_frames_queue[key]["frames"] or self.tx_frames_queue[key]["remainder"]:
                     stream = self.tx_frames_queue[key]
                     break
-            if not stream: 
+            if not stream:
                 return ([], 0)
         else:
             stream["frames"] = [mgmt]
@@ -419,7 +419,7 @@ class mac(gr.basic_block):
 
         frames = stream["frames"]
         ssn = 0
-        remainder = stream["remainder"]    
+        remainder = stream["remainder"]
         num_segments = 0
         payload = bytearray(0)
 
@@ -437,18 +437,18 @@ class mac(gr.basic_block):
                     mac_boundary_offset = len(segment)
                     mac_boundary_flag = True
                 remainder = frames[0][body_size-len(segment):]
-                segment += frames[0][0:body_size-len(segment)]                
+                segment += frames[0][0:body_size-len(segment)]
                 frames.pop(0)
                 if not remainder: self.tx_frames_in_queue -= 1
 
             # Determine if segment should be 128 bytes or 512
             if len(segment) < body_size:
-                if len(segment) < 128 and num_segments == 0: body_size = 128 
+                if len(segment) < 128 and num_segments == 0: body_size = 128
                 if not mac_boundary_flag:
                     mac_boundary_offset = len(segment)
                     mac_boundary_flag = True
                 segment[len(segment):body_size] = bytearray(body_size-len(segment))
-                
+
             # Creating the PHY block
             phy_block = self.init_phy_block(body_size, ssn, mac_boundary_offset, True, not mgmt==[], mac_boundary_flag, False) # Setting header fields
             pos = self.set_bytes_field(phy_block, segment, ieee1901.PHY_BLOCK_BODY_OFFSET, body_size) # assigning body
@@ -519,7 +519,7 @@ class mac(gr.basic_block):
                 incomplete_frame["data"] += mac_frame_data
                 if incomplete_frame["length"] == 1: # length = 1 means the length is not calculated yet
                     header = incomplete_frame["data"][0:2]
-                    incomplete_frame["length"] = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + ieee1901.MAC_FRAME_MFH_WIDTH + ieee1901.MAC_FRAME_ICV_WIDTH + 1                        
+                    incomplete_frame["length"] = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + ieee1901.MAC_FRAME_MFH_WIDTH + ieee1901.MAC_FRAME_ICV_WIDTH + 1
                 if incomplete_frame["length"] == len(incomplete_frame["data"]):
                     self.receive_mac_frame(incomplete_frame["data"])
                 else:
@@ -550,7 +550,7 @@ class mac(gr.basic_block):
 
     def parse_sackd(self, sackd):
         sacki = sackd[0]
-        if not sacki == 0b00010101: 
+        if not sacki == 0b00010101:
             sys.stderr.write(self.name + ": state = " + str(self.state) + ", not supported sacki = " + str(sacki) + "\n")
         n_errors = 0
         for i in range(self.last_tx_frame_n_blocks):
@@ -559,16 +559,16 @@ class mac(gr.basic_block):
 
     def create_mgmt_msg_cm_chan_est(self, tone_map):
         mmentry = bytearray((ieee1901.MGMT_CM_CHAN_EST_NTMI_OFFSET + # preallocate the mmentry bytearray
-                            ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CPF_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_FECTYPE_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_GIL_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH * (len(tone_map)+1))/8)  
+                            ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CPF_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_FECTYPE_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_GIL_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH * (len(tone_map)+1))/8)
         pos = self.set_numeric_field(mmentry, 1, ieee1901.MGMT_CM_CHAN_EST_NTMI_OFFSET, ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH)
         pos = self.set_numeric_field(mmentry, 1, pos, ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH)
         pos = self.set_numeric_field(mmentry, 0, pos, ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH)
@@ -604,7 +604,7 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
-        if self.info: 
+        if self.info:
             print "'" + self.name + "'; txToneMap = " + str(self.tx_tone_map) + ";"
             print "'" + self.name + "'; txCapacity = " + str(self.tx_capacity) + ";"
 
@@ -620,24 +620,24 @@ class mac(gr.basic_block):
         mmentry = self.get_bytes_field(mgmt_msg, ieee1901.MGMT_MMENTRY_OFFSET/8, len(mgmt_msg) - ieee1901.MGMT_MMENTRY_OFFSET/8)
         if mmtype == ieee1901.MGMT_MMTYPE_CM_CHAN_EST_ID:
             self.process_mgmt_msg_cm_chan_est(mmentry)
-        else: 
+        else:
             sys.stderr.write (self.name + ": state = " + str(self.state) + ", management message (" + str(mmtype) + "not supported\n")
 
     def create_sof_frame_control(self, tmi, mpdu_payload):
         frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
 
         # Set the pbsz bit
-        if len(mpdu_payload) > 136/8: 
+        if len(mpdu_payload) > 136/8:
             self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
         else:
             self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
 
-        # Set delimiter type to SOF    
+        # Set delimiter type to SOF
         self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
-        
+
         # Set tone map index
         self.set_numeric_field(frame_control, tmi, ieee1901.FRAME_CONTROL_SOF_TMI_OFFSET, ieee1901.FRAME_CONTROL_SOF_TMI_WIDTH)
-        
+
         return frame_control
 
     def create_sack_frame_control(self, sackd):
@@ -659,7 +659,7 @@ class mac(gr.basic_block):
     def create_sound_frame_control(self, pb_size):
         frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
 
-        # Set delimiter type to Sound    
+        # Set delimiter type to Sound
         self.set_numeric_field(frame_control, 4, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
 
         # Set the pbsz bit

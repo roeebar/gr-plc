@@ -467,7 +467,7 @@
     </param>
     <param>
       <key>value2</key>
-      <value>[0]*324 + [0,1]*700 + [0]*324</value>
+      <value>[0,1]*512 + [0]*1024</value>
     </param>
     <param>
       <key>value6</key>
@@ -980,7 +980,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>file</key>
@@ -1059,7 +1059,7 @@
     </param>
     <param>
       <key>repeat</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1133,7 +1133,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0.0010313</value>
+      <value>0.022181</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>0.020044, 0.020035, 0.020033, 0.020032, 0.020032</value>
+      <value>0.431098, 0.430911, 0.430867, 0.430851, 0.430843</value>
     </param>
     <param>
       <key>alias</key>
@@ -1373,7 +1373,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>maxoutbuf</key>
