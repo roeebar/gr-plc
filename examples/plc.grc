@@ -690,7 +690,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -878,7 +878,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(800, 145)</value>
+      <value>(776, 145)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -929,7 +929,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(489, 480)</value>
+      <value>(489, 464)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -980,7 +980,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>file</key>
@@ -1133,7 +1133,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0.022181</value>
+      <value>0.031369</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>0.431098, 0.430911, 0.430867, 0.430851, 0.430843</value>
+      <value>0.609665, 0.609400, 0.609338, 0.609315, 0.609304</value>
     </param>
     <param>
       <key>alias</key>
@@ -1314,7 +1314,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>5</value>
+      <value>0</value>
     </param>
     <param>
       <key>o</key>
@@ -1373,7 +1373,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -2288,7 +2288,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3103,7 +3103,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3293,6 +3293,12 @@
   <connection>
     <source_block_id>blocks_add_xx_0</source_block_id>
     <sink_block_id>PHY_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_add_xx_0_1</source_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

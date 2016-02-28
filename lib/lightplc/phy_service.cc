@@ -1343,7 +1343,7 @@ vector_float::iterator phy_service::demodulate_symbols (vector_complex::const_it
             complex p = ANGLE_NUMBER_TO_VALUE[CARRIERS_ANGLE_NUMBER[i]*2]; // Convert the angle number to its value
             complex mapped_value(r.real() * p.real() + r.imag() * p.imag(),
                                              -r.real() * p.imag() + r.imag() * p.real()); // Rotate channel value by minus angel_number to get the original mapped value
-            soft_bits_iter = demodulate_soft_bits(mapped_value, tone_map[i], 2 * d_noise_psd[i] / std::norm(channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS), soft_bits_iter);
+            soft_bits_iter = demodulate_soft_bits(mapped_value, tone_map[i], d_noise_psd[i] / std::norm(channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS), soft_bits_iter);
         }
         i = (i + 1) % NUMBER_OF_CARRIERS;
         iter++;

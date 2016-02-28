@@ -7,7 +7,6 @@
 #include <lightplc/phy_service.h>
 #include <list>
 #include <string>
-#include <sys/time.h> //time
 
 namespace gr {
   namespace plc {
@@ -33,18 +32,14 @@ namespace gr {
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
       float d_energy_a, d_energy_b;
-      gr_complex *d_mult;
+      gr_complex *d_mult, *d_buffer, *d_frame_control, *d_payload;
       float *d_real, *d_energy;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
-      light_plc::vector_complex d_buffer;
-      light_plc::vector_complex d_frame_control;
-      light_plc::vector_complex d_payload;
       pmt::pmt_t d_frame_control_pmt;
       float d_sync_min;
       int d_sync_min_index;
-      int d_frame_control_offset;
       size_t d_buffer_offset;
       float *d_preamble_corr;
       int d_frame_start;

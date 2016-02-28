@@ -14,15 +14,15 @@ namespace gr {
   namespace plc {
 
     const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
-    const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
-    const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
-    const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
-    const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
     const int phy_rx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
     const size_t phy_rx_impl::BUFFER_SIZE = light_plc::phy_service::MIN_INTERFRAME_SPACE + phy_rx_impl::PREAMBLE_SIZE;
-    const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // Maximum search length determines the volk memory allocation
+    const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // maximum search length determines the volk memory allocation
+    const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
+    const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
+    const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
+    const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
     phy_rx::make(bool info, bool debug)
@@ -42,21 +42,11 @@ namespace gr {
             d_info(info),
             d_init_done(false),
             d_receiver_state(HALT),
-            d_search_corr(0),
-            d_energy_a(0),
-            d_energy_b(0),
-            d_plateau(0),
-            d_payload_size(0),
-            d_payload_offset(0),
-            d_frame_control_offset(0),
-            d_buffer_offset(0),
-            d_frame_start(0),
             d_name("PHY Rx")
     {
       message_port_register_out(pmt::mp("mac out"));
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_rx_impl::mac_in, this, _1));
-      d_preamble_corr = (float*)malloc(SYNCP_SIZE * sizeof(float));
     }
 
     /*
@@ -64,9 +54,11 @@ namespace gr {
      */
     phy_rx_impl::~phy_rx_impl()
     {
+      volk_free(d_buffer);
       volk_free(d_mult);
       volk_free(d_real);
       volk_free(d_energy);
+      volk_free(d_frame_control);
       free(d_preamble_corr);
     }
 
@@ -143,14 +135,14 @@ namespace gr {
           d_init_done = true;
 
           // Init some vectors
-          d_buffer = light_plc::vector_complex(BUFFER_SIZE);
-          d_frame_control = light_plc::vector_complex(FRAME_CONTROL_SIZE);
-
           unsigned int alignment = volk_get_alignment();
-          d_mult = (gr_complex*)volk_malloc(sizeof(gr_complex) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment);
-          d_real = (float*)volk_malloc(sizeof(float) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment);
-          d_energy = (float*)volk_malloc(sizeof(float) * MAX_SEARCH_LENGTH, alignment);
+          d_buffer = (gr_complex*)volk_malloc(sizeof(gr_complex) * BUFFER_SIZE, alignment); // buffer
+          d_mult = (gr_complex*)volk_malloc(sizeof(gr_complex) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment); // for preamble correlation
+          d_real = (float*)volk_malloc(sizeof(float) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment); // real part of preamble correlation
+          d_energy = (float*)volk_malloc(sizeof(float) * MAX_SEARCH_LENGTH, alignment); // energy of preamble
           assert (MAX_SEARCH_LENGTH > COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE); // the volk vectors are used during SYNC as well
+          d_frame_control = (gr_complex*)volk_malloc(sizeof(gr_complex) * FRAME_CONTROL_SIZE, alignment); // frame control
+          d_preamble_corr = (float*)malloc(SYNCP_SIZE * sizeof(float));
 
           d_receiver_state = RESET;
           dout << d_name << ": init done" << std::endl;
@@ -166,6 +158,8 @@ namespace gr {
         ninput_items_required[0] = COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE;
       } else if (d_receiver_state == COPY_PREAMBLE) {
         ninput_items_required[0] = d_frame_start;
+      } else if (d_receiver_state == COPY_FRAME_CONTROL) {
+        ninput_items_required[0] = FRAME_CONTROL_SIZE;
       } else if (d_receiver_state == RESET) {
         ninput_items_required[0] = 2 * SYNCP_SIZE;
       } else {
@@ -232,7 +226,7 @@ namespace gr {
             i++;
           }
 
-          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
 
           // If plateau length is reached...
           if (d_plateau == MIN_PLATEAU) {
@@ -260,7 +254,7 @@ namespace gr {
                 d_sync_min_index = (d_buffer_offset + i) % BUFFER_SIZE;
             }
           }
-          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
           i += 2 * SYNCP_SIZE;
           dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
 
@@ -297,11 +291,11 @@ namespace gr {
         case COPY_PREAMBLE: {
           dout << d_name << ": state = COPY_PREAMBLE" << std::endl;
           i+=d_frame_start;
-          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in, i, sizeof(gr_complex));
 
           // Process preamble
           light_plc::vector_complex preamble_aligned (PREAMBLE_SIZE);
-          copy_from_circular_buffer(preamble_aligned.data(), d_buffer.data(), BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
+          copy_from_circular_buffer(preamble_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
           d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
 
           // Print the calculated channel phase
@@ -315,7 +309,7 @@ namespace gr {
 
           // Process noise
           light_plc::vector_complex noise_aligned (MIN_INTERFRAME_SPACE);
-          copy_from_circular_buffer(noise_aligned.data(), d_buffer.data(), BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE - MIN_INTERFRAME_SPACE, MIN_INTERFRAME_SPACE, sizeof(gr_complex));
+          copy_from_circular_buffer(noise_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE - MIN_INTERFRAME_SPACE, MIN_INTERFRAME_SPACE, sizeof(gr_complex));
           d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
 
           // Print the calculated noise PSD
@@ -331,41 +325,35 @@ namespace gr {
           break;
         }
 
-        case COPY_FRAME_CONTROL:
+        case COPY_FRAME_CONTROL: {
           dout << d_name << ": state = COPY_FRAME_CONTROL" << std::endl;
-          while (i < ninput) {
-            if (d_frame_control_offset < FRAME_CONTROL_SIZE) {
-              d_frame_control[d_frame_control_offset] = in[i];
-            } else  {
-              d_frame_control_pmt = pmt::make_u8vector(light_plc::phy_service::FRAME_CONTROL_SIZE, 0);
-              size_t len;
-              unsigned char *fc_blob = (unsigned char*)pmt::u8vector_writable_elements(d_frame_control_pmt, len);
-              if (d_phy_service.process_ppdu_frame_control(d_frame_control.begin(), fc_blob) == false) {
-                std::cerr << d_name << ": state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
-                d_receiver_state = RESET;
-              } else {
-                d_receiver_state = COPY_PAYLOAD;
-                d_payload_size = d_phy_service.get_ppdu_payload_length();
-                dout << d_name << ": frame control is OK!" << std::endl;
-                d_payload = light_plc::vector_complex(d_payload_size);
-              }
-              break;
-            }
-            i++;
-            d_frame_control_offset++;
+          memcpy(d_frame_control, in, FRAME_CONTROL_SIZE * sizeof(gr_complex));
+          i += FRAME_CONTROL_SIZE;
+
+          d_frame_control_pmt = pmt::make_u8vector(light_plc::phy_service::FRAME_CONTROL_SIZE, 0);
+          size_t len;
+          unsigned char *fc_blob = (unsigned char*)pmt::u8vector_writable_elements(d_frame_control_pmt, len);
+          if (d_phy_service.process_ppdu_frame_control((light_plc::vector_complex::const_iterator)d_frame_control, fc_blob) == false) {
+            std::cerr << d_name << ": state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
+            d_receiver_state = RESET;
+          } else {
+            d_receiver_state = COPY_PAYLOAD;
+            d_payload_size = d_phy_service.get_ppdu_payload_length();
+            dout << d_name << ": frame control is OK!" << std::endl;
+            d_payload = (gr_complex*)volk_malloc(sizeof(gr_complex) * d_payload_size, volk_get_alignment());
           }
           break;
+        }
 
         case COPY_PAYLOAD: {
-          int k = std::min(d_payload_size - d_payload_offset, ninput);
-          std::copy(in, in + k, d_payload.begin() + d_payload_offset);
-          d_payload_offset += k;
-          i += k;
+          i = std::min(d_payload_size - d_payload_offset, ninput);
+          memcpy(d_payload + d_payload_offset, in, i * sizeof(gr_complex));
+          d_payload_offset += i;
           if (d_payload_offset == d_payload_size) {
             pmt::pmt_t payload_pmt = pmt::make_u8vector(d_phy_service.get_mpdu_payload_size(), 0);
             size_t len;
             unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
-            d_phy_service.process_ppdu_payload(d_payload.begin(), payload_blob);      // get payload data
+            d_phy_service.process_ppdu_payload((light_plc::vector_complex::iterator)d_payload, payload_blob);      // get payload data
             dout << d_name << ": payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << std::endl;
             pmt::pmt_t dict = pmt::make_dict();
             dict = pmt::dict_add(dict, pmt::mp("frame_control"), d_frame_control_pmt);  // add frame control information
@@ -374,6 +362,7 @@ namespace gr {
 
             dict = pmt::make_dict();
             message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXEND"), dict));
+            volk_free(d_payload);
             d_receiver_state = RESET;
           }
           break;
@@ -383,9 +372,7 @@ namespace gr {
           dout << d_name << ": state = RESET" << std::endl;
           d_sync_min = 1;
           d_plateau = 0;
-          d_frame_control_offset = 0;
           d_buffer_offset = 0;
-          d_frame_control_offset = 0;
           d_payload_size = 0;
           d_payload_offset = 0;
           d_search_corr = 0;
@@ -402,7 +389,7 @@ namespace gr {
             d_energy_a += d_energy[j];
             d_energy_b += d_energy[j + SYNCP_SIZE]; // update energy window
           }
-          copy_to_circular_buffer(d_buffer.data(), BUFFER_SIZE, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
           d_receiver_state = SEARCH;
           break;
         }
