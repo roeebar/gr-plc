@@ -1259,7 +1259,7 @@
     </param>
   </block>
   <block>
-    <key>plc_impulse_noise_source</key>
+    <key>plc_impulse_source</key>
     <param>
       <key>a</key>
       <value>0.609665, 0.609400, 0.609338, 0.609315, 0.609304</value>
@@ -1302,7 +1302,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>plc_impulse_noise_source_0_0</value>
+      <value>plc_impulse_source_0_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1314,7 +1314,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>o</key>
@@ -3357,7 +3357,7 @@
     <sink_key>app in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_impulse_noise_source_0_0</source_block_id>
+    <source_block_id>plc_impulse_source_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>

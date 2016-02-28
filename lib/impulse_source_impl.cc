@@ -4,24 +4,24 @@
 #endif
 
 #include <gnuradio/io_signature.h>
-#include "impulse_noise_source_impl.h"
+#include "impulse_source_impl.h"
 #include <complex>
 
 namespace gr {
   namespace plc {
 
-    impulse_noise_source::sptr
-    impulse_noise_source::make(float samp_rate)
+    impulse_source::sptr
+    impulse_source::make(float samp_rate)
     {
       return gnuradio::get_initial_sptr
-        (new impulse_noise_source_impl(samp_rate));
+        (new impulse_source_impl(samp_rate));
     }
 
     /*
      * The private constructor
      */
-    impulse_noise_source_impl::impulse_noise_source_impl(float samp_rate)
-      : gr::sync_block("impulse_noise_source",
+    impulse_source_impl::impulse_source_impl(float samp_rate)
+      : gr::sync_block("impulse_source",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(gr_complex))),
       d_samp_rate(samp_rate)
@@ -30,12 +30,12 @@ namespace gr {
     /*
      * Our virtual destructor.
      */
-    impulse_noise_source_impl::~impulse_noise_source_impl()
+    impulse_source_impl::~impulse_source_impl()
     {
     }
 
     int
-    impulse_noise_source_impl::work(int noutput_items,
+    impulse_source_impl::work(int noutput_items,
         gr_vector_const_void_star &input_items,
         gr_vector_void_star &output_items)
     {
@@ -63,12 +63,12 @@ namespace gr {
       return noutput_items;
     }
 
-    void impulse_noise_source_impl::add_noise(float iat, float A, float l, float f, float offset) {
+    void impulse_source_impl::add_noise(float iat, float A, float l, float f, float offset) {
       std::cout <<  "I" << d_impulses.size() << ": IAT=" << iat <<  " A=" << A <<" l=" << l  << " f=" << f << " offset=" << offset << std::endl;
       d_impulses.push_back(create_impulse(iat, A, l, f, offset));
     }
 
-    impulse_noise_source_impl::impulse_t impulse_noise_source_impl::create_impulse(float iat, float A, float l, float f, float offset) {
+    impulse_source_impl::impulse_t impulse_source_impl::create_impulse(float iat, float A, float l, float f, float offset) {
       impulse_t impulse;
 
       size_t N = (size_t)(iat * d_samp_rate);

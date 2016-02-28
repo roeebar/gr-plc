@@ -1,15 +1,15 @@
 /* -*- c++ -*- */
 
-#ifndef INCLUDED_PLC_IMPULSE_NOISE_SOURCE_IMPL_H
-#define INCLUDED_PLC_IMPULSE_NOISE_SOURCE_IMPL_H
+#ifndef INCLUDED_PLC_impulse_source_IMPL_H
+#define INCLUDED_PLC_impulse_source_IMPL_H
 
-#include <plc/impulse_noise_source.h>
+#include <plc/impulse_source.h>
 #include <vector>
 
 namespace gr {
   namespace plc {
 
-    class impulse_noise_source_impl : public impulse_noise_source
+    class impulse_source_impl : public impulse_source
     {
      private:   	
      	typedef struct impulse_t {
@@ -22,8 +22,8 @@ namespace gr {
 		impulse_t create_impulse(float iat, float A, float l, float f, float offset);
 
      public:
-      impulse_noise_source_impl(float samp_rate);
-      ~impulse_noise_source_impl();
+      impulse_source_impl(float samp_rate);
+      ~impulse_source_impl();
 	  void add_noise(float iat, float A, float l, float f, float offset);
       // Where all the action really happens
       int work(int noutput_items,
@@ -34,5 +34,5 @@ namespace gr {
   } // namespace plc
 } // namespace gr
 
-#endif /* INCLUDED_PLC_IMPULSE_NOISE_SOURCE_IMPL_H */
+#endif /* INCLUDED_PLC_impulse_source_IMPL_H */
 

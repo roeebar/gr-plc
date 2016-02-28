@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 find_package(PythonInterp)
 
 if(NOT CMAKE_BUILD_TYPE)
-   set(CMAKE_BUILD_TYPE "Debug")
+   set(CMAKE_BUILD_TYPE "Release")
    message(STATUS "Build type not specified: defaulting to release.")
 endif(NOT CMAKE_BUILD_TYPE)
 
@@ -42,7 +42,7 @@ add_dependencies(lightplc generated_sources)
 target_link_libraries(lightplc ${lightplc_libs})
 set_target_properties(lightplc PROPERTIES COMPILE_FLAGS "-fPIC") # static libraries needs -fPIC in x86 arch
 
-# create an executable test 
+# create an executable test
 list(APPEND phy_test_sources
     phy_service.cc
     utils.cc
@@ -51,4 +51,3 @@ list(APPEND phy_test_sources
     )
 add_executable(phy_test ${phy_test_sources})
 target_link_libraries(phy_test itpp fftw3f)
-
