@@ -1154,17 +1154,21 @@ void phy_service::process_noise(vector_complex::const_iterator iter_begin, vecto
 }
 
 tone_map_t phy_service::calculate_tone_map(float P_t) {
-    // Calculating the SNR. The constant in the denominator normalizes the received symbols which has unity power
+    // Calculating the SNR. The average received signal is NUMBER_OF_CARRIERS*H[k]
     tones_float_t snr;
     for (size_t i=0; i<NUMBER_OF_CARRIERS; i++)
         if (d_broadcast_channel_response.mask[i])
             snr[i] = std::norm(d_broadcast_channel_response.carriers_gain[i] * NUMBER_OF_CARRIERS) / d_noise_psd[i];
+        else
+            snr[i] = 0;
+
+    d_stats.snr = snr; // update stats
 
     typedef std::pair<float,int> carrier_ber_t;
     tone_map_t tone_map;
     tone_map.fill(MT_NULLED);
     // Init all carriers bitloading to QAM4096
-    std::priority_queue<carrier_ber_t> bitloadings_set;
+    std::priority_queue<carrier_ber_t> ber_set;
     modulation_type_t m = MT_QAM4096;
     int b = MODULATION_MAP[m].n_bits;
     int M = 1 << b;
@@ -1179,18 +1183,18 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
             P_bar_denom += b;   // sum(b[i])
             carrier_ber_t carrier_ber;
             carrier_ber = std::make_pair(ser/b, i); // ser/b is the bit error rate
-            bitloadings_set.push(carrier_ber);
+            ber_set.push(carrier_ber);
             tone_map[i] = m;
         }
     }
 
     // Incremental algorithm
-    while (P_bar_nom/P_bar_denom > P_t && !bitloadings_set.empty()) {  // test if sum(P[i]*b[i])/sum(b[i]) > P_t)
-        carrier_ber_t carrier_ber = bitloadings_set.top(); // get the bitloading of the worst carrier
+    while (P_bar_nom/P_bar_denom > P_t && !ber_set.empty()) {  // test if sum(P[i]*b[i])/sum(b[i]) > P_t)
+        carrier_ber_t carrier_ber = ber_set.top(); // get the bitloading of the worst carrier
         float ber = carrier_ber.first;
         int i = carrier_ber.second;
         float new_ser = 0;
-        bitloadings_set.pop(); // remove it from the set
+        ber_set.pop(); // remove it from the set
         m = tone_map[i];
         b = MODULATION_MAP[m].n_bits;
         P_bar_nom -= b * ber; // substract the removed SER from the sum
@@ -1227,7 +1231,7 @@ tone_map_t phy_service::calculate_tone_map(float P_t) {
                     break; // should never arrive here
             }
             carrier_ber_t carrier_ber(new_ser/b, i);
-            bitloadings_set.push(carrier_ber); // add the bitloading back to the set
+            ber_set.push(carrier_ber); // add the bitloading back to the set
             P_bar_nom += new_ser; // add the new BER to the sum
             P_bar_denom += b;
             tone_map[i] = m;

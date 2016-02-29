@@ -82,6 +82,13 @@ namespace gr {
         pmt::pmt_t dict = pmt::make_dict();
         dict = pmt::dict_add(dict, pmt::mp("tone_map"), tone_map_pmt);
         message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXCALCTONEMAP.response"), dict));
+        if (d_info) {
+          const light_plc::stats_t &stats = d_phy_service.get_stats();
+          std::cout << "'" << d_name << "'; snr = [";
+          for (auto iter=stats.snr.begin(); iter != stats.snr.end(); iter++)
+            std::cout << *iter << ",";
+          std::cout << "];" << std::endl;
+        }
       }
 
       else if (cmd == "PHY-RXUTILPAYLOAD") {

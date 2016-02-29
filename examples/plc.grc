@@ -690,7 +690,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>0.609665, 0.609400, 0.609338, 0.609315, 0.609304</value>
+      <value>0.2, 0.2, 0.2, 0.2, 0.2</value>
     </param>
     <param>
       <key>alias</key>
@@ -1286,7 +1286,7 @@
     </param>
     <param>
       <key>f</key>
-      <value>-samp_rate/2/3*2, -samp_rate/2/3, 0, samp_rate/2/3, samp_rate/2/3*2</value>
+      <value>0, -samp_rate/2.0/5.0, -samp_rate/2.0/5.0*2, -samp_rate/2.0/5.0*3, -samp_rate/2.0/5.0*4</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1314,7 +1314,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>1</value>
+      <value>5</value>
     </param>
     <param>
       <key>o</key>
@@ -1373,7 +1373,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>False</value>
+      <value>True</value>
     </param>
     <param>
       <key>maxoutbuf</key>
