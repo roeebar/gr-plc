@@ -46,7 +46,7 @@ set_target_properties(lightplc PROPERTIES COMPILE_FLAGS "-fPIC") # static librar
 list(APPEND phy_test_sources
     phy_service.cc
     utils.cc
-    phy_service_qa.cc
+    qa_phy_service.cc
     phy_test.cc
     )
 add_executable(phy_test ${phy_test_sources})

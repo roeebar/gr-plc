@@ -2,10 +2,10 @@
 
 using namespace light_plc;
 
-class phy_service_qa {
+class qa_phy_service {
 
 public:
-	phy_service_qa (bool d_debug = false, unsigned int seed = 0);
+	qa_phy_service (bool d_debug = false, unsigned int seed = 0);
     bool random_test(int number_of_tests, bool encode_only = false);
     bool test_sof(tone_mode_t tone_mode, int number_of_blocks, float SNRdb = 30, bool encode_only = false);
 		bool test_sack(float SNRdb = 30, bool encode_only = false);
