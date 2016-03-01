@@ -5,7 +5,7 @@
 
 #include <gnuradio/io_signature.h>
 #include "impulse_source_impl.h"
-#include <complex>
+#include <volk/volk.h>
 
 namespace gr {
   namespace plc {
@@ -25,13 +25,18 @@ namespace gr {
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(gr_complex))),
       d_samp_rate(samp_rate)
-    {}
+    {
+      const int alignment_multiple = volk_get_alignment() / sizeof(gr_complex);
+      set_alignment(std::max(1, alignment_multiple));
+    }
 
     /*
      * Our virtual destructor.
      */
     impulse_source_impl::~impulse_source_impl()
     {
+      for(auto iter = d_impulses.begin(); iter != d_impulses.end(); iter++)
+        volk_free(iter->signal);
     }
 
     int
@@ -44,19 +49,17 @@ namespace gr {
 
       for (size_t j=0; j<d_impulses.size(); j++) {
         int i = 0; // output
-        int pos = d_impulses[j].pos; // impulse last position
-        std::vector<gr_complex> &s = d_impulses[j].signal; // impulse signal
-        int len = s.size(); // impulse length
-        int k = pos; // signal position
-        int m = std::min(len-pos, noutput_items);
-        while (i < m) // copy remainder of previous iteration
-          out[i++] += s[k++];
+        int len = d_impulses[j].length; // impulse length
+        int k = d_impulses[j].pos; // impulse last position
 
-        k = 0;
-        while (i < noutput_items) // keep filling with noise till no more room
-            out[i++] += s[k++ % len];
+        while (i < noutput_items) { // keep filling with noise till no more room
+          int l = std::min(len - k, noutput_items - i);
+          volk_32f_x2_add_32f((float*)(out + i), (float*)(out + i), (float*)(d_impulses[j].signal + k), l * 2);
+          k = (k + l) % len;
+          i+=l;
+        }
 
-        d_impulses[j].pos = (pos + i) % len; // update position
+        d_impulses[j].pos = k; // update position
       }
 
       // Tell runtime system how many output items we produced.
@@ -77,14 +80,16 @@ namespace gr {
       for (size_t i=0; i<N; i++)
         t[i] = i/d_samp_rate;
 
+      impulse.signal = (gr_complex*)volk_malloc(sizeof(gr_complex)*N, volk_get_alignment());
       int j = 0;
-      impulse.signal = std::vector<gr_complex>(N);
+
       for (size_t i=N-samples_offset; i<N; i++) {
         impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i] - M_PI / 2));
       }
       for (size_t i=0; i<N-samples_offset; i++) {
         impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i] - M_PI / 2));
       }
+      impulse.length = N;
       impulse.pos = 0;
       return impulse;
     }

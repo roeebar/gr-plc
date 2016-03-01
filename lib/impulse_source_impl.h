@@ -11,9 +11,11 @@ namespace gr {
 
     class impulse_source_impl : public impulse_source
     {
-     private:   	
+     private:
      	typedef struct impulse_t {
-     		std::vector<gr_complex> signal;
+     		//std::vector<gr_complex> signal;
+        gr_complex* signal;
+        int length;
      		int pos;
      	} impulse_t;
 
@@ -35,4 +37,3 @@ namespace gr {
 } // namespace gr
 
 #endif /* INCLUDED_PLC_impulse_source_IMPL_H */
-
