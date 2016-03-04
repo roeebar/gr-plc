@@ -84,10 +84,10 @@ namespace gr {
       int j = 0;
 
       for (size_t i=N-samples_offset; i<N; i++) {
-        impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i] - M_PI / 2));
+        impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i]));
       }
       for (size_t i=0; i<N-samples_offset; i++) {
-        impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i] - M_PI / 2));
+        impulse.signal[j++] = A * std::exp(gr_complex(-l * t[i], 2 * M_PI * f * t[i]));
       }
       impulse.length = N;
       impulse.pos = 0;
