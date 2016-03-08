@@ -74,6 +74,7 @@ namespace gr {
     impulse_source_impl::impulse_t impulse_source_impl::create_impulse(float iat, float A, float l, float f, float offset) {
       impulse_t impulse;
 
+      A = A/std::sqrt(2);
       size_t N = (size_t)(iat * d_samp_rate);
       size_t samples_offset = floor(offset * N);
       std::vector<float> t(N);

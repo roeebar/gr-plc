@@ -134,7 +134,6 @@ private:
     static itpp::ivec to_ivec (const vector_int in);
     static vector_int to_vector_int (const itpp::bvec in);
     static std::array<vector_int, 3> calc_turbo_interleaver_sequence();
-    static vector_int turbo_interleaver(const vector_int &bitstream, pb_size_t pb_size);
     static int pn_generator(int n_bits, int &pn_state);
     static int pn_generator_init(void);
     static bool channel_interleaver_row(const vector_int& bitstream, vector_int::iterator &iter, int step_size, int& row_no, int& rows_done, int& nibble_no, bool wrap = false);

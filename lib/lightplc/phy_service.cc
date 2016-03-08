@@ -583,41 +583,6 @@ std::array<vector_int, 3>  phy_service::calc_turbo_interleaver_sequence(){
     return turbo_interleaver_sequence;
 }
 
-
-vector_int phy_service::turbo_interleaver(const vector_int &bitstream, pb_size_t pb_size){
-    static const int TCENCODER_SEED_PB16[IEEE1901_TCENCODER_SEED_PB16_N] = {IEEE1901_TCENCODER_SEED_PB16};
-    static const int TCENCODER_SEED_PB136[IEEE1901_TCENCODER_SEED_PB136_N] = {IEEE1901_TCENCODER_SEED_PB136};
-    static const int TCENCODER_SEED_PB520[IEEE1901_TCENCODER_SEED_PB520_N] = {IEEE1901_TCENCODER_SEED_PB520};
-
-    int N, L, I, x;
-    const int *S;
-    if (pb_size == PB16) {
-        N = 8;
-        L = 64;
-        S = TCENCODER_SEED_PB16;
-    } else if (pb_size == PB136) {
-        N = 34;
-        L = 544;
-        S = TCENCODER_SEED_PB136;
-    } else {
-        N = 40;
-        L = 2080;
-        S = TCENCODER_SEED_PB520;
-    }
-    vector_int out (L*2);
-    for (x=0; x<L; x++)    {
-        I = (S[x % N] -(x / N) * N + L) % L;
-        if (x % 2 == 0) {
-            out[2*x]= bitstream[2*I+1];
-            out[2*x+1] = bitstream[2*I];
-        } else {
-            out[2*x] = bitstream[2*I];
-            out[2*x+1] = bitstream[2*I+1];
-        }
-    }
-    return out;
-}
-
 vector_int phy_service::channel_interleaver(const vector_int& bitstream, const vector_int& parity_bitstream, pb_size_t pb_size, code_rate_t rate) {
     int step_size = CHANNEL_INTERLEAVER_STEPSIZE[pb_size][rate];
     int offset = CHANNEL_INTERLEAVER_OFFSET[pb_size][rate];
@@ -852,7 +817,7 @@ vector_complex::iterator phy_service::fft(vector_complex::const_iterator iter_be
     assert (iter_end - iter_begin ==  NUMBER_OF_CARRIERS);
     std::copy(iter_begin, iter_end, (complex*)d_fft_input);
     fftwf_execute(d_fftw_fwd_plan);
-    // Unwrap the carriers by N/2, 1st carrier becomes N/2  and so on...
+    // Unwrap the carriers by N/2: 1st carrier becomes N/2 and so on...
     iter_out = std::copy ((complex*)d_fft_output + NUMBER_OF_CARRIERS / 2, (complex*)d_fft_output + NUMBER_OF_CARRIERS, iter_out);
     iter_out = std::copy ((complex*)d_fft_output, (complex*)d_fft_output + NUMBER_OF_CARRIERS / 2, iter_out);
     return iter_out;
