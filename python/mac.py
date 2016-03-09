@@ -217,7 +217,6 @@ class mac(gr.basic_block, Machine):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
-        # self.state_old = self.state_sending_sound
         self.last_tx_sound_frame = datetime.now();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
