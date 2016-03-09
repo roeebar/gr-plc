@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-#
-
 import ieee1901
 import binascii
 import sys
@@ -8,25 +6,13 @@ from datetime import datetime, timedelta
 import threading
 from gnuradio import gr
 from time import sleep
+from transitions import MachineGraphSupport as Machine
 
-class mac(gr.basic_block):
-    MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
+class mac(gr.basic_block, Machine):
+    MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frame
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
-
-    ( state_waiting_for_app,        # 0
-      state_sending_sof,            # 1
-      state_sending_sound,          # 2
-      state_sending_sack,           # 3
-      state_sending_soundack,       # 4
-      state_sending_mgmtmsg,        # 5
-      state_waiting_for_sack,       # 6
-      state_waiting_for_sof_sound,  # 7
-      state_waiting_for_soundack,   # 8
-      state_waiting_for_tone_map,   # 9
-      state_waiting_for_mgmtmsg     #10
-      ) = range(11)
 
     rx_incomplete_frames = {}
     rx_incomplete_mgmt_frames = {}
@@ -67,10 +53,57 @@ class mac(gr.basic_block):
         self.target_ber = target_ber
         if self.is_master:
             self.name = "MAC (master)"
-            self.state = self.state_waiting_for_app
+            initial_state = 'waiting_for_app'
         else:
             self.name = "MAC (slave)"
-            self.state = self.state_waiting_for_sof_sound
+            initial_state = 'waiting_for_sof_sound'
+
+        states = [
+            # Master:
+            {'name': 'waiting_for_app'                                                                              },
+            {'name': 'sending_sof'              ,'on_enter': 'transmit_sof'                                         },
+            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                       },
+            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer',    'on_exit': 'cancel_sack_timer'  },
+            {'name': 'waiting_for_soundack'                                                                         },
+            {'name': 'waiting_for_mgmtmsg'                                                                          },
+
+            # Slave:
+            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                        },
+            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                        },
+            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                     },
+            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'utilize_payload'                                       },
+            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                           },
+        ]
+        transitions = [
+            # TRIGGER                   SOURCE                      DESTINATION                 CONDITIONS          UNLESS                                  BEFORE  AFTER
+
+            # Master:
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None   ,None                   ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None   ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,'update_blocks_stats'  ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,None                   ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None   ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None   ,None                   ],
+
+            # Slave:
+            ['event_tx_end'             ,'sending_sack'             ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_soundack'         ,'sending_mgmtmsg'          ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_mgmtmsg'          ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,None   ,None                   ],
+            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,None   ,None                   ],
+            ['event_tone_map_arrived'   ,'waiting_for_tone_map'     ,'sending_soundack'         ,None               ,None                                   ,None   ,None                   ],
+        ]
+
+        Machine.__init__(self, states=states, transitions=transitions, auto_transitions=False, initial=initial_state)
+        if self.debug:
+            graph = self.get_graph()
+            graph.draw(self.name + '.png', prog='dot')
 
     def capacity(self):
         return self.tx_capacity
@@ -90,7 +123,7 @@ class mac(gr.basic_block):
                         self.submit_mac_frame(mac_frame)
                         if not self.transmission_queue_is_full:
                             self.send_status_to_app()
-                        if self.state == self.state_waiting_for_app: self.transmit_sof()
+                        if self.state == 'waiting_for_app': self.event_msdu_arrived()
                     else :
                         sys.stderr.write (self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP\n")
                         if self.debug: print self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP"
@@ -106,65 +139,41 @@ class mac(gr.basic_block):
                     frame_control = bytearray(dict["frame_control"])
                     dt = self.get_frame_type(frame_control)
                     self.last_rx_frame_type = dt
+                    self.last_rx_frame_blocks_error = []
                     if dt == "SOF":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
                         payload = bytearray(dict["payload"].tolist())
                         self.last_rx_frame_blocks_error = self.parse_mpdu_payload(payload)
-                        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
                     elif dt == "SOUND":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (Sound) from PHY"
                     elif dt == "SACK":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SACK) from PHY"
-                        self.cancel_sack_timer()
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
                         self.last_tx_n_errors = self.parse_sackd(sackd)
                         if (self.last_tx_n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error\n")
 
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
-                    if self.state == self.state_waiting_for_sack and self.last_rx_frame_type == "SACK":
-                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks - self.last_tx_n_errors
-                        self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
-                        self.transmit_sof()
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOF":
-                        self.transmit_sack()
-                        self.state = self.state_sending_sack
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOUND":
-                        self.send_util_payload_to_phy()
-                        self.send_calc_tone_info_to_phy()
-                        self.state = self.state_waiting_for_tone_map
-                    elif self.state ==  self.state_waiting_for_soundack and self.last_rx_frame_type == "SACK":
-                        self.state = self.state_waiting_for_mgmtmsg
-                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_rx_frame_type == "SOF":
-                        self.transmit_sof()
+                    if self.last_rx_frame_type == "SACK":
+                        self.event_sack_arrived()
+                    elif self.last_rx_frame_type == "SOF":
+                        self.event_sof_arrived()
+                    elif self.last_rx_frame_type == "SOUND":
+                        self.event_sound_arrived()
 
                 elif msg_id == "PHY-TXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-TXEND from PHY"
-                    if self.state == self.state_sending_sof:
-                        self.state = self.state_waiting_for_sack
-                        self.start_sack_timer()
-                    elif self.state == self.state_sending_sound:
-                        self.state = self.state_waiting_for_soundack
-                        #self.start_soundack_timer()
-                    elif self.state == self.state_sending_sack:
-                        self.state = self.state_waiting_for_sof_sound
-                    elif self.state == self.state_sending_soundack:
-                        self.transmit_mgmtmsg()
-                        self.state = self.state_sending_mgmtmsg
-                    elif self.state == self.state_sending_mgmtmsg:
-                        self.state = self.state_waiting_for_sof_sound
+                    self.event_tx_end()
 
                 elif msg_id == "PHY-RXCALCTONEMAP.response":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXCALCTONEMAP.respond from PHY"
-                    if self.state == self.state_waiting_for_tone_map:
-                        self.rx_tone_map = bytearray(dict["tone_map"].tolist())
-                        self.transmit_sack()
-                        self.state = self.state_sending_soundack
+                    self.rx_tone_map = bytearray(dict["tone_map"].tolist())
+                    self.event_tone_map_arrived()
 
     def sack_timout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
         self.stats['n_missing_acks'] += 1
-        self.transmit_sof()
+        self.event_sack_timout()
 
     def start_sack_timer(self):
         self.sack_timer = threading.Timer(self.SACK_TIMEOUT, self.sack_timout_callback)
@@ -175,18 +184,12 @@ class mac(gr.basic_block):
             self.sack_timer.cancel()
             self.sack_time = None
 
-    def transmit_sof(self):
-        # Send sound if timout
-        if self.sound_timout():
-            self.transmit_sound()
-            return
+    def update_blocks_stats(self):
+        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks - self.last_tx_n_errors
+        self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
 
-        # Else, try to get a new MAC frame from transmission queue
+    def transmit_sof(self):
         mpdu_payload, self.last_tx_frame_n_blocks = self.create_mpdu_payload(False)
-        if not mpdu_payload:
-            self.state = self.state_waiting_for_app
-            if self.debug: print self.name + ": state = " + str(self.state) + ", no more data"
-            return
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
 
         # Create frame control
@@ -198,7 +201,6 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF, tmi=" + str(self.tmi) + ") to PHY"
-        self.state = self.state_sending_sof
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def transmit_sound(self):
@@ -215,7 +217,7 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
-        self.state = self.state_sending_sound
+        # self.state_old = self.state_sending_sound
         self.last_tx_sound_frame = datetime.now();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
@@ -287,8 +289,14 @@ class mac(gr.basic_block):
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-READY"), gr.pmt.PMT_NIL))
 
-    def sound_timout(self):
+    def queue_is_empty(self):
+        return self.tx_frames_in_queue == 0
+
+    def sound_timeout(self):
         return (datetime.now() - self.last_tx_sound_frame).total_seconds() >= self.SOUND_FRAME_RATE
+
+    def utilize_payload(self):
+        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call

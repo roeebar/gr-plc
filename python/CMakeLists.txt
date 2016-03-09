@@ -36,6 +36,14 @@ GR_PYTHON_INSTALL(
     DESTINATION ${GR_PYTHON_DIR}/plc
 )
 
+GR_PYTHON_INSTALL(
+    FILES
+    transitions/__init__.py
+    transitions/core.py
+    transitions/diagrams.py
+    DESTINATION ${GR_PYTHON_DIR}/plc/transitions
+)
+
 ########################################################################
 # Handle the unit tests
 ########################################################################
