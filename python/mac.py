@@ -13,6 +13,7 @@ class mac(gr.basic_block, Machine):
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
+    SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 
     rx_incomplete_frames = {}
     rx_incomplete_mgmt_frames = {}
@@ -29,6 +30,7 @@ class mac(gr.basic_block, Machine):
     tx_capacity = 0
     transmission_queue_is_full = False
     sack_timer = None
+    sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
     def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, target_ber, info, debug):
@@ -60,19 +62,19 @@ class mac(gr.basic_block, Machine):
 
         states = [
             # Master:
-            {'name': 'waiting_for_app'                                                                              },
-            {'name': 'sending_sof'              ,'on_enter': 'transmit_sof'                                         },
-            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                       },
-            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer',    'on_exit': 'cancel_sack_timer'  },
-            {'name': 'waiting_for_soundack'                                                                         },
-            {'name': 'waiting_for_mgmtmsg'                                                                          },
+            {'name': 'waiting_for_app'                                                                                  },
+            {'name': 'sending_sof'              ,'on_enter': ['wait_for_sof_timer', 'transmit_sof', 'start_sof_timer']  },
+            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                           },
+            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
+            {'name': 'waiting_for_soundack'                                                                             },
+            {'name': 'waiting_for_mgmtmsg'                                                                              },
 
             # Slave:
-            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                        },
-            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                        },
-            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                     },
-            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'utilize_payload'                                       },
-            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                           },
+            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                            },
+            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                            },
+            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                         },
+            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'utilize_payload'                                           },
+            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                               },
         ]
         transitions = [
             # TRIGGER                   SOURCE                      DESTINATION                 CONDITIONS          UNLESS                                  BEFORE  AFTER
@@ -183,6 +185,18 @@ class mac(gr.basic_block, Machine):
         if self.sack_timer:
             self.sack_timer.cancel()
             self.sack_time = None
+
+    def start_sof_timer(self):
+        self.sof_timer = threading.Timer(self.SOF_FRAME_RATE, self.sof_timeout_callback)
+        self.sof_timer.start()
+
+    def sof_timeout_callback(self):
+        pass
+
+    def wait_for_sof_timer(self):
+        if self.sof_timer:
+            self.sof_timer.join()
+            self.sof_timer = None
 
     def update_blocks_stats(self):
         self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks - self.last_tx_n_errors
