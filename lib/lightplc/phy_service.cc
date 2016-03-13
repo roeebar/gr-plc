@@ -81,7 +81,7 @@ phy_service::phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask
     d_stats = stats_t();
 }
 
-phy_service::phy_service (bool debug): phy_service({IEEE1901_TONE_MASK}, {IEEE1901_TONE_MASK}, {IEEE1901_SYNCP_TONE_MASK}, debug){};
+phy_service::phy_service (bool debug): phy_service({IEEE1901_DEFAULT_TONE_MASK}, {IEEE1901_DEFAULT_TONE_MASK}, {IEEE1901_SYNCP_TONE_MASK}, debug){};
 
 phy_service::phy_service (const phy_service &obj) :
     d_debug(obj.d_debug),

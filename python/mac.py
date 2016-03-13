@@ -492,17 +492,17 @@ class mac(gr.basic_block, Machine):
 
         return (payload, num_segments)
 
-    def parse_mpdu_payload(self, msdu_payload):
+    def parse_mpdu_payload(self, mpdu_payload):
         phy_blocks_error = []
         phy_block_overhead_size = ieee1901.PHY_BLOCK_HEADER_WIDTH + ieee1901.PHY_BLOCK_PBCS_WIDTH
-        if len(msdu_payload) > 128 + phy_block_overhead_size:
+        if len(mpdu_payload) > 128 + phy_block_overhead_size:
             phy_block_size = 512 + phy_block_overhead_size
         else:
             phy_block_size = 128 + phy_block_overhead_size
         j = 0
         prev_mgmt_ssn = -1
-        while (j < len(msdu_payload)):
-            phy_block = msdu_payload[j:j + phy_block_size]
+        while (j < len(mpdu_payload)):
+            phy_block = mpdu_payload[j:j + phy_block_size]
             ssn = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_SSN_OFFSET, ieee1901.PHY_BLOCK_HEADER_SSN_WIDTH)
             mgmt_queue = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_MMQF_OFFSET, ieee1901.PHY_BLOCK_HEADER_MMQF_WIDTH)
             if (mgmt_queue):

@@ -225,9 +225,8 @@ namespace gr {
             d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
             correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
             if(correlation > THRESHOLD) {
-              if(d_plateau < MIN_PLATEAU)
-                d_plateau++;
-            } else { // correlation < THRESHOLD
+              d_plateau++;
+            } else { // correlation <= THRESHOLD
               d_plateau = 0;
             }
             i++;
