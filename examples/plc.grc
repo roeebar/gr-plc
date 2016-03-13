@@ -1090,7 +1090,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1091, 208)</value>
+      <value>(1139, 272)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1133,7 +1133,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0.012461</value>
+      <value>0.027958</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1141,11 +1141,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(952, 379)</value>
+      <value>(992, 459)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1262,7 +1262,7 @@
     <key>plc_impulse_noise_source</key>
     <param>
       <key>a</key>
-      <value>0.343721, 0.342648, 0.342449, 0.342379, 0.342347</value>
+      <value>[0.383975]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1278,7 +1278,7 @@
     </param>
     <param>
       <key>l</key>
-      <value>(4.6/2/2e-6,)*5</value>
+      <value>(4.6/2/4e-6,)*5</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1373,7 +1373,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>True</value>
+      <value>False</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -2288,7 +2288,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3103,7 +3103,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3298,7 +3298,7 @@
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
-    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
