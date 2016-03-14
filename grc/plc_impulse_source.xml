@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <block>
-  <name>Impulse Noise Source</name>
-  <key>plc_impulse_noise_source</key>
+  <name>Impulse Source</name>
+  <key>plc_impulse_source</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.impulse_noise_source($samp_rate)
+  <make>plc.impulse_source($samp_rate)
 #if $n_noises() > 0
 self.$(id).add_noise($(iat)[0], $(a)[0], $(l)[0], $(f)[0], $(o)[0])
 #end if
@@ -62,23 +62,23 @@ self.$(id).add_noise($(iat)[9], $(a)[9], $(l)[9], $(f)[9], $(o)[9])
     <name>Decay</name>
     <key>l</key>
     <type>float_vector</type>
-  </param>  
+  </param>
   <param>
     <name>Frequency</name>
     <key>f</key>
     <type>float_vector</type>
-  </param>  
+  </param>
   <param>
     <name>Offset</name>
     <key>o</key>
     <type>float_vector</type>
   </param>
-  <check>$n_noises &lt;= 10</check> 
-  <check>len($iat) &gt;= $n_noises</check> 
-  <check>len($a) &gt;= $n_noises</check> 
-  <check>len($l) &gt;= $n_noises</check> 
-  <check>len($f) &gt;= $n_noises</check> 
-  <check>len($o) &gt;= $n_noises</check> 
+  <check>$n_noises &lt;= 10</check>
+  <check>len($iat) &gt;= $n_noises</check>
+  <check>len($a) &gt;= $n_noises</check>
+  <check>len($l) &gt;= $n_noises</check>
+  <check>len($f) &gt;= $n_noises</check>
+  <check>len($o) &gt;= $n_noises</check>
   <source>
     <name>out</name>
     <type>complex</type>
@@ -86,7 +86,7 @@ self.$(id).add_noise($(iat)[9], $(a)[9], $(l)[9], $(f)[9], $(o)[9])
   <doc>
 The noise parameters should be a list: [IAT, amp, decay, freq, offset]
 
-For example, parameters = 0.1, 1, 0.5, 10e3, 0.5 means 
+For example, parameters = 0.1, 1, 0.5, 10e3, 0.5 means
 IAT (inter-arrival time) = 0.1 secs
 Amplitude = 1
 Decay = 0.5

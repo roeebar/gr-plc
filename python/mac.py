@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# 
-
 import ieee1901
 import binascii
 import sys
@@ -8,25 +6,14 @@ from datetime import datetime, timedelta
 import threading
 from gnuradio import gr
 from time import sleep
+from transitions import MachineGraphSupport as Machine
 
-class mac(gr.basic_block):
-    MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frames
+class mac(gr.basic_block, Machine):
+    MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frame
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
-
-    ( state_waiting_for_app,        # 0  
-      state_sending_sof,            # 1 
-      state_sending_sound,          # 2 
-      state_sending_sack,           # 3
-      state_sending_soundack,       # 4
-      state_sending_mgmtmsg,        # 5
-      state_waiting_for_sack,       # 6
-      state_waiting_for_sof_sound,  # 7
-      state_waiting_for_soundack,   # 8
-      state_waiting_for_tone_map,   # 9
-      state_waiting_for_mgmtmsg     #10
-      ) = range(11)
+    SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 
     rx_incomplete_frames = {}
     rx_incomplete_mgmt_frames = {}
@@ -43,6 +30,7 @@ class mac(gr.basic_block):
     tx_capacity = 0
     transmission_queue_is_full = False
     sack_timer = None
+    sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
     def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, target_ber, info, debug):
@@ -65,12 +53,59 @@ class mac(gr.basic_block):
         self.broadcast_tone_mask = broadcast_tone_mask
         self.sync_tone_mask = sync_tone_mask
         self.target_ber = target_ber
-        if self.is_master: 
+        if self.is_master:
             self.name = "MAC (master)"
-            self.state = self.state_waiting_for_app
-        else: 
+            initial_state = 'waiting_for_app'
+        else:
             self.name = "MAC (slave)"
-            self.state = self.state_waiting_for_sof_sound
+            initial_state = 'waiting_for_sof_sound'
+
+        states = [
+            # Master:
+            {'name': 'waiting_for_app'                                                                                  },
+            {'name': 'sending_sof'              ,'on_enter': ['wait_for_sof_timer', 'transmit_sof', 'start_sof_timer']  },
+            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                           },
+            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
+            {'name': 'waiting_for_soundack'                                                                             },
+            {'name': 'waiting_for_mgmtmsg'                                                                              },
+
+            # Slave:
+            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                            },
+            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                            },
+            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                         },
+            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'utilize_payload'                                           },
+            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                               },
+        ]
+        transitions = [
+            # TRIGGER                   SOURCE                      DESTINATION                 CONDITIONS          UNLESS                                  BEFORE  AFTER
+
+            # Master:
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None   ,None                   ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None   ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,'update_blocks_stats'  ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,None                   ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None   ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None   ,None                   ],
+
+            # Slave:
+            ['event_tx_end'             ,'sending_sack'             ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_soundack'         ,'sending_mgmtmsg'          ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_mgmtmsg'          ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,None   ,None                   ],
+            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,None   ,None                   ],
+            ['event_tone_map_arrived'   ,'waiting_for_tone_map'     ,'sending_soundack'         ,None               ,None                                   ,None   ,None                   ],
+        ]
+
+        Machine.__init__(self, states=states, transitions=transitions, auto_transitions=False, initial=initial_state)
+        if self.debug:
+            graph = self.get_graph()
+            graph.draw(self.name + '.png', prog='dot')
 
     def capacity(self):
         return self.tx_capacity
@@ -90,7 +125,7 @@ class mac(gr.basic_block):
                         self.submit_mac_frame(mac_frame)
                         if not self.transmission_queue_is_full:
                             self.send_status_to_app()
-                        if self.state == self.state_waiting_for_app: self.transmit_sof()
+                        if self.state == 'waiting_for_app': self.event_msdu_arrived()
                     else :
                         sys.stderr.write (self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP\n")
                         if self.debug: print self.name + ": state = " + str(self.state) + ", buffer is full, dropping frame from APP"
@@ -106,65 +141,41 @@ class mac(gr.basic_block):
                     frame_control = bytearray(dict["frame_control"])
                     dt = self.get_frame_type(frame_control)
                     self.last_rx_frame_type = dt
+                    self.last_rx_frame_blocks_error = []
                     if dt == "SOF":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SOF) from PHY"
                         payload = bytearray(dict["payload"].tolist())
                         self.last_rx_frame_blocks_error = self.parse_mpdu_payload(payload)
-                        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
                     elif dt == "SOUND":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (Sound) from PHY"
                     elif dt == "SACK":
                         if self.debug: print self.name + ": state = " + str(self.state) + ", received MPDU (SACK) from PHY"
-                        self.cancel_sack_timer()
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
                         self.last_tx_n_errors = self.parse_sackd(sackd)
                         if (self.last_tx_n_errors): sys.stderr.write(self.name + ": state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error\n")
-               
+
                 if msg_id == "PHY-RXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXEND from PHY"
-                    if self.state == self.state_waiting_for_sack and self.last_rx_frame_type == "SACK":
-                        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks
-                        self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
-                        self.transmit_sof()
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOF":
-                        self.transmit_sack()
-                        self.state = self.state_sending_sack
-                    elif self.state ==  self.state_waiting_for_sof_sound and self.last_rx_frame_type == "SOUND":
-                        self.send_util_payload_to_phy()
-                        self.send_calc_tone_info_to_phy()
-                        self.state = self.state_waiting_for_tone_map
-                    elif self.state ==  self.state_waiting_for_soundack and self.last_rx_frame_type == "SACK":
-                        self.state = self.state_waiting_for_mgmtmsg
-                    elif self.state == self.state_waiting_for_mgmtmsg and self.last_rx_frame_type == "SOF":
-                        self.transmit_sof()
+                    if self.last_rx_frame_type == "SACK":
+                        self.event_sack_arrived()
+                    elif self.last_rx_frame_type == "SOF":
+                        self.event_sof_arrived()
+                    elif self.last_rx_frame_type == "SOUND":
+                        self.event_sound_arrived()
 
                 elif msg_id == "PHY-TXEND":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-TXEND from PHY"
-                    if self.state == self.state_sending_sof:
-                        self.state = self.state_waiting_for_sack
-                        self.start_sack_timer()
-                    elif self.state == self.state_sending_sound:
-                        self.state = self.state_waiting_for_soundack
-                        #self.start_soundack_timer()
-                    elif self.state == self.state_sending_sack:
-                        self.state = self.state_waiting_for_sof_sound
-                    elif self.state == self.state_sending_soundack:
-                        self.transmit_mgmtmsg()
-                        self.state = self.state_sending_mgmtmsg
-                    elif self.state == self.state_sending_mgmtmsg:
-                        self.state = self.state_waiting_for_sof_sound
+                    self.event_tx_end()
 
                 elif msg_id == "PHY-RXCALCTONEMAP.response":
                     if self.debug: print self.name + ": state = " + str(self.state) + ", received PHY-RXCALCTONEMAP.respond from PHY"
-                    if self.state == self.state_waiting_for_tone_map:
-                        self.rx_tone_map = bytearray(dict["tone_map"].tolist())
-                        self.transmit_sack()
-                        self.state = self.state_sending_soundack
+                    self.rx_tone_map = bytearray(dict["tone_map"].tolist())
+                    self.event_tone_map_arrived()
 
     def sack_timout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
         self.stats['n_missing_acks'] += 1
-        self.transmit_sof()
+        self.event_sack_timout()
 
     def start_sack_timer(self):
         self.sack_timer = threading.Timer(self.SACK_TIMEOUT, self.sack_timout_callback)
@@ -173,20 +184,26 @@ class mac(gr.basic_block):
     def cancel_sack_timer(self):
         if self.sack_timer:
             self.sack_timer.cancel()
-            self.sack_time = None        
+            self.sack_time = None
+
+    def start_sof_timer(self):
+        self.sof_timer = threading.Timer(self.SOF_FRAME_RATE, self.sof_timeout_callback)
+        self.sof_timer.start()
+
+    def sof_timeout_callback(self):
+        pass
+
+    def wait_for_sof_timer(self):
+        if self.sof_timer:
+            self.sof_timer.join()
+            self.sof_timer = None
+
+    def update_blocks_stats(self):
+        self.stats['n_blocks_tx_success'] += self.last_tx_frame_n_blocks - self.last_tx_n_errors
+        self.stats['n_blocks_tx_fail'] += self.last_tx_n_errors
 
     def transmit_sof(self):
-        # Send sound if timout
-        if self.sound_timout():
-            self.transmit_sound()
-            return
-
-        # Else, try to get a new MAC frame from transmission queue
         mpdu_payload, self.last_tx_frame_n_blocks = self.create_mpdu_payload(False)
-        if not mpdu_payload: 
-            self.state = self.state_waiting_for_app
-            if self.debug: print self.name + ": state = " + str(self.state) + ", no more data"
-            return
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
 
         # Create frame control
@@ -198,7 +215,6 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF, tmi=" + str(self.tmi) + ") to PHY"
-        self.state = self.state_sending_sof
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def transmit_sound(self):
@@ -215,7 +231,6 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (Sound) to PHY"
-        self.state = self.state_sending_sound
         self.last_tx_sound_frame = datetime.now();
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
@@ -248,7 +263,7 @@ class mac(gr.basic_block):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=1) to PHY"
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))        
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def send_calc_tone_info_to_phy(self):
         dict = gr.pmt.make_dict();
@@ -287,8 +302,14 @@ class mac(gr.basic_block):
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-READY"), gr.pmt.PMT_NIL))
 
-    def sound_timout(self):
+    def queue_is_empty(self):
+        return self.tx_frames_in_queue == 0
+
+    def sound_timeout(self):
         return (datetime.now() - self.last_tx_sound_frame).total_seconds() >= self.SOUND_FRAME_RATE
+
+    def utilize_payload(self):
+        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call
@@ -316,10 +337,10 @@ class mac(gr.basic_block):
         return n
 
     def create_mac_frame(self, dest, payload, mgmt):
-        if (not mgmt): 
+        if (not mgmt):
             mft = 0b01 # MSDU payload
             mac_frame = bytearray(ieee1901.MAC_FRAME_OVERHEAD + len(payload)) # preallocate the frame
-        else: 
+        else:
             mft = 0b11 # management payload
             mac_frame = bytearray(ieee1901.MAC_FRAME_OVERHEAD + ieee1901.MAC_FRAME_CONFOUNDER_WIDTH + len(payload)) # preallocate the frame
 
@@ -334,7 +355,7 @@ class mac(gr.basic_block):
         pos = self.set_bytes_field(mac_frame, dest, pos, ieee1901.MAC_FRAME_ODA_WIDTH)
         pos = self.set_bytes_field(mac_frame, self.device_addr, pos, ieee1901.MAC_FRAME_OSA_WIDTH)
         pos += ieee1901.MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
-        pos = self.set_bytes_field(mac_frame, payload, pos, len(payload))        
+        pos = self.set_bytes_field(mac_frame, payload, pos, len(payload))
         crc = self.crc32(mac_frame[ieee1901.MAC_FRAME_MFH_OFFSET + ieee1901.MAC_FRAME_MFH_WIDTH:-ieee1901.MAC_FRAME_ICV_WIDTH]) # calculate crc excluding MFH and ICV fields
         self.set_bytes_field(mac_frame, crc, pos, ieee1901.MAC_FRAME_ICV_WIDTH)
 
@@ -404,13 +425,13 @@ class mac(gr.basic_block):
         stream = {}
         if not mgmt:
             # Check if buffer is empty
-            if not len(self.tx_frames_queue): 
+            if not len(self.tx_frames_queue):
                 return ([], 0)
             for key in self.tx_frames_queue:
                 if self.tx_frames_queue[key]["frames"] or self.tx_frames_queue[key]["remainder"]:
                     stream = self.tx_frames_queue[key]
                     break
-            if not stream: 
+            if not stream:
                 return ([], 0)
         else:
             stream["frames"] = [mgmt]
@@ -419,7 +440,7 @@ class mac(gr.basic_block):
 
         frames = stream["frames"]
         ssn = 0
-        remainder = stream["remainder"]    
+        remainder = stream["remainder"]
         num_segments = 0
         payload = bytearray(0)
 
@@ -437,18 +458,18 @@ class mac(gr.basic_block):
                     mac_boundary_offset = len(segment)
                     mac_boundary_flag = True
                 remainder = frames[0][body_size-len(segment):]
-                segment += frames[0][0:body_size-len(segment)]                
+                segment += frames[0][0:body_size-len(segment)]
                 frames.pop(0)
                 if not remainder: self.tx_frames_in_queue -= 1
 
             # Determine if segment should be 128 bytes or 512
             if len(segment) < body_size:
-                if len(segment) < 128 and num_segments == 0: body_size = 128 
+                if len(segment) < 128 and num_segments == 0: body_size = 128
                 if not mac_boundary_flag:
                     mac_boundary_offset = len(segment)
                     mac_boundary_flag = True
                 segment[len(segment):body_size] = bytearray(body_size-len(segment))
-                
+
             # Creating the PHY block
             phy_block = self.init_phy_block(body_size, ssn, mac_boundary_offset, True, not mgmt==[], mac_boundary_flag, False) # Setting header fields
             pos = self.set_bytes_field(phy_block, segment, ieee1901.PHY_BLOCK_BODY_OFFSET, body_size) # assigning body
@@ -471,17 +492,17 @@ class mac(gr.basic_block):
 
         return (payload, num_segments)
 
-    def parse_mpdu_payload(self, msdu_payload):
+    def parse_mpdu_payload(self, mpdu_payload):
         phy_blocks_error = []
         phy_block_overhead_size = ieee1901.PHY_BLOCK_HEADER_WIDTH + ieee1901.PHY_BLOCK_PBCS_WIDTH
-        if len(msdu_payload) > 128 + phy_block_overhead_size:
+        if len(mpdu_payload) > 128 + phy_block_overhead_size:
             phy_block_size = 512 + phy_block_overhead_size
         else:
             phy_block_size = 128 + phy_block_overhead_size
         j = 0
         prev_mgmt_ssn = -1
-        while (j < len(msdu_payload)):
-            phy_block = msdu_payload[j:j + phy_block_size]
+        while (j < len(mpdu_payload)):
+            phy_block = mpdu_payload[j:j + phy_block_size]
             ssn = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_SSN_OFFSET, ieee1901.PHY_BLOCK_HEADER_SSN_WIDTH)
             mgmt_queue = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_MMQF_OFFSET, ieee1901.PHY_BLOCK_HEADER_MMQF_WIDTH)
             if (mgmt_queue):
@@ -519,7 +540,7 @@ class mac(gr.basic_block):
                 incomplete_frame["data"] += mac_frame_data
                 if incomplete_frame["length"] == 1: # length = 1 means the length is not calculated yet
                     header = incomplete_frame["data"][0:2]
-                    incomplete_frame["length"] = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + ieee1901.MAC_FRAME_MFH_WIDTH + ieee1901.MAC_FRAME_ICV_WIDTH + 1                        
+                    incomplete_frame["length"] = (((header[0] & 0xFC) >> 2) | (header[1] << 6)) + ieee1901.MAC_FRAME_MFH_WIDTH + ieee1901.MAC_FRAME_ICV_WIDTH + 1
                 if incomplete_frame["length"] == len(incomplete_frame["data"]):
                     self.receive_mac_frame(incomplete_frame["data"])
                 else:
@@ -550,7 +571,7 @@ class mac(gr.basic_block):
 
     def parse_sackd(self, sackd):
         sacki = sackd[0]
-        if not sacki == 0b00010101: 
+        if not sacki == 0b00010101:
             sys.stderr.write(self.name + ": state = " + str(self.state) + ", not supported sacki = " + str(sacki) + "\n")
         n_errors = 0
         for i in range(self.last_tx_frame_n_blocks):
@@ -559,16 +580,16 @@ class mac(gr.basic_block):
 
     def create_mgmt_msg_cm_chan_est(self, tone_map):
         mmentry = bytearray((ieee1901.MGMT_CM_CHAN_EST_NTMI_OFFSET + # preallocate the mmentry bytearray
-                            ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CPF_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_FECTYPE_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_GIL_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH + 
-                            ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH * (len(tone_map)+1))/8)  
+                            ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_NEW_TMI_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CPF_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_FECTYPE_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_GIL_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_ENC_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_LEN_WIDTH +
+                            ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH * (len(tone_map)+1))/8)
         pos = self.set_numeric_field(mmentry, 1, ieee1901.MGMT_CM_CHAN_EST_NTMI_OFFSET, ieee1901.MGMT_CM_CHAN_EST_NTMI_WIDTH)
         pos = self.set_numeric_field(mmentry, 1, pos, ieee1901.MGMT_CM_CHAN_EST_TMI_WIDTH)
         pos = self.set_numeric_field(mmentry, 0, pos, ieee1901.MGMT_CM_CHAN_EST_NINT_WIDTH)
@@ -604,7 +625,7 @@ class mac(gr.basic_block):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         if self.debug: print self.name + ": state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity)
         self.send_set_tx_tone_map()
-        if self.info: 
+        if self.info:
             print "'" + self.name + "'; txToneMap = " + str(self.tx_tone_map) + ";"
             print "'" + self.name + "'; txCapacity = " + str(self.tx_capacity) + ";"
 
@@ -620,24 +641,24 @@ class mac(gr.basic_block):
         mmentry = self.get_bytes_field(mgmt_msg, ieee1901.MGMT_MMENTRY_OFFSET/8, len(mgmt_msg) - ieee1901.MGMT_MMENTRY_OFFSET/8)
         if mmtype == ieee1901.MGMT_MMTYPE_CM_CHAN_EST_ID:
             self.process_mgmt_msg_cm_chan_est(mmentry)
-        else: 
+        else:
             sys.stderr.write (self.name + ": state = " + str(self.state) + ", management message (" + str(mmtype) + "not supported\n")
 
     def create_sof_frame_control(self, tmi, mpdu_payload):
         frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
 
         # Set the pbsz bit
-        if len(mpdu_payload) > 136/8: 
+        if len(mpdu_payload) > 136/8:
             self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
         else:
             self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOF_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOF_PBSZ_WIDTH)
 
-        # Set delimiter type to SOF    
+        # Set delimiter type to SOF
         self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
-        
+
         # Set tone map index
         self.set_numeric_field(frame_control, tmi, ieee1901.FRAME_CONTROL_SOF_TMI_OFFSET, ieee1901.FRAME_CONTROL_SOF_TMI_WIDTH)
-        
+
         return frame_control
 
     def create_sack_frame_control(self, sackd):
@@ -659,7 +680,7 @@ class mac(gr.basic_block):
     def create_sound_frame_control(self, pb_size):
         frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
 
-        # Set delimiter type to Sound    
+        # Set delimiter type to Sound
         self.set_numeric_field(frame_control, 4, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
 
         # Set the pbsz bit

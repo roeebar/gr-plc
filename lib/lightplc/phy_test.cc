@@ -1,6 +1,6 @@
 #include "phy_service.h"
 #include "debug.h"
-#include "phy_service_qa.h"
+#include "qa_phy_service.h"
 #include <algorithm>
 
 char* getCmdOption(char ** begin, char ** end, const std::string & option)
@@ -26,19 +26,19 @@ int main(int argc, char * argv[]) {
     float snr = 30;
     bool encode_only = false;
     if(cmdOptionExists(argv, argv+argc, "-help")) {
-        std::cout << "Options:\n" 
+        std::cout << "Options:\n"
         << "  -mode MODE          Can be SOF, SOUND, SACK, SOFFILE, RANDOM.\n"
         << "                      Default to RANDOM (100 random tests)\n"
-        << "  -robo-mode NUMBER   Set ROBO mode in SOF, SOUND or SOFFILE modes\n" 
+        << "  -robo-mode NUMBER   Set ROBO mode in SOF, SOUND or SOFFILE modes\n"
         << "                      Default to 3 (TM_NO_ROBO)\n"
         << "  -nblocks NUMBER     Set number of blocks to encode in SOF or SOFFILE modes\n"
         << "                      Default = 1\n"
         << "  -snr NUMBER         Set noise according to SNR number in db\n"
         << "                      Default = 30db\n"
         << "  -encode_only        Do not try to process the recevied stream\n"
-        << "  -in_filename NAME   Input file name is SOFFILE mode\n" 
+        << "  -in_filename NAME   Input file name is SOFFILE mode\n"
         << "  -out_filename NAME  Output file name is SOFFILE mode\n"
-        << "  -d                  Print debug output\n" 
+        << "  -d                  Print debug output\n"
         << "  -seed NUMBER        Use seed number for random values\n" << std::endl;
         return 0;
     }
@@ -55,7 +55,7 @@ int main(int argc, char * argv[]) {
     if (seed_str != NULL)
         seed = (light_plc::tone_mode_t)atoi(seed_str);
 
-    phy_service_qa tester(debug_, seed);
+    qa_phy_service tester(debug_, seed);
 
     char* tone_mode_str = getCmdOption(argv, argv + argc, "-robo-mode");
     if (tone_mode_str != NULL)
@@ -110,4 +110,3 @@ int main(int argc, char * argv[]) {
     // }
 
 }
-

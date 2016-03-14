@@ -20,9 +20,10 @@ namespace gr {
       static const int PREAMBLE_SIZE;
       static const int FRAME_CONTROL_SIZE;
       static const float THRESHOLD;
-      static const float MIN_ENERGY;
       static const int MIN_PLATEAU;
       static const int MIN_INTERFRAME_SPACE;
+      static const size_t BUFFER_SIZE;
+      static const int MAX_SEARCH_LENGTH;
 
       light_plc::phy_service d_phy_service;
       const bool d_debug;
@@ -31,25 +32,17 @@ namespace gr {
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
       float d_search_corr;
       float d_energy_a, d_energy_b;
+      gr_complex *d_mult, *d_buffer, *d_frame_control, *d_payload;
+      float *d_real, *d_energy;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
-      light_plc::vector_float d_preamble;
-      light_plc::vector_float d_frame_control;
-      light_plc::vector_float d_payload;
       pmt::pmt_t d_frame_control_pmt;
       float d_sync_min;
       int d_sync_min_index;
-      int d_frame_control_offset;
-      int d_preamble_offset;
+      size_t d_buffer_offset;
       float *d_preamble_corr;
       int d_frame_start;
-      light_plc::vector_int d_output_datastream;
-      int d_output_datastream_offset;
-      int d_output_datastream_len;
-      std::vector<float> d_noise;
-      int d_noise_offset;
-      int d_inter_frame_space_offset;
       std::string d_name;
 
      public:
@@ -57,7 +50,10 @@ namespace gr {
       ~phy_rx_impl();
       void mac_in (pmt::pmt_t msg);
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);
-
+      // Copy data into a circular buffer
+      void copy_to_circular_buffer(void *buffer, size_t buffer_size, size_t &buffer_offset, const void* src, size_t size, size_t datatype_size);
+      // Copy data from a circular buffer
+      void copy_from_circular_buffer(void *dest, void *buffer, size_t buffer_size, size_t buffer_offset, size_t size, size_t datatype_size);
       // Where all the action really happens
       int work(int noutput_items,
 	       gr_vector_const_void_star &input_items,
@@ -68,4 +64,3 @@ namespace gr {
 } // namespace gr
 
 #endif /* INCLUDED_PLC_PHY_RX_IMPL_H */
-

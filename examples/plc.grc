@@ -97,7 +97,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>0</value>
+      <value>12.5e6</value>
     </param>
   </block>
   <block>
@@ -124,7 +124,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(576, 11)</value>
+      <value>(744, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -167,7 +167,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(712, 11)</value>
+      <value>(880, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -210,7 +210,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(264, 11)</value>
+      <value>(432, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -253,7 +253,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(416, 11)</value>
+      <value>(584, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -342,6 +342,18 @@
       <value>0</value>
     </param>
     <param>
+      <key>value6</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>value7</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>value8</key>
+      <value>0.01</value>
+    </param>
+    <param>
       <key>value9</key>
       <value>0</value>
     </param>
@@ -359,7 +371,7 @@
     </param>
     <param>
       <key>field1</key>
-      <value>RIFS</value>
+      <value>syncMask</value>
     </param>
     <param>
       <key>field10</key>
@@ -407,39 +419,35 @@
     </param>
     <param>
       <key>field3</key>
-      <value>FramesRate</value>
+      <value>targetBer</value>
     </param>
     <param>
       <key>field4</key>
-      <value>SoundRate</value>
+      <value>gain</value>
     </param>
     <param>
       <key>field5</key>
-      <value>TargetBER</value>
+      <value>info</value>
     </param>
     <param>
       <key>field6</key>
-      <value>ieee1901Mask</value>
+      <value></value>
     </param>
     <param>
       <key>field7</key>
-      <value>syncMask</value>
+      <value></value>
     </param>
     <param>
       <key>field8</key>
-      <value>targetBer</value>
+      <value></value>
     </param>
     <param>
       <key>field9</key>
       <value></value>
     </param>
     <param>
-      <key>value3</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>_coordinate</key>
-      <value>(1200, 11)</value>
+      <value>(256, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -450,35 +458,27 @@
       <value>settings</value>
     </param>
     <param>
-      <key>value1</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>value4</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>value5</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>value0</key>
       <value>1</value>
     </param>
     <param>
       <key>value2</key>
-      <value>[0]+[0,0,0,1]*511+[0,0,0,0]</value>
+      <value>[0]*512 + [0,1]*512 + [0]*512</value>
     </param>
     <param>
-      <key>value6</key>
-      <value>[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]</value>
+      <key>value4</key>
+      <value>0.55*0 + 0.3</value>
     </param>
     <param>
-      <key>value7</key>
-      <value>[0]+[1]*255+[0]</value>
+      <key>value5</key>
+      <value>True</value>
     </param>
     <param>
-      <key>value8</key>
+      <key>value1</key>
+      <value>[1]*256</value>
+    </param>
+    <param>
+      <key>value3</key>
       <value>0.01</value>
     </param>
   </block>
@@ -502,7 +502,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(872, 91)</value>
+      <value>(1040, 91)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -545,7 +545,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(872, 11)</value>
+      <value>(1040, 11)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -588,7 +588,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1032, 11)</value>
+      <value>(1200, 11)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -631,7 +631,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1024, 91)</value>
+      <value>(1192, 91)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -678,7 +678,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(745, 664)</value>
+      <value>(739, 672)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -690,7 +690,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>True</value>
+      <value>settings.info</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -752,7 +752,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>0.0022160*2**0.5</value>
+      <value>0.0039406</value>
     </param>
     <param>
       <key>alias</key>
@@ -878,7 +878,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(800, 145)</value>
+      <value>(776, 145)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -929,7 +929,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(417, 480)</value>
+      <value>(489, 464)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1090,7 +1090,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1139, 272)</value>
+      <value>(1091, 208)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1145,7 +1145,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(992, 459)</value>
+      <value>(960, 395)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1259,10 +1259,10 @@
     </param>
   </block>
   <block>
-    <key>plc_impulse_noise_source</key>
+    <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>[0.383975]*5</value>
+      <value>[0.543023]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1278,7 +1278,7 @@
     </param>
     <param>
       <key>l</key>
-      <value>(4.6/2/4e-6,)*5</value>
+      <value>(4.6/2/2e-6,)*5</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1286,11 +1286,11 @@
     </param>
     <param>
       <key>f</key>
-      <value>samp_rate/4096*round(0.8*2048/5), samp_rate/4096*round(0.8*2048/5)*2, samp_rate/4096*round(0.8*2048/5)*3, samp_rate/4096*round(0.8*2048/5)*4, samp_rate/4096*round(0.8*2048/5)*5</value>
+      <value>-samp_rate/4.0/3.0*2, -samp_rate/4.0/3.0, 0, samp_rate/4.0/3.0, samp_rate/4.0/3.0*2</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(475, 224)</value>
+      <value>(483, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1298,11 +1298,11 @@
     </param>
     <param>
       <key>iat</key>
-      <value>((4096+756-496)/samp_rate,)*5</value>
+      <value>((4096+756-496)/2/samp_rate,)*5</value>
     </param>
     <param>
       <key>id</key>
-      <value>plc_impulse_noise_source_0</value>
+      <value>plc_impulse_source_0_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1373,7 +1373,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>False</value>
+      <value>settings.info</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -2428,7 +2428,7 @@
     </param>
     <param>
       <key>sync</key>
-      <value>pc_clock</value>
+      <value></value>
     </param>
     <param>
       <key>otw</key>
@@ -3303,6 +3303,12 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
+    <source_block_id>blocks_add_xx_0_1</source_block_id>
+    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
     <source_block_id>blocks_file_source_0</source_block_id>
     <sink_block_id>blks2_error_rate_0</sink_block_id>
     <source_key>0</source_key>
@@ -3351,7 +3357,7 @@
     <sink_key>app in</sink_key>
   </connection>
   <connection>
-    <source_block_id>plc_impulse_noise_source_0</source_block_id>
+    <source_block_id>plc_impulse_source_0_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>1</sink_key>
@@ -3383,6 +3389,12 @@
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
     <sink_block_id>PHY_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>uhd_usrp_source_0</source_block_id>
+    <sink_block_id>blocks_file_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

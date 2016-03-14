@@ -13,6 +13,6 @@ To disable thread priority UHD warning, add the following to */etc/security/limi
 
 Where *&lt;group>* should be replaced with the user group
 
-For a 'release' build, replace the cmake above with:
+For a 'debug' build, replace the cmake above with:
 
-	cmake ../ -DCMAKE_BUILD_TYPE="Release"
+	cmake ../ -DCMAKE_BUILD_TYPE="Debug"

@@ -23,7 +23,7 @@
     <name>mac in</name>
     <type>message</type>
     <optional>1</optional>
-  </sink>  
+  </sink>
   <source>
     <name>mac out</name>
     <type>message</type>
@@ -31,6 +31,6 @@
   </source>
   <source>
     <name>out</name>
-    <type>float</type>
+    <type>complex</type>
   </source>
 </block>

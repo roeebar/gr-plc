@@ -45,10 +45,10 @@ typedef std::vector<float> vector_float;
 typedef std::complex<float> complex;
 typedef std::vector<complex> vector_complex;
 
-typedef std::array<modulation_type_t, IEEE1901_NUMBER_OF_CARRIERS+1> tone_map_t;
-typedef std::array<bool, IEEE1901_NUMBER_OF_CARRIERS+1> tone_mask_t;
-typedef std::array<float, IEEE1901_NUMBER_OF_CARRIERS+1> tones_float_t;
-typedef std::array<bool, IEEE1901_SYNCP_SIZE / 2 + 1> sync_tone_mask_t;
+typedef std::array<modulation_type_t, IEEE1901_NUMBER_OF_CARRIERS> tone_map_t;
+typedef std::array<bool, IEEE1901_NUMBER_OF_CARRIERS> tone_mask_t;
+typedef std::array<float, IEEE1901_NUMBER_OF_CARRIERS> tones_float_t;
+typedef std::array<bool, IEEE1901_SYNCP_SIZE> sync_tone_mask_t;
 
 typedef struct stats_t {
     float ber;
@@ -57,6 +57,7 @@ typedef struct stats_t {
     tones_float_t channel_phase;
     tones_float_t noise_psd;
     tone_mode_t tone_mode;
+    tones_float_t snr;
 } stats_t;
 
 

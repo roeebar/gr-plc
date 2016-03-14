@@ -30,7 +30,7 @@ list(APPEND plc_sources
     phy_rx_impl.cc
     app_out_impl.cc
     app_in_impl.cc
-    impulse_noise_source_impl.cc
+    impulse_source_impl.cc
 )
 
 set(plc_sources "${plc_sources}" PARENT_SCOPE)
