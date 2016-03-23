@@ -1738,6 +1738,8 @@ tones_float_t phy_service::sum_carriers_gain(vector_complex::const_iterator iter
                 j += NUMBER_OF_CARRIERS;
             }
             carriers[i] = a;
+        } else {
+            carriers[i] = 0;
         }
     }
     return carriers;
@@ -1754,10 +1756,10 @@ void phy_service::estimate_channel_gain(channel_response_t &channel_response) {
     for (size_t i = 0; i < NUMBER_OF_CARRIERS; i++) {
         if (payload_mask[i] || SYNC_TONE_MASK_EXPANDED[i]) {
             y.push_back((payload_mask[i] * channel_response.payload_carriers[i] +
-                         p_frame_control * channel_response.frame_control_carriers[i] +
+                         BROADCAST_TONE_MASK[i] * p_frame_control * channel_response.frame_control_carriers[i] +
                          SYNC_TONE_MASK_EXPANDED[i] * p_sync * channel_response.sync_carriers[i] * channel_response.n_syncp_symbols) /
                         (payload_mask[i] * channel_response.n_payload_symbols +
-                         p_frame_control * p_frame_control +
+                         BROADCAST_TONE_MASK[i] * p_frame_control * p_frame_control +
                          SYNC_TONE_MASK_EXPANDED[i] * p_sync * p_sync * channel_response.n_syncp_symbols) /
                          NUMBER_OF_CARRIERS);
             x.push_back(i);
