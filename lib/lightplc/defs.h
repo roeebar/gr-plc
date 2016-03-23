@@ -40,6 +40,11 @@ enum modulation_type_t {
     MT_QAM4096 = 8
 };
 
+enum channel_est_t {
+    CE_SOUND = 0,
+    CE_PAYLOAD = 1
+};
+
 typedef std::vector<int> vector_int;
 typedef std::vector<float> vector_float;
 typedef std::complex<float> complex;
@@ -48,13 +53,13 @@ typedef std::vector<complex> vector_complex;
 typedef std::array<modulation_type_t, IEEE1901_NUMBER_OF_CARRIERS> tone_map_t;
 typedef std::array<bool, IEEE1901_NUMBER_OF_CARRIERS> tone_mask_t;
 typedef std::array<float, IEEE1901_NUMBER_OF_CARRIERS> tones_float_t;
+typedef std::array<complex, IEEE1901_NUMBER_OF_CARRIERS> tones_complex_t;
 typedef std::array<bool, IEEE1901_SYNCP_SIZE> sync_tone_mask_t;
 
 typedef struct stats_t {
     float ber;
     size_t n_bits;
-    tones_float_t channel_gain;
-    tones_float_t channel_phase;
+    tones_complex_t channel;
     tones_float_t noise_psd;
     tone_mode_t tone_mode;
     tones_float_t snr;

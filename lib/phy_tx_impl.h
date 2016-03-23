@@ -16,7 +16,7 @@ namespace gr {
       static const int MIN_INTERFRAME_SPACE;
 
       light_plc::phy_service d_phy_service;
-      const bool d_debug;
+      const int d_debug_level;
       bool d_init_done;
       light_plc::vector_complex d_datastream;
       int d_datastream_offset;
@@ -28,7 +28,7 @@ namespace gr {
       std::vector<unsigned char> d_mpdu_fc, d_mpdu_payload;
 
      public:
-      phy_tx_impl(bool debug);
+      phy_tx_impl(int debug_level);
       ~phy_tx_impl();
 
 	  void mac_in (pmt::pmt_t msg);

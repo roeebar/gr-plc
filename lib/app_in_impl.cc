@@ -5,7 +5,7 @@
 #endif
 
 #include <gnuradio/io_signature.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include "app_in_impl.h"
 #include "debug.h"
 
@@ -13,23 +13,23 @@ namespace gr {
   namespace plc {
 
     app_in::sptr
-    app_in::make(bool debug)
+    app_in::make(int debug_level)
     {
       return gnuradio::get_initial_sptr
-        (new app_in_impl(debug));
+        (new app_in_impl(debug_level));
     }
 
     /*
      * The private constructor
      */
-    app_in_impl::app_in_impl(bool debug)
+    app_in_impl::app_in_impl(int debug_level)
       : gr::block("app_in",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(unsigned char))),
         d_mac_payload_offset(0),
         d_mac_payload_length(0),
         d_total_bytes(0),
-        d_debug(debug)
+        d_debug_level(debug_level)
     {
         message_port_register_in(pmt::mp("mac in"));
     }
@@ -66,7 +66,7 @@ namespace gr {
             pmt::pmt_t msg(delete_head_blocking(pmt::intern("mac in")));
             if (pmt::is_pair(msg) && pmt::is_symbol(pmt::car(msg)) && pmt::is_dict(pmt::cdr(msg))) {
                 std::string cmd = pmt::symbol_to_string(pmt::car(msg));
-                pmt::pmt_t dict = pmt::cdr(msg);            
+                pmt::pmt_t dict = pmt::cdr(msg);
                 if (cmd  == std::string("MAC-RXMSDU")) {
                     pmt::pmt_t mac_payload_pmt = pmt::dict_ref(dict, pmt::mp("msdu"), pmt::PMT_NIL);
                     d_mac_payload = (const unsigned char*) pmt::u8vector_elements(mac_payload_pmt, d_mac_payload_length);
@@ -94,4 +94,3 @@ namespace gr {
     }
   } /* namespace plc */
 } /* namespace gr */
-

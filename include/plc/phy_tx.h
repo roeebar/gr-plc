@@ -27,11 +27,10 @@ namespace gr {
        * class. plc::phy_tx::make is the public interface for
        * creating new instances.
        */
-      static sptr make(bool debug);
+      static sptr make(int debug_level);
     };
 
   } // namespace plc
 } // namespace gr
 
 #endif /* INCLUDED_PLC_PHY_TX_H */
-

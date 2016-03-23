@@ -33,7 +33,7 @@ class mac(gr.basic_block, Machine):
     sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, target_ber, info, debug):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, force_tone_mask, target_ber, channel_est_mode, info, debug):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -52,7 +52,9 @@ class mac(gr.basic_block, Machine):
         self.tmi = tmi
         self.broadcast_tone_mask = broadcast_tone_mask
         self.sync_tone_mask = sync_tone_mask
+        self.force_tone_mask = force_tone_mask
         self.target_ber = target_ber
+        self.channel_est_mode = channel_est_mode
         if self.is_master:
             self.name = "MAC (master)"
             initial_state = 'waiting_for_app'
@@ -73,33 +75,33 @@ class mac(gr.basic_block, Machine):
             {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                            },
             {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                            },
             {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                         },
-            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'utilize_payload'                                           },
+            {'name': 'waiting_for_sof_sound'                                                                            },
             {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                               },
         ]
         transitions = [
             # TRIGGER                   SOURCE                      DESTINATION                 CONDITIONS          UNLESS                                  BEFORE  AFTER
 
             # Master:
-            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None   ,None                   ],
-            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None   ,None                   ],
-            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None   ,None                   ],
-            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None   ,None                   ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,'update_blocks_stats'  ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,'update_blocks_stats'  ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,'update_blocks_stats'  ],
-            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None   ,None                   ],
-            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None   ,None                   ],
-            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None   ,None                   ],
-            ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None   ,None                   ],
-            ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None   ,None                   ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None               ,None                   ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None               ,None                   ],
+            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None               ,None                   ],
+            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None               ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,'update_blocks_stats'  ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,'update_blocks_stats'  ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,None                   ],
+            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,None                   ],
+            ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None               ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None               ,None                   ],
 
             # Slave:
-            ['event_tx_end'             ,'sending_sack'             ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
-            ['event_tx_end'             ,'sending_soundack'         ,'sending_mgmtmsg'          ,None               ,None                                   ,None   ,None                   ],
-            ['event_tx_end'             ,'sending_mgmtmsg'          ,'waiting_for_sof_sound'    ,None               ,None                                   ,None   ,None                   ],
-            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,None   ,None                   ],
-            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,None   ,None                   ],
-            ['event_tone_map_arrived'   ,'waiting_for_tone_map'     ,'sending_soundack'         ,None               ,None                                   ,None   ,None                   ],
+            ['event_tx_end'             ,'sending_sack'             ,'waiting_for_sof_sound'    ,None               ,None                                   ,None               ,None                   ],
+            ['event_tx_end'             ,'sending_soundack'         ,'sending_mgmtmsg'          ,None               ,None                                   ,None               ,None                   ],
+            ['event_tx_end'             ,'sending_mgmtmsg'          ,'waiting_for_sof_sound'    ,None               ,None                                   ,None               ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,'post_process_payload'  ,None                   ],
+            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,'post_process_payload'  ,None                   ],
+            ['event_tone_map_arrived'   ,'waiting_for_tone_map'     ,'sending_soundack'         ,None               ,None                                   ,None               ,None                   ],
         ]
 
         Machine.__init__(self, states=states, transitions=transitions, auto_transitions=False, initial=initial_state)
@@ -284,6 +286,11 @@ class mac(gr.basic_block, Machine):
         dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("broadcast_tone_mask"), tone_mask_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sync_tone_mask"), sync_tone_mask_pmt)
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("channel_est_mode"), gr.pmt.to_pmt(self.channel_est_mode))
+        if (self.force_tone_mask):
+            force_tone_mask_pmt = gr.pmt.init_u8vector(len(self.force_tone_mask), list(self.force_tone_mask))
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("force_tone_mask"), force_tone_mask_pmt)
+
         if self.is_master:
             dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("id"), gr.pmt.to_pmt("master"))
         else:
@@ -294,10 +301,10 @@ class mac(gr.basic_block, Machine):
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXINIT"), dict))
         if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-TXINIT"
 
-    def send_util_payload_to_phy(self):
+    def send_post_process_payload_to_phy(self):
         dict = gr.pmt.make_dict();
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXUTILPAYLOAD"), dict))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXUTILPAYLOAD"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXPOSTPROCESSPAYLOAD"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXPOSTPROCESSPAYLOAD"
 
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-READY"), gr.pmt.PMT_NIL))
@@ -308,8 +315,8 @@ class mac(gr.basic_block, Machine):
     def sound_timeout(self):
         return (datetime.now() - self.last_tx_sound_frame).total_seconds() >= self.SOUND_FRAME_RATE
 
-    def utilize_payload(self):
-        if not (1 in self.last_rx_frame_blocks_error): self.send_util_payload_to_phy()
+    def post_process_payload(self):
+        if not (1 in self.last_rx_frame_blocks_error): self.send_post_process_payload_to_phy()
 
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call

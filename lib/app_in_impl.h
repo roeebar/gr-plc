@@ -16,10 +16,10 @@ namespace gr {
       const unsigned char *d_mac_payload;
       long int d_time_begin;
       long int d_total_bytes;
-      bool d_debug;
+      int d_debug_level;
 
      public:
-      app_in_impl(bool debug);
+      app_in_impl(int debug_level);
       ~app_in_impl();
       bool start();
       // Where all the action really happens
@@ -35,4 +35,3 @@ namespace gr {
 } // namespace gr
 
 #endif /* INCLUDED_PLC_APP_IN_IMPL_H */
-

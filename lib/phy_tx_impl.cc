@@ -16,20 +16,20 @@ namespace gr {
     const int phy_tx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
 
     phy_tx::sptr
-    phy_tx::make(bool debug)
+    phy_tx::make(int debug_level)
     {
       return gnuradio::get_initial_sptr
-        (new phy_tx_impl(debug));
+        (new phy_tx_impl(debug_level));
     }
 
     /*
      * The private constructor
      */
-    phy_tx_impl::phy_tx_impl(bool debug)
+    phy_tx_impl::phy_tx_impl(int debug_level)
       : gr::sync_block("phy_tx",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(gr_complex))),
-            d_debug (debug),
+            d_debug_level (debug_level),
             d_init_done(false),
             d_datastream_offset(0),
             d_datastream_len(0),
@@ -85,7 +85,7 @@ namespace gr {
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
               pmt::dict_has_key(dict,pmt::mp("sync_tone_mask")))
           {
-            dout << d_name << ": setting tone masks" << std::endl;
+            dout << d_name << ": initializing transmitter" << std::endl;
 
             // Set broadcast tone mask
             pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("broadcast_tone_mask"), pmt::PMT_NIL);
@@ -103,8 +103,11 @@ namespace gr {
             for (size_t j = 0; j<sync_tone_mask_len; j++)
               sync_tone_mask[j] = sync_tone_mask_blob[j];
 
-            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, d_debug);
-            d_phy_service.debug(d_debug);
+            // Set channel estimation mode
+            pmt::pmt_t channel_est_mode_pmt = pmt::dict_ref(dict, pmt::mp("channel_est_mode"), pmt::PMT_NIL);
+            light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
+
+            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_debug_level == 2);
           }
 
           d_transmitter_state = READY;

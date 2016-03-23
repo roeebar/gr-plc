@@ -30,8 +30,14 @@ private:
 
     typedef struct channel_response_t {
         tone_mask_t mask;
-        std::array<complex, IEEE1901_NUMBER_OF_CARRIERS> carriers;
-        tones_float_t carriers_gain;
+        tones_complex_t carriers;
+        size_t n_carriers;
+        tones_float_t sync_carriers;
+        tones_float_t frame_control_carriers;
+        tones_float_t payload_carriers;
+        tone_mask_t *payload_mask;
+        int n_syncp_symbols;
+        int n_payload_symbols;
     } channel_response_t;
 
     typedef struct tone_info_t {
@@ -52,8 +58,21 @@ private:
         pb_size_t pb_size;
         tone_mode_t tone_mode;
         int fec_block_size;
-        int inter_frame_space;
     } rx_params_t;
+
+    typedef struct spline_set_t {
+        float a;
+        float b;
+        float c;
+        float d;
+        float x;
+    } spline_set_t;
+
+    typedef struct linear_set_t {
+        float a;
+        float b;
+        float x;
+    } linear_set_t;
 
     static const int SAMPLE_RATE = IEEE1901_SAMPLE_RATE;
     static const int FRAME_CONTROL_NBITS = IEEE1901_FRAME_CONTROL_NBITS;
@@ -70,6 +89,7 @@ private:
     int N_BROADCAST_TONES;
     sync_tone_mask_t SYNC_TONE_MASK;
     int N_SYNC_ACTIVE_TONES;
+    tone_mask_t SYNC_TONE_MASK_EXPANDED;
     tone_info_t BROADCAST_QPSK_TONE_INFO;
     tone_info_t TONE_INFO_STD_ROBO;
     tone_info_t TONE_INFO_MINI_ROBO;
@@ -86,7 +106,7 @@ public:
     static const int MIN_INTERFRAME_SPACE = IEEE1901_RIFS_DEFAULT * SAMPLE_RATE;
 
     phy_service (bool debug = false);
-    phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask, sync_tone_mask_t sync_tone_mask, bool debug = false);
+    phy_service (tone_mask_t tone_mask, tone_mask_t broadcast_tone_mask, sync_tone_mask_t sync_tone_mask, channel_est_t channel_est, bool debug = false);
     phy_service (const phy_service &instance);
     ~phy_service (void);
     phy_service& operator=(const phy_service& rhs);
@@ -99,15 +119,14 @@ public:
     void process_ppdu_payload(vector_complex::const_iterator iter, unsigned char *mpdu_payload_bin);
     vector_int process_ppdu_payload(vector_complex::const_iterator iter);
     void process_noise(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end);
-    void utilize_payload();
-    tone_map_t calculate_tone_map(float P_t);
+    void post_process_ppdu_payload();
+    tone_map_t calculate_tone_map(float P_t, tone_mask_t force_mask = tone_mask_t());
     void set_tone_map(tone_map_t tone_map);
     int get_mpdu_payload_size();
     int get_ppdu_payload_length();
-    int get_inter_frame_space();
-    const stats_t& get_stats();
     int max_blocks (tone_mode_t tone_mode);
     void debug(bool debug) {d_debug = debug; return;};
+    stats_t stats;
 
 private:
     tx_params_t get_tx_params (const vector_int &mpdu_fc_int);
@@ -115,6 +134,7 @@ private:
     vector_complex create_payload_symbols(const vector_int &payload_bits, pb_size_t pb_size, tone_mode_t tone_mode);
     vector_int encode_payload(const vector_int &payload_bits, pb_size_t pb_size, code_rate_t rate, tone_mode_t tone_mode);
     vector_complex create_frame_control_symbol(const vector_int &bitstream);
+    vector_int encode_frame_control(const vector_int &frame_control_bits);
     static void pack_bitvector(vector_int::const_iterator begin, vector_int::const_iterator end, unsigned char* array);
     static vector_int unpack_into_bitvector (const unsigned char *data, size_t c);
     static unsigned long crc24(const vector_int &bit_vector);
@@ -160,16 +180,24 @@ private:
     void create_fftw_vars ();
     vector_complex::iterator fft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
     vector_complex::iterator ifft_syncp(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end, vector_complex::iterator iter_out);
-    void estimate_channel_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
-    void estimate_channel_phase (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
+    float calc_ser(modulation_type_t m, float snr);
+    vector_float phase_unwrap(const vector_float &y);
+    tones_float_t sum_carriers_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, const tone_mask_t &mask);
+    void estimate_channel_gain(channel_response_t &channel_response);
+    void estimate_channel_syncp (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
+    std::vector<spline_set_t> spline(vector_float &x, vector_float &y);
+    float spline_interpolate(spline_set_t &spline_set, float x);
+    std::vector<linear_set_t> linear(vector_float &x, vector_float &y);
+    float linear_interpolate(linear_set_t &linear_set, float x);
+    channel_est_t d_channel_est_mode;
     tone_info_t d_custom_tone_info;
-    channel_response_t d_broadcast_channel_response;
+    tone_mask_t d_qpsk_tone_mask;
+    channel_response_t d_channel_response;
     tones_float_t d_noise_psd;
-    stats_t d_stats;
     rx_params_t d_rx_params;
+    vector_complex d_rx_payload_symbols_freq;
     vector_float d_rx_soft_bits;
     vector_int d_rx_mpdu_payload;
-    vector_complex d_rx_symbols_freq;
     static std::mutex fftw_mtx;
     fftwf_complex *d_ifft_input, *d_ifft_output, *d_fft_input, *d_fft_output, *d_fft_syncp_input, *d_fft_syncp_output, *d_ifft_syncp_input, *d_ifft_syncp_output;
     fftwf_plan d_fftw_rev_plan, d_fftw_fwd_plan, d_fftw_syncp_rev_plan, d_fftw_syncp_fwd_plan;

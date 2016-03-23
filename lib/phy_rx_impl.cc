@@ -25,21 +25,22 @@ namespace gr {
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
-    phy_rx::make(bool info, bool debug)
+    phy_rx::make(bool info, int debug_level)
     {
       return gnuradio::get_initial_sptr
-        (new phy_rx_impl(info, debug));
+        (new phy_rx_impl(info, debug_level));
     }
 
     /*
      * The private constructor
      */
-    phy_rx_impl::phy_rx_impl(bool info, bool debug)
+    phy_rx_impl::phy_rx_impl(bool info, int debug_level)
       : gr::sync_block("phy_rx",
               gr::io_signature::make(1, 1, sizeof(gr_complex)),
               gr::io_signature::make(0, 0, 0)),
-            d_debug (debug),
+            d_debug_level(debug_level),
             d_info(info),
+            d_qpsk_tone_mask(light_plc::tone_mask_t()),
             d_init_done(false),
             d_receiver_state(HALT),
             d_name("PHY Rx")
@@ -72,7 +73,7 @@ namespace gr {
       if (cmd == "PHY-RXCALCTONEMAP.request") {
         dout << d_name << ": recalculating tone map" << std::endl;
         float target_ber = pmt::to_float(pmt::dict_ref(dict, pmt::mp("target_ber"), pmt::PMT_NIL));
-        light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(target_ber);
+        light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(target_ber, d_qpsk_tone_mask);
         d_phy_service.set_tone_map(tone_map);
         pmt::pmt_t tone_map_pmt = pmt::make_u8vector(tone_map.size(), 0);
         size_t len;
@@ -82,26 +83,19 @@ namespace gr {
         pmt::pmt_t dict = pmt::make_dict();
         dict = pmt::dict_add(dict, pmt::mp("tone_map"), tone_map_pmt);
         message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXCALCTONEMAP.response"), dict));
-        if (d_info) {
-          const light_plc::stats_t &stats = d_phy_service.get_stats();
-          std::cout << "'" << d_name << "'; snr = [";
-          for (auto iter=stats.snr.begin(); iter != stats.snr.end(); iter++)
-            std::cout << *iter << ",";
-          std::cout << "];" << std::endl;
-        }
+        PRINT_INFO_VECTOR(d_phy_service.stats.snr,"snr");
       }
 
-      else if (cmd == "PHY-RXUTILPAYLOAD") {
-        dout << d_name << ": utilizing payload" << std::endl;
-        d_phy_service.utilize_payload();
+      else if (cmd == "PHY-RXPOSTPROCESSPAYLOAD") {
+        dout << d_name << ": post processing payload" << std::endl;
+        d_phy_service.post_process_ppdu_payload();
+        PRINT_INFO_VAR(d_phy_service.stats.tone_mode, "toneMode");
+        PRINT_INFO_VAR(d_phy_service.stats.n_bits, "nBits");
+        PRINT_INFO_VAR(d_phy_service.stats.ber, "ber");
         if (d_info) {
-          const light_plc::stats_t &stats = d_phy_service.get_stats();
-          std::cout << "'" << d_name << "'; toneMode = " << stats.tone_mode << ";" << std::endl;
-          std::cout << "'" << d_name << "'; nBits = " << stats.n_bits << ";" << std::endl;
-          std::cout << "'" << d_name << "'; ber = " << stats.ber << ";" << std::endl;
           std::cout << "'" << d_name << "'; channelGain = [";
-          for (auto iter=stats.channel_gain.begin(); iter != stats.channel_gain.end(); iter++)
-            std::cout << *iter << ",";
+          for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
+            std::cout << std::abs(*iter) << ",";
           std::cout << "];" << std::endl;
         }
       }
@@ -117,7 +111,7 @@ namespace gr {
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
               pmt::dict_has_key(dict,pmt::mp("sync_tone_mask")))
           {
-            dout << d_name << ": setting tone masks" << std::endl;
+            dout << d_name << ": initializing receiver" << std::endl;
 
             // Set broadcast tone mask
             pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("broadcast_tone_mask"), pmt::PMT_NIL);
@@ -135,8 +129,21 @@ namespace gr {
             for (size_t j = 0; j<sync_tone_mask_len; j++)
               sync_tone_mask[j] = sync_tone_mask_blob[j];
 
-            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask);
-            d_phy_service.debug(d_debug);
+            // Set channel estimation mode
+            pmt::pmt_t channel_est_mode_pmt = pmt::dict_ref(dict, pmt::mp("channel_est_mode"), pmt::PMT_NIL);
+            light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
+
+            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_debug_level == 2);
+          }
+
+          if (pmt::dict_has_key(dict,pmt::mp("force_tone_mask"))) {
+            dout << d_name << ": setting force tone mask" << std::endl;
+            pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("force_tone_mask"), pmt::PMT_NIL);
+            size_t tone_mask_len = 0;
+            const uint8_t *tone_mask_blob = pmt::u8vector_elements(tone_mask_pmt, tone_mask_len);
+            assert(tone_mask_len == d_qpsk_tone_mask.size());
+            for (size_t j = 0; j<tone_mask_len; j++)
+              d_qpsk_tone_mask[j] = tone_mask_blob[j];
           }
 
           d_init_done = true;
@@ -306,10 +313,9 @@ namespace gr {
 
           // Print the calculated channel phase
           if (d_info) {
-            const light_plc::stats_t &stats = d_phy_service.get_stats();
             std::cout << "'" << d_name << "'; channelPhase = [";
-            for (auto iter=stats.channel_phase.begin(); iter != stats.channel_phase.end(); iter++)
-              std::cout << *iter << ",";
+            for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
+              std::cout << std::arg(*iter) << ",";
             std::cout << "];" << std::endl;
           }
 
@@ -319,13 +325,7 @@ namespace gr {
           d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
 
           // Print the calculated noise PSD
-          if (d_info) {
-            const light_plc::stats_t &stats = d_phy_service.get_stats();
-            std::cout << "'" << d_name << "'; noisePsd = [";
-            for (auto iter=stats.noise_psd.begin(); iter != stats.noise_psd.end(); iter++)
-              std::cout << *iter << ",";
-            std::cout << "];" << std::endl;
-          }
+          PRINT_INFO_VECTOR(d_phy_service.stats.noise_psd, "noisePsd");
 
           d_receiver_state = COPY_FRAME_CONTROL;
           break;
@@ -360,6 +360,7 @@ namespace gr {
             size_t len;
             unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
             d_phy_service.process_ppdu_payload((light_plc::vector_complex::iterator)d_payload, payload_blob);      // get payload data
+            PRINT_INFO_VECTOR(d_phy_service.stats.channel, "channelCarriers");
             dout << d_name << ": payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << std::endl;
             pmt::pmt_t dict = pmt::make_dict();
             dict = pmt::dict_add(dict, pmt::mp("frame_control"), d_frame_control_pmt);  // add frame control information

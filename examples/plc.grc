@@ -342,10 +342,6 @@
       <value>0</value>
     </param>
     <param>
-      <key>value6</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>value7</key>
       <value>1</value>
     </param>
@@ -431,7 +427,7 @@
     </param>
     <param>
       <key>field6</key>
-      <value></value>
+      <value>forceMask</value>
     </param>
     <param>
       <key>field7</key>
@@ -463,7 +459,11 @@
     </param>
     <param>
       <key>value2</key>
-      <value>[0]*512 + [0,1]*512 + [0]*512</value>
+      <value>[0]*512 + [1,0]*512 + [0]*512</value>
+    </param>
+    <param>
+      <key>value6</key>
+      <value>[0]*512 + [0,0,0,0,1,0,0,0]*128 + [0]*512</value>
     </param>
     <param>
       <key>value4</key>
@@ -475,7 +475,7 @@
     </param>
     <param>
       <key>value1</key>
-      <value>[1]*256</value>
+      <value>[0]*64 + [1]*128 + [0]*64</value>
     </param>
     <param>
       <key>value3</key>
@@ -670,7 +670,7 @@
     </param>
     <param>
       <key>debug</key>
-      <value>False</value>
+      <value>0</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -678,11 +678,15 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(739, 672)</value>
+      <value>(763, 680)</value>
     </param>
     <param>
       <key>_rotation</key>
       <value>270</value>
+    </param>
+    <param>
+      <key>gain</key>
+      <value>0.3</value>
     </param>
     <param>
       <key>id</key>
@@ -725,11 +729,15 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(401, 312)</value>
+      <value>(419, 312)</value>
     </param>
     <param>
       <key>_rotation</key>
       <value>270</value>
+    </param>
+    <param>
+      <key>gain</key>
+      <value>0.3</value>
     </param>
     <param>
       <key>id</key>
@@ -772,7 +780,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(595, 248)</value>
+      <value>(611, 248)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1133,7 +1141,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0.027958</value>
+      <value>0.043209</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1170,6 +1178,69 @@
     <param>
       <key>vlen</key>
       <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>channels_channel_model</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>block_tags</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>epsilon</key>
+      <value>1.0</value>
+    </param>
+    <param>
+      <key>freq_offset</key>
+      <value>0.0</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(664, 427)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>channels_channel_model_0</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>noise_voltage</key>
+      <value>0.0</value>
+    </param>
+    <param>
+      <key>seed</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>taps</key>
+      <value>-0.000870+-0.000728j, -0.001094+-0.000150j, -0.000540+0.000450j, 0.000119+0.000407j, 0.000218+-0.000047j, -0.000058+-0.000247j, -0.000142+-0.000065j, 0.000043+0.000084j, 0.000151+-0.000000j, 0.000072+-0.000099j, 0.000016+-0.000061j, 0.000058+-0.000019j, 0.000056+-0.000073j, -0.000020+-0.000113j, -0.000028+-0.000066j, 0.000053+-0.000025j, 0.000072+-0.000049j, -0.000013+-0.000056j, -0.000062+0.000003j, -0.000005+0.000045j, 0.000054+0.000016j, 0.000040+-0.000020j, 0.000012+-0.000015j, 0.000020+-0.000015j, 0.000015+-0.000044j, -0.000024+-0.000041j, -0.000036+0.000009j, 0.000002+0.000033j, 0.000029+-0.000005j, 0.000010+-0.000039j, -0.000010+-0.000018j, 0.000000+0.000009j, 0.000003+0.000000j, -0.000017+-0.000008j, -0.000017+0.000013j, 0.000016+0.000024j, 0.000029+-0.000004j, 0.000001+-0.000028j, -0.000020+-0.000012j, -0.000006+0.000013j, 0.000009+0.000007j, 0.000000+-0.000007j, -0.000006+-0.000002j, 0.000007+0.000006j, 0.000012+-0.000005j, -0.000005+-0.000013j, -0.000014+0.000000j, -0.000000+0.000013j, 0.000009+0.000004j, 0.000000+0.000000j</value>
     </param>
   </block>
   <block>
@@ -1262,7 +1333,7 @@
     <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>[0.543023]*5</value>
+      <value>[0.342625]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1290,7 +1361,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(483, 224)</value>
+      <value>(499, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1314,7 +1385,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>5</value>
+      <value>5*0</value>
     </param>
     <param>
       <key>o</key>
@@ -1340,6 +1411,10 @@
       <value>settings.broadcastMask</value>
     </param>
     <param>
+      <key>channel_est_mode</key>
+      <value>1</value>
+    </param>
+    <param>
       <key>comment</key>
       <value></value>
     </param>
@@ -1360,8 +1435,12 @@
       <value>1</value>
     </param>
     <param>
+      <key>force_tone_mask</key>
+      <value>settings.forceMask</value>
+    </param>
+    <param>
       <key>_coordinate</key>
-      <value>(219, 224)</value>
+      <value>(211, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1415,6 +1494,10 @@
       <value>settings.broadcastMask</value>
     </param>
     <param>
+      <key>channel_est_mode</key>
+      <value>1</value>
+    </param>
+    <param>
       <key>comment</key>
       <value></value>
     </param>
@@ -1433,6 +1516,10 @@
     <param>
       <key>_enabled</key>
       <value>1</value>
+    </param>
+    <param>
+      <key>force_tone_mask</key>
+      <value>settings.forceMask</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -2292,7 +2379,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(699, 224)</value>
+      <value>(707, 224)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3107,7 +3194,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(819, 568)</value>
+      <value>(843, 576)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3298,7 +3385,7 @@
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
-    <sink_block_id>PHY_0</sink_block_id>
+    <sink_block_id>channels_channel_model_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3335,6 +3422,12 @@
   <connection>
     <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>channels_channel_model_0</source_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

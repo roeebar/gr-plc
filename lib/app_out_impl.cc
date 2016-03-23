@@ -5,7 +5,7 @@
 #endif
 
 #include <gnuradio/io_signature.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include "app_out_impl.h"
 #include "debug.h"
 #include <cassert>
@@ -14,22 +14,22 @@ namespace gr {
   namespace plc {
 
     app_out::sptr
-    app_out::make(bool debug)
+    app_out::make(int debug_level)
     {
       return gnuradio::get_initial_sptr
-        (new app_out_impl(debug));
+        (new app_out_impl(debug_level));
     }
 
     /*
      * The private constructor
      */
-    app_out_impl::app_out_impl(bool debug)
+    app_out_impl::app_out_impl(int debug_level)
       : gr::block("app_out",
               gr::io_signature::make(1, 1, sizeof(unsigned char)),
               gr::io_signature::make(0, 0, 0)),
         d_mac_payload_offset(0),
         d_total_bytes(0),
-        d_debug(debug)
+        d_debug_level(debug_level)
     {
         message_port_register_out(pmt::mp("mac out"));
         message_port_register_in(pmt::mp("mac in"));
@@ -53,7 +53,7 @@ namespace gr {
     }
 
     bool app_out_impl::stop () {
-      if (d_mac_payload_offset) 
+      if (d_mac_payload_offset)
         send_payload();
       return true;
     }
@@ -74,7 +74,7 @@ namespace gr {
       while (!payload_sent) {
         pmt::pmt_t msg(delete_head_blocking(pmt::intern("mac in")));
         if (pmt::is_pair(msg) && pmt::symbol_to_string(pmt::car(msg)) == std::string("MAC-READY")) {
-          dict = pmt::dict_add(dict, pmt::mp("msdu"), d_mac_payload_pmt); 
+          dict = pmt::dict_add(dict, pmt::mp("msdu"), d_mac_payload_pmt);
           message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("MAC-TXMSDU"), dict));
           payload_sent = true;
           dout << "APP Out: sent payload, size = " << d_mac_payload_offset << std::endl;
@@ -113,4 +113,3 @@ namespace gr {
 
   } /* namespace plc */
 } /* namespace gr */
-

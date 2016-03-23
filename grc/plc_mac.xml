@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $target_ber, $info, $debug)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $force_tone_mask, $target_ber, $channel_est_mode, $info, $debug)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -66,11 +66,31 @@
     <type>int_vector</type>
   </param>
   <param>
+    <name>Force Tone Mask</name>
+    <key>force_tone_mask</key>
+    <value>[]</value>
+    <type>int_vector</type>
+  </param>
+  <param>
     <name>Target BER</name>
     <key>target_ber</key>
     <value></value>
     <type>float</type>
-  </param>  
+  </param>
+  <param>
+    <name>Channel Estimation</name>
+    <key>channel_est_mode</key>
+    <value>0</value>
+    <type>int</type>
+    <option>
+      <name>SOUND</name>
+      <key>0</key>
+    </option>
+    <option>
+      <name>PAYLOAD</name>
+      <key>1</key>
+    </option>
+  </param>
   <param>
     <name>Info</name>
     <key>info</key>
