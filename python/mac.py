@@ -13,7 +13,7 @@ class mac(gr.basic_block, Machine):
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 0.3 # minimum time in seconds between sounds frames
     # SOUND_FRAME_RATE = 1000 # minimum time in seconds between sounds frames
-    SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
+    SACK_TIMEOUT = 2 # minimum time in seconds to wait for sack
     SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 
     rx_incomplete_frames = {}
@@ -69,14 +69,14 @@ class mac(gr.basic_block, Machine):
             {'name': 'sending_sof'              ,'on_enter': ['wait_for_sof_timer', 'transmit_sof', 'start_sof_timer']  },
             {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                           },
             {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
-            {'name': 'waiting_for_soundack'                                                                             },
+            {'name': 'waiting_for_soundack'     ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
             {'name': 'waiting_for_mgmtmsg'                                                                              },
 
             # Slave:
             {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                            },
             {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                            },
             {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                         },
-            {'name': 'waiting_for_sof_sound'                                                                            },
+            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'post_process_payload'                                      },
             {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                               },
         ]
         transitions = [
@@ -90,18 +90,19 @@ class mac(gr.basic_block, Machine):
             ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,'update_blocks_stats'  ],
             ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,'update_blocks_stats'  ],
             ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,'update_blocks_stats'  ],
-            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,None                   ],
-            ['event_sack_timout'        ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,None                   ],
             ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,None                   ],
             ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None               ,None                   ],
+            ['event_sack_timeout'       ,'waiting_for_soundack'     ,'sending_sound'            ,None               ,None                                   ,None               ,None                   ],
             ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None               ,None                   ],
 
             # Slave:
             ['event_tx_end'             ,'sending_sack'             ,'waiting_for_sof_sound'    ,None               ,None                                   ,None               ,None                   ],
             ['event_tx_end'             ,'sending_soundack'         ,'sending_mgmtmsg'          ,None               ,None                                   ,None               ,None                   ],
             ['event_tx_end'             ,'sending_mgmtmsg'          ,'waiting_for_sof_sound'    ,None               ,None                                   ,None               ,None                   ],
-            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,'post_process_payload'  ,None                   ],
-            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,'post_process_payload'  ,None                   ],
+            ['event_sof_arrived'        ,'waiting_for_sof_sound'    ,'sending_sack'             ,None               ,None                                   ,None               ,None                   ],
+            ['event_sound_arrived'      ,'waiting_for_sof_sound'    ,'waiting_for_tone_map'     ,None               ,None                                   ,None               ,None                   ],
             ['event_tone_map_arrived'   ,'waiting_for_tone_map'     ,'sending_soundack'         ,None               ,None                                   ,None               ,None                   ],
         ]
 
@@ -175,13 +176,13 @@ class mac(gr.basic_block, Machine):
                     self.rx_tone_map = bytearray(dict["tone_map"].tolist())
                     self.event_tone_map_arrived()
 
-    def sack_timout_callback(self):
+    def sack_timeout_callback(self):
         sys.stderr.write(self.name + ": state = " + str(self.state) + ", Error: SACK timeout\n")
         self.stats['n_missing_acks'] += 1
-        self.event_sack_timout()
+        self.event_sack_timeout()
 
     def start_sack_timer(self):
-        self.sack_timer = threading.Timer(self.SACK_TIMEOUT, self.sack_timout_callback)
+        self.sack_timer = threading.Timer(self.SACK_TIMEOUT, self.sack_timeout_callback)
         self.sack_timer.start()
 
     def cancel_sack_timer(self):
