@@ -311,14 +311,6 @@ namespace gr {
           copy_from_circular_buffer(preamble_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
           d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
 
-          // Print the calculated channel phase
-          if (d_info) {
-            std::cout << "'" << d_name << "'; channelPhase = [";
-            for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
-              std::cout << std::arg(*iter) << ",";
-            std::cout << "];" << std::endl;
-          }
-
           // Process noise
           light_plc::vector_complex noise_aligned (MIN_INTERFRAME_SPACE);
           copy_from_circular_buffer(noise_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE - MIN_INTERFRAME_SPACE, MIN_INTERFRAME_SPACE, sizeof(gr_complex));
