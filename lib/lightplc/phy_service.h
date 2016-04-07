@@ -34,10 +34,7 @@ private:
         size_t n_carriers;
         tones_float_t sync_carriers;
         tones_float_t frame_control_carriers;
-        tones_float_t payload_carriers;
-        tone_mask_t *payload_mask;
         int n_syncp_symbols;
-        int n_payload_symbols;
     } channel_response_t;
 
     typedef struct tone_info_t {
@@ -183,11 +180,13 @@ private:
     float calc_ser(modulation_type_t m, float snr);
     vector_float phase_unwrap(const vector_float &y);
     tones_float_t sum_carriers_gain(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, const tone_mask_t &mask);
-    void estimate_channel_gain(channel_response_t &channel_response);
+    void estimate_channel_gain_payload(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, const tone_mask_t &qpsk_tone_mask, channel_response_t &channel_response);
+    void estimate_channel_gain_preamble(channel_response_t &channel_response);
+    void estimate_channel_gain_sound(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator iter_ref, channel_response_t &channel_response);
     void estimate_channel_syncp (vector_complex::const_iterator iter, vector_complex::const_iterator iter_end, vector_complex::const_iterator ref_iter, channel_response_t &channel_response);
-    std::vector<spline_set_t> spline(vector_float &x, vector_float &y);
+    std::vector<spline_set_t> spline(const vector_float &x, const vector_float &y);
     float spline_interpolate(spline_set_t &spline_set, float x);
-    std::vector<linear_set_t> linear(vector_float &x, vector_float &y);
+    std::vector<linear_set_t> linear(const vector_float &x, const vector_float &y);
     float linear_interpolate(linear_set_t &linear_set, float x);
     channel_est_t d_channel_est_mode;
     tone_info_t d_custom_tone_info;

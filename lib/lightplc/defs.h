@@ -42,7 +42,8 @@ enum modulation_type_t {
 
 enum channel_est_t {
     CE_SOUND = 0,
-    CE_PAYLOAD = 1
+    CE_PAYLOAD = 1,
+    CE_PREAMBLE = 2
 };
 
 typedef std::vector<int> vector_int;

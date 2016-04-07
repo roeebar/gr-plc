@@ -11,7 +11,8 @@ from transitions import MachineGraphSupport as Machine
 class mac(gr.basic_block, Machine):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frame
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
-    SOUND_FRAME_RATE = 1 # minimum time in seconds between sounds frames
+    SOUND_FRAME_RATE = 0.3 # minimum time in seconds between sounds frames
+    # SOUND_FRAME_RATE = 1000 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 1 # minimum time in seconds to wait for sack
     SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 

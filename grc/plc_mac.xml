@@ -90,6 +90,10 @@
       <name>PAYLOAD</name>
       <key>1</key>
     </option>
+    <option>
+      <name>PREAMBLE</name>
+      <key>2</key>
+    </option>
   </param>
   <param>
     <name>Info</name>

@@ -463,7 +463,7 @@
     </param>
     <param>
       <key>value6</key>
-      <value>[0]*512 + [0,0,0,0,1,0,0,0]*128 + [0]*512</value>
+      <value>[0]*512 + [1,0,0,0,0,0,0,0]*128 + [0]*512</value>
     </param>
     <param>
       <key>value4</key>
@@ -686,7 +686,7 @@
     </param>
     <param>
       <key>gain</key>
-      <value>0.3</value>
+      <value>settings.gain</value>
     </param>
     <param>
       <key>id</key>
@@ -737,7 +737,7 @@
     </param>
     <param>
       <key>gain</key>
-      <value>0.3</value>
+      <value>settings.gain</value>
     </param>
     <param>
       <key>id</key>
@@ -1141,7 +1141,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>0.043209</value>
+      <value>(10**((2.2-10)/10)*settings.gain**2/8)**0.5</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1200,7 +1200,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -2375,7 +2375,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3190,7 +3190,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3385,6 +3385,12 @@
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
+    <sink_block_id>blocks_file_sink_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_add_xx_0_1</source_block_id>
     <sink_block_id>channels_channel_model_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
@@ -3482,12 +3488,6 @@
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
     <sink_block_id>PHY_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>uhd_usrp_source_0</source_block_id>
-    <sink_block_id>blocks_file_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
