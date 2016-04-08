@@ -1724,7 +1724,7 @@ vector_float phy_service::phase_unwrap(const vector_float &y) {
     y_unwrapped[0] = y[0];
     for (size_t i = 1; i < y.size(); i++) {
         float d = y[i] - y[i-1];
-        d = d > M_PI ? d - 2*M_PI : (d < -M_PI ? d + 2*M_PI : d);
+        d = d > M_PI ? d - 2 * M_PI : (d < -M_PI ? d + 2 * M_PI : d);
         y_unwrapped[i] = y_unwrapped[i-1] + d;
     }
     return y_unwrapped;
