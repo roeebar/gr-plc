@@ -1778,15 +1778,19 @@ void phy_service::estimate_channel_gain_payload(vector_complex::const_iterator i
     float sync_variance = channel_response.n_syncp_symbols * channel_response.n_syncp_symbols * N_SYNC_CARRIERS * N_SYNC_CARRIERS;
     for (size_t i = 0; i < NUMBER_OF_CARRIERS; i++) {
         if (qpsk_tone_mask[i]) {
-            y.push_back(
-                std::sqrt((qpsk_tone_mask[i] * payload_carriers[i] +
+            float nominator =
+                qpsk_tone_mask[i] * payload_carriers[i] +
                 BROADCAST_TONE_MASK[i] * channel_response.frame_control_carriers[i] +
                 SYNC_TONE_MASK_EXPANDED[i] * channel_response.sync_carriers[i] * sync_variance -
-                d_noise_psd[i] * (qpsk_tone_mask[i] * n_payload_symbols + BROADCAST_TONE_MASK[i] + SYNC_TONE_MASK_EXPANDED[i])) /
-                (qpsk_tone_mask[i] * n_payload_symbols * p_payload +
-                BROADCAST_TONE_MASK[i] * p_frame_control +
-                SYNC_TONE_MASK_EXPANDED[i] * p_sync * sync_variance)));
-            x.push_back(i);
+                d_noise_psd[i] * (qpsk_tone_mask[i] * n_payload_symbols + BROADCAST_TONE_MASK[i] + SYNC_TONE_MASK_EXPANDED[i]);
+            if (nominator > 0) { // add it only if greater than 0. lower than zero does not make sense so the point is discarded
+                float denominator =
+                    qpsk_tone_mask[i] * n_payload_symbols * p_payload +
+                    BROADCAST_TONE_MASK[i] * p_frame_control +
+                    SYNC_TONE_MASK_EXPANDED[i] * p_sync * sync_variance;
+                y.push_back(std::sqrt(nominator / denominator));
+                x.push_back(i);
+            }
         }
     }
 
@@ -1815,14 +1819,17 @@ void phy_service::estimate_channel_gain_preamble(channel_response_t &channel_res
     float sync_variance = channel_response.n_syncp_symbols * channel_response.n_syncp_symbols * N_SYNC_CARRIERS * N_SYNC_CARRIERS;
     for (size_t i = 0; i < NUMBER_OF_CARRIERS; i++) {
         if (SYNC_TONE_MASK_EXPANDED[i]) {
-            y.push_back(
-                std::sqrt((
+            float nominator =
                 BROADCAST_TONE_MASK[i] * channel_response.frame_control_carriers[i] +
                 SYNC_TONE_MASK_EXPANDED[i] * channel_response.sync_carriers[i] * sync_variance -
-                d_noise_psd[i] * (BROADCAST_TONE_MASK[i] + SYNC_TONE_MASK_EXPANDED[i])) /
-                (BROADCAST_TONE_MASK[i] * p_frame_control +
-                SYNC_TONE_MASK_EXPANDED[i] * p_sync * sync_variance)));
-            x.push_back(i);
+                d_noise_psd[i] * (BROADCAST_TONE_MASK[i] + SYNC_TONE_MASK_EXPANDED[i]);
+            if (nominator > 0) { // add it only if greater than 0. lower than zero does not make sense so the point is discarded
+                float denominator =
+                    BROADCAST_TONE_MASK[i] * p_frame_control +
+                    SYNC_TONE_MASK_EXPANDED[i] * p_sync * sync_variance;
+                y.push_back(std::sqrt(nominator / denominator));
+                x.push_back(i);
+            }
         }
     }
 
