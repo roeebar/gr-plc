@@ -463,11 +463,11 @@
     </param>
     <param>
       <key>value6</key>
-      <value>[0]*512 + [1,0,0,0,0,0,0,0]*128 + [0]*512</value>
+      <value>[0]*512 + [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]*64 + [0]*512</value>
     </param>
     <param>
       <key>value4</key>
-      <value>0.55*0 + 0.3</value>
+      <value>0.60*0 + 0.3</value>
     </param>
     <param>
       <key>value5</key>
@@ -475,7 +475,7 @@
     </param>
     <param>
       <key>value1</key>
-      <value>[0]*64 + [1]*128 + [0]*64</value>
+      <value>[0]*64 + [1,0]*64 + [0]*64</value>
     </param>
     <param>
       <key>value3</key>
@@ -1039,7 +1039,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/1516_x_1000.mkv</value>
+      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/1516_x_334.mkv</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1200,7 +1200,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -2375,7 +2375,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3190,7 +3190,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>

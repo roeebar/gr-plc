@@ -98,7 +98,7 @@ bool qa_phy_service::test_sof(tone_mode_t tone_mode, int number_of_blocks, float
         vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += d_phy.get_ppdu_payload_length();
         if (std::equal(payload.begin(), payload.end(), return_payload.begin())) {
-            d_phy.post_process_ppdu_payload();
+            d_phy.post_process_ppdu();
             std::cout << "Bits: " << d_phy.stats.n_bits << std::endl;
             std::cout << "BER: " << d_phy.stats.ber << std::endl;
             std::cout << "Passed." << std::endl << std::endl;
@@ -169,7 +169,7 @@ bool qa_phy_service::test_sound(tone_mode_t tone_mode, float SNRdb, bool encode_
         }
         vector_int return_payload = d_phy.process_ppdu_payload(iter += phy_service::FRAME_CONTROL_SIZE);
         iter += d_phy.get_ppdu_payload_length();
-        d_phy.post_process_ppdu_payload();
+        d_phy.post_process_ppdu();
         d_tone_map = d_phy.calculate_tone_map(0.001);
         d_phy.set_tone_map(d_tone_map);
         calc_capacity();

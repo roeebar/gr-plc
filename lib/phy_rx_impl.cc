@@ -86,9 +86,9 @@ namespace gr {
         PRINT_INFO_VECTOR(d_phy_service.stats.snr,"snr");
       }
 
-      else if (cmd == "PHY-RXPOSTPROCESSPAYLOAD") {
+      else if (cmd == "PHY-RXPOSTPROCESS") {
         dout << d_name << ": post processing payload" << std::endl;
-        d_phy_service.post_process_ppdu_payload();
+        d_phy_service.post_process_ppdu();
         PRINT_INFO_VAR(d_phy_service.stats.tone_mode, "toneMode");
         PRINT_INFO_VAR(d_phy_service.stats.n_bits, "nBits");
         PRINT_INFO_VAR(d_phy_service.stats.ber, "ber");

@@ -1036,7 +1036,7 @@ vector_int phy_service::process_ppdu_payload(vector_complex::const_iterator iter
     return d_rx_mpdu_payload;
 }
 
-void phy_service::post_process_ppdu_payload() {
+void phy_service::post_process_ppdu() {
     if (d_rx_params.n_symbols) { // If bits received, use them to calculate BER and channel estimation
         assert(d_rx_soft_bits.size());
         int n_blocks =  d_rx_soft_bits.size() / d_rx_params.fec_block_size;
@@ -1796,12 +1796,10 @@ void phy_service::estimate_channel_gain_payload(vector_complex::const_iterator i
 
     if (x.size() < 2) return; // require at least two carriers for interpolation...
 
-    // std::vector<spline_set_t> interp_set = spline(x,y);
     std::vector<linear_set_t> interp_set = linear(x,y);
     for (unsigned int i = 0, j = 0; i < NUMBER_OF_CARRIERS; i++) {
         if (channel_response.mask[i]) { // interpolate carriers only if necessary
             while (j < interp_set.size()-1 && interp_set[j+1].x <= i) j++;
-            // channel_response.carriers[i] =  spline_interpolate(interp_set[j] ,(float)i) * channel_response.carriers[i] / abs(channel_response.carriers[i]);
             channel_response.carriers[i] =  linear_interpolate(interp_set[j] ,(float)i) * channel_response.carriers[i] / abs(channel_response.carriers[i]);
         }
     }

@@ -305,8 +305,8 @@ class mac(gr.basic_block, Machine):
 
     def send_post_process_payload_to_phy(self):
         dict = gr.pmt.make_dict();
-        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXPOSTPROCESSPAYLOAD"), dict))
-        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXPOSTPROCESSPAYLOAD"
+        self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXPOSTPROCESS"), dict))
+        if self.debug: print self.name + ": state = " + str(self.state) + ", sending PHY-RXPOSTPROCESS"
 
     def send_status_to_app(self):
         self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-READY"), gr.pmt.PMT_NIL))

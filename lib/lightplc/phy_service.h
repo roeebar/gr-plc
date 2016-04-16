@@ -116,7 +116,7 @@ public:
     void process_ppdu_payload(vector_complex::const_iterator iter, unsigned char *mpdu_payload_bin);
     vector_int process_ppdu_payload(vector_complex::const_iterator iter);
     void process_noise(vector_complex::const_iterator iter, vector_complex::const_iterator iter_end);
-    void post_process_ppdu_payload();
+    void post_process_ppdu();
     tone_map_t calculate_tone_map(float P_t, tone_mask_t force_mask = tone_mask_t());
     void set_tone_map(tone_map_t tone_map);
     int get_mpdu_payload_size();
