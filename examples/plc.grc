@@ -85,7 +85,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(168, 75)</value>
+      <value>(96, 107)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -104,7 +104,7 @@
     <key>variable_function_probe</key>
     <param>
       <key>block_id</key>
-      <value>probe_ber</value>
+      <value>plc_mac_0</value>
     </param>
     <param>
       <key>comment</key>
@@ -112,19 +112,19 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>function_args</key>
-      <value></value>
+      <value>"'n_blocks_tx_success'"</value>
     </param>
     <param>
       <key>function_name</key>
-      <value>level</value>
+      <value>get_stats</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(744, 11)</value>
+      <value>(1224, 347)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -132,11 +132,54 @@
     </param>
     <param>
       <key>id</key>
-      <value>function_probe_ber</value>
+      <value>function_probe_blocks_tx</value>
     </param>
     <param>
       <key>poll_rate</key>
-      <value>10</value>
+      <value>1</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_function_probe</key>
+    <param>
+      <key>block_id</key>
+      <value>plc_mac_0</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>function_args</key>
+      <value>"'n_blocks_tx_fail'"</value>
+    </param>
+    <param>
+      <key>function_name</key>
+      <value>get_stats</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1224, 475)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>function_probe_blocks_tx_fail</value>
+    </param>
+    <param>
+      <key>poll_rate</key>
+      <value>1</value>
     </param>
     <param>
       <key>value</key>
@@ -167,7 +210,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(880, 11)</value>
+      <value>(1224, 235)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -180,6 +223,49 @@
     <param>
       <key>poll_rate</key>
       <value>10</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_function_probe</key>
+    <param>
+      <key>block_id</key>
+      <value>plc_mac_0</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>function_args</key>
+      <value>"'n_missing_acks'"</value>
+    </param>
+    <param>
+      <key>function_name</key>
+      <value>get_stats</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1224, 603)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>function_probe_missing_acks</value>
+    </param>
+    <param>
+      <key>poll_rate</key>
+      <value>1</value>
     </param>
     <param>
       <key>value</key>
@@ -210,7 +296,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(432, 11)</value>
+      <value>(1224, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -253,7 +339,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(584, 11)</value>
+      <value>(1224, 123)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -284,7 +370,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(168, 11)</value>
+      <value>(8, 107)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -423,7 +509,7 @@
     </param>
     <param>
       <key>field5</key>
-      <value>info</value>
+      <value>log</value>
     </param>
     <param>
       <key>field6</key>
@@ -443,7 +529,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(256, 11)</value>
+      <value>(184, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -467,11 +553,11 @@
     </param>
     <param>
       <key>value4</key>
-      <value>0.60*0 + 0.3</value>
+      <value>0.60 + 0.3*0</value>
     </param>
     <param>
       <key>value5</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>value1</key>
@@ -576,49 +662,6 @@
     </param>
     <param>
       <key>value</key>
-      <value>function_probe_ber</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>formatter</key>
-      <value>None</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(1200, 11)</value>
-    </param>
-    <param>
-      <key>gui_hint</key>
-      <value>3,1</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>variable_qtgui_label_0_1</value>
-    </param>
-    <param>
-      <key>label</key>
-      <value>BER</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>real</value>
-    </param>
-  </block>
-  <block>
-    <key>variable_qtgui_label</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>value</key>
       <value>function_probe_capacity</value>
     </param>
     <param>
@@ -631,7 +674,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1192, 91)</value>
+      <value>(1040, 171)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -652,6 +695,135 @@
     <param>
       <key>type</key>
       <value>real</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_blocks_tx</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1040, 251)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value>5,1</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0_2</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>PHY Blocks Success</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>int</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_blocks_tx_fail</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1040, 331)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value>6,1</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0_2_0</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>PHY Blocks Failed</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>int</value>
+    </param>
+  </block>
+  <block>
+    <key>variable_qtgui_label</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>function_probe_missing_acks</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>formatter</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1040, 411)</value>
+    </param>
+    <param>
+      <key>gui_hint</key>
+      <value>7,1</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>variable_qtgui_label_0_2_0_0</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value>Missing ACKs</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>int</value>
     </param>
   </block>
   <block>
@@ -678,11 +850,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(763, 680)</value>
+      <value>(547, 704)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>270</value>
+      <value>90</value>
     </param>
     <param>
       <key>gain</key>
@@ -694,7 +866,7 @@
     </param>
     <param>
       <key>info</key>
-      <value>settings.info</value>
+      <value>settings.log</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -729,7 +901,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(419, 312)</value>
+      <value>(427, 320)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -780,11 +952,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(611, 248)</value>
+      <value>(632, 131)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>270</value>
+      <value>180</value>
     </param>
     <param>
       <key>id</key>
@@ -816,57 +988,6 @@
     </param>
   </block>
   <block>
-    <key>blks2_error_rate</key>
-    <param>
-      <key>bits_per_symbol</key>
-      <value>8</value>
-    </param>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(155, 608)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>90</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blks2_error_rate_0</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>'BER'</value>
-    </param>
-    <param>
-      <key>win_size</key>
-      <value>1000</value>
-    </param>
-  </block>
-  <block>
     <key>blocks_add_xx</key>
     <param>
       <key>alias</key>
@@ -886,7 +1007,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(776, 145)</value>
+      <value>(512, 161)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -937,7 +1058,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(489, 464)</value>
+      <value>(473, 480)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -996,7 +1117,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(347, 584)</value>
+      <value>(147, 632)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1043,7 +1164,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(75, 232)</value>
+      <value>(83, 248)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1098,11 +1219,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1091, 208)</value>
+      <value>(747, 256)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>270</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -1153,11 +1274,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(960, 395)</value>
+      <value>(811, 280)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>180</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1200,7 +1321,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -1212,7 +1333,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(664, 427)</value>
+      <value>(616, 459)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1267,11 +1388,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(507, 648)</value>
+      <value>(291, 688)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>270</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -1310,7 +1431,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(145, 296)</value>
+      <value>(153, 312)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1361,7 +1482,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(499, 224)</value>
+      <value>(635, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1423,10 +1544,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>False</value>
-    </param>
-    <param>
       <key>dest_addr</key>
       <value>[0x23, 0x23, 0x23, 0x23, 0x23, 0x23]</value>
     </param>
@@ -1440,7 +1557,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(211, 224)</value>
+      <value>(219, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1451,8 +1568,8 @@
       <value>plc_mac_0</value>
     </param>
     <param>
-      <key>info</key>
-      <value>settings.info</value>
+      <key>log</key>
+      <value>settings.log</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1506,10 +1623,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>False</value>
-    </param>
-    <param>
       <key>dest_addr</key>
       <value>[0x45, 0x45, 0x45, 0x45, 0x45, 0x45]</value>
     </param>
@@ -1523,19 +1636,19 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(555, 592)</value>
+      <value>(339, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
       <value>plc_mac_0_0</value>
     </param>
     <param>
-      <key>info</key>
-      <value>False</value>
+      <key>log</key>
+      <value>0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1563,41 +1676,6 @@
     </param>
   </block>
   <block>
-    <key>blocks_probe_signal_x</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(241, 608)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>270</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>probe_ber</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>float</value>
-    </param>
-  </block>
-  <block>
     <key>blocks_probe_rate</key>
     <param>
       <key>alias</key>
@@ -1617,11 +1695,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(435, 584)</value>
+      <value>(227, 616)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1672,7 +1750,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(3, 232)</value>
+      <value>(11, 248)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2375,11 +2453,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(707, 224)</value>
+      <value>(507, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3190,15 +3268,15 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(843, 576)</value>
+      <value>(627, 592)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -3372,12 +3450,6 @@
     <sink_key>1</sink_key>
   </connection>
   <connection>
-    <source_block_id>blks2_error_rate_0</source_block_id>
-    <sink_block_id>probe_ber</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
     <source_block_id>blocks_add_xx_0</source_block_id>
     <sink_block_id>PHY_0_0</sink_block_id>
     <source_key>0</source_key>
@@ -3398,12 +3470,6 @@
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
     <sink_block_id>uhd_usrp_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_file_source_0</source_block_id>
-    <sink_block_id>blks2_error_rate_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3436,12 +3502,6 @@
     <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>plc_app_in_0</source_block_id>
-    <sink_block_id>blks2_error_rate_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>1</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_app_in_0</source_block_id>

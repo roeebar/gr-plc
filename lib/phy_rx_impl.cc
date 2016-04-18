@@ -83,7 +83,7 @@ namespace gr {
         pmt::pmt_t dict = pmt::make_dict();
         dict = pmt::dict_add(dict, pmt::mp("tone_map"), tone_map_pmt);
         message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("PHY-RXCALCTONEMAP.response"), dict));
-        PRINT_INFO_VECTOR(d_phy_service.stats.snr,"snr");
+        PRINT_INFO_VECTOR(d_phy_service.stats.snr, "snr");
       }
 
       else if (cmd == "PHY-RXPOSTPROCESS") {
@@ -93,7 +93,7 @@ namespace gr {
         PRINT_INFO_VAR(d_phy_service.stats.n_bits, "nBits");
         PRINT_INFO_VAR(d_phy_service.stats.ber, "ber");
         if (d_info) {
-          std::cout << "'" << d_name << "'; channelGain = [";
+          std::cout << d_name << ": channelGain = [";
           for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
             std::cout << std::abs(*iter) << ",";
           std::cout << "];" << std::endl;

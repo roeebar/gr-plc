@@ -23,7 +23,7 @@
     <name>Debug</name>
     <key>debug</key>
     <value>False</value>
-    <type>bool</type>
+    <type>int</type>
     <option>
       <name>Disable</name>
       <key>0</key>
