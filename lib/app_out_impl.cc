@@ -14,22 +14,22 @@ namespace gr {
   namespace plc {
 
     app_out::sptr
-    app_out::make(int debug_level)
+    app_out::make(int log_level)
     {
       return gnuradio::get_initial_sptr
-        (new app_out_impl(debug_level));
+        (new app_out_impl(log_level));
     }
 
     /*
      * The private constructor
      */
-    app_out_impl::app_out_impl(int debug_level)
+    app_out_impl::app_out_impl(int log_level)
       : gr::block("app_out",
               gr::io_signature::make(1, 1, sizeof(unsigned char)),
               gr::io_signature::make(0, 0, 0)),
         d_mac_payload_offset(0),
         d_total_bytes(0),
-        d_debug_level(debug_level)
+        d_log_level(log_level)
     {
         message_port_register_out(pmt::mp("mac out"));
         message_port_register_in(pmt::mp("mac in"));

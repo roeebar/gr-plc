@@ -25,21 +25,20 @@ namespace gr {
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
-    phy_rx::make(bool info, int debug_level)
+    phy_rx::make(int log_level)
     {
       return gnuradio::get_initial_sptr
-        (new phy_rx_impl(info, debug_level));
+        (new phy_rx_impl(log_level));
     }
 
     /*
      * The private constructor
      */
-    phy_rx_impl::phy_rx_impl(bool info, int debug_level)
+    phy_rx_impl::phy_rx_impl(int log_level)
       : gr::sync_block("phy_rx",
               gr::io_signature::make(1, 1, sizeof(gr_complex)),
               gr::io_signature::make(0, 0, 0)),
-            d_debug_level(debug_level),
-            d_info(info),
+            d_log_level(log_level),
             d_qpsk_tone_mask(light_plc::tone_mask_t()),
             d_init_done(false),
             d_receiver_state(HALT),
@@ -92,7 +91,7 @@ namespace gr {
         PRINT_INFO_VAR(d_phy_service.stats.tone_mode, "toneMode");
         PRINT_INFO_VAR(d_phy_service.stats.n_bits, "nBits");
         PRINT_INFO_VAR(d_phy_service.stats.ber, "ber");
-        if (d_info) {
+        if (d_log_level >= 1) {
           std::cout << d_name << ": channelGain = [";
           for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
             std::cout << std::abs(*iter) << ",";
@@ -133,7 +132,7 @@ namespace gr {
             pmt::pmt_t channel_est_mode_pmt = pmt::dict_ref(dict, pmt::mp("channel_est_mode"), pmt::PMT_NIL);
             light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
 
-            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_debug_level == 2);
+            d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_log_level >= 3);
           }
 
           if (pmt::dict_has_key(dict,pmt::mp("force_tone_mask"))) {

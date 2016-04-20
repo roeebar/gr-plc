@@ -20,7 +20,7 @@ namespace gr {
       bool d_payload_sent;
       long int d_time_begin;
       long int d_total_bytes;
-      int d_debug_level;
+      int d_log_level;
 
      public:
       app_out_impl(int debug_level);

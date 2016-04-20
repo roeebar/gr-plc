@@ -26,8 +26,7 @@ namespace gr {
       static const int MAX_SEARCH_LENGTH;
 
       light_plc::phy_service d_phy_service;
-      const int d_debug_level;
-      const bool d_info;
+      const int d_log_level;
       light_plc::tone_mask_t d_qpsk_tone_mask;
       bool d_init_done;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;
@@ -47,7 +46,7 @@ namespace gr {
       std::string d_name;
 
      public:
-      phy_rx_impl(bool info, int debug_level);
+      phy_rx_impl(int log_level);
       ~phy_rx_impl();
       void mac_in (pmt::pmt_t msg);
       void forecast (int noutput_items, gr_vector_int &ninput_items_required);

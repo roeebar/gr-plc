@@ -841,10 +841,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>_enabled</key>
       <value>1</value>
     </param>
@@ -865,7 +861,7 @@
       <value>PHY_0</value>
     </param>
     <param>
-      <key>info</key>
+      <key>log</key>
       <value>settings.log</value>
     </param>
     <param>
@@ -892,10 +888,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>False</value>
-    </param>
-    <param>
       <key>_enabled</key>
       <value>True</value>
     </param>
@@ -916,8 +908,8 @@
       <value>PHY_0_0</value>
     </param>
     <param>
-      <key>info</key>
-      <value>False</value>
+      <key>log</key>
+      <value>0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1379,10 +1371,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>False</value>
-    </param>
-    <param>
       <key>_enabled</key>
       <value>1</value>
     </param>
@@ -1397,6 +1385,10 @@
     <param>
       <key>id</key>
       <value>plc_app_in_0</value>
+    </param>
+    <param>
+      <key>log</key>
+      <value>0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1422,10 +1414,6 @@
       <value></value>
     </param>
     <param>
-      <key>debug</key>
-      <value>False</value>
-    </param>
-    <param>
       <key>_enabled</key>
       <value>1</value>
     </param>
@@ -1440,6 +1428,10 @@
     <param>
       <key>id</key>
       <value>plc_app_out_0</value>
+    </param>
+    <param>
+      <key>log</key>
+      <value>0</value>
     </param>
     <param>
       <key>maxoutbuf</key>

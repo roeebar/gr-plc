@@ -4,23 +4,27 @@
   <key>plc_phy_tx</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.phy_tx($debug)</make>
+  <make>plc.phy_tx($log)</make>
   <param>
-    <name>Debug</name>
-    <key>debug</key>
-    <value>False</value>
+    <name>Log</name>
+    <key>log</key>
+    <value>0</value>
     <type>int</type>
     <option>
-      <name>Disable</name>
+      <name>Disabled</name>
       <key>0</key>
     </option>
     <option>
-      <name>Enable</name>
+      <name>Info</name>
       <key>1</key>
     </option>
     <option>
-      <name>Verbose</name>
+      <name>Debug</name>
       <key>2</key>
+    </option>
+    <option>
+      <name>Debug Level 2</name>
+      <key>3</key>
     </option>
   </param>
   <sink>

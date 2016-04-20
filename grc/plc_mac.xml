@@ -98,10 +98,10 @@
   <param>
     <name>Log</name>
     <key>log</key>
-    <value>Error</value>
+    <value>0</value>
     <type>int</type>
     <option>
-      <name>Error</name>
+      <name>Disabled</name>
       <key>0</key>
     </option>
     <option>
