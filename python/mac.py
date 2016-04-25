@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import ieee1901
 import binascii
-import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 import threading
 from gnuradio import gr
 from time import sleep
@@ -27,6 +26,8 @@ class mac(gr.basic_block, Machine):
     last_tx_sound_frame = datetime.min # last time a sound frame was transmitted
     last_tx_frame_n_blocks = 0 # number of PHY blocks in last sent frame
     last_tx_n_errors = 0 # number of error PHY blocks in the last frame sent
+    last_tx_timestamp = datetime.min
+    epoch = datetime.now()
     rx_tone_map = []
     tx_tone_map = []
     tx_capacity = 0
@@ -35,7 +36,7 @@ class mac(gr.basic_block, Machine):
     sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, force_tone_mask, target_ber, channel_est_mode, log):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, force_tone_mask, target_ber, channel_est_mode, log_level):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -56,53 +57,51 @@ class mac(gr.basic_block, Machine):
         self.target_ber = target_ber
         self.channel_est_mode = channel_est_mode
         if self.is_master:
-            self.name = "MAC (master)"
+            self.name = self.to_basic_block().alias() + " (master)"
             initial_state = 'waiting_for_app'
         else:
-            self.name = "MAC (slave)"
+            self.name = self.to_basic_block().alias() + " (slave)"
             initial_state = 'waiting_for_sof_sound'
 
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(logging.Formatter('%(name)s: %(message)s'))
-        self.logger = logging.getLogger(self.name)
-        if log == 2:
-            self.logger.setLevel(logging.DEBUG)
-        elif log == 1:
-            self.logger.setLevel(logging.INFO)
+        self.logger=gr.logger('gr_log.' + self.name)
+        if log_level == 2:
+            self.logger.set_level("DEBUG")
+        elif log_level == 1:
+            self.logger.set_level("INFO")
         else:
-            self.logger.setLevel(logging.ERROR)
-        self.logger.addHandler(handler)
+            self.logger.set_level("NOTICE")
+        self.logger.add_console_appender("stdout", "gr::log :%p: " + self.name + " - %m%n")
 
         states = [
             # Master:
-            {'name': 'waiting_for_app'                                                                                  },
-            {'name': 'sending_sof'              ,'on_enter': ['wait_for_sof_timer', 'transmit_sof', 'start_sof_timer']  },
-            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                           },
-            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
-            {'name': 'waiting_for_soundack'     ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'         },
-            {'name': 'waiting_for_mgmtmsg'                                                                              },
+            {'name': 'waiting_for_app'                                                                                                                       },
+            {'name': 'sending_sof'              ,'on_enter': ['wait_for_sof_timer', 'transmit_sof', 'start_sof_timer'], 'on_exit': 'update_last_tx_timestamp'},
+            {'name': 'sending_sound'            ,'on_enter': 'transmit_sound'                                                                                },
+            {'name': 'waiting_for_sack'         ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'                                              },
+            {'name': 'waiting_for_soundack'     ,'on_enter': 'start_sack_timer', 'on_exit': 'cancel_sack_timer'                                              },
+            {'name': 'waiting_for_mgmtmsg'                                                                                                                   },
 
             # Slave:
-            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                            },
-            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                            },
-            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                         },
-            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'post_process_payload'                                      },
-            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                               },
+            {'name': 'sending_sack'             ,'on_enter': 'transmit_sack'                                                                                 },
+            {'name': 'sending_soundack'         ,'on_enter': 'transmit_sack'                                                                                 },
+            {'name': 'sending_mgmtmsg'          ,'on_enter': 'transmit_mgmtmsg'                                                                              },
+            {'name': 'waiting_for_sof_sound'    ,'on_exit': 'post_process_payload'                                                                           },
+            {'name': 'waiting_for_tone_map'     ,'on_enter': 'send_calc_tone_info_to_phy'                                                                    },
         ]
         transitions = [
             # TRIGGER                   SOURCE                      DESTINATION                 CONDITIONS          UNLESS                                  BEFORE  AFTER
 
             # Master:
-            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None               ,None                   ],
-            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None               ,None                   ],
-            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None               ,None                   ],
-            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None               ,None                   ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,'update_blocks_stats'  ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,'update_blocks_stats'  ],
-            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,'update_blocks_stats'  ],
-            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,None                   ],
-            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,None                   ],
-            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,None                   ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sof'              ,None               ,'sound_timeout'                        ,None               ,None                                      ],
+            ['event_msdu_arrived'       ,'waiting_for_app'          ,'sending_sound'            ,'sound_timeout'    ,None                                   ,None               ,None                                      ],
+            ['event_tx_end'             ,'sending_sof'              ,'waiting_for_sack'         ,None               ,None                                   ,None               ,None                                      ],
+            ['event_tx_end'             ,'sending_sound'            ,'waiting_for_soundack'     ,None               ,None                                   ,None               ,None                                      ],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,['log_sof_arrived', 'update_blocks_stats']],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,['log_sof_arrived', 'update_blocks_stats']],
+            ['event_sack_arrived'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,['log_sof_arrived', 'update_blocks_stats']],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sof'              ,None               ,['queue_is_empty', 'sound_timeout']    ,None               ,'log_sof_missed'                         ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'sending_sound'            ,'sound_timeout'    ,'queue_is_empty'                       ,None               ,'log_sof_missed'                         ],
+            ['event_sack_timeout'       ,'waiting_for_sack'         ,'waiting_for_app'          ,'queue_is_empty'   ,None                                   ,None               ,'log_sof_missed'                         ],
             ['event_sack_arrived'       ,'waiting_for_soundack'     ,'waiting_for_mgmtmsg'      ,None               ,None                                   ,None               ,None                   ],
             ['event_sack_timeout'       ,'waiting_for_soundack'     ,'sending_sound'            ,None               ,None                                   ,None               ,None                   ],
             ['event_sof_arrived'        ,'waiting_for_mgmtmsg'      ,'sending_sof'              ,None               ,None                                   ,None               ,None                   ],
@@ -117,7 +116,7 @@ class mac(gr.basic_block, Machine):
         ]
 
         Machine.__init__(self, states=states, transitions=transitions, auto_transitions=False, initial=initial_state)
-        if log == 2:
+        if log_level == 2:
             graph = self.get_graph()
             graph.draw(self.name + '.png', prog='dot')
 
@@ -144,7 +143,7 @@ class mac(gr.basic_block, Machine):
                             self.send_status_to_app()
                         if self.state == 'waiting_for_app': self.event_msdu_arrived()
                     else :
-                        self.logger.error("state = " + str(self.state) + ", buffer is full, dropping frame from APP")
+                        self.logger.notice("state = " + str(self.state) + ", buffer is full, dropping frame from APP")
 
     def phy_in_handler(self, msg):
         if gr.pmt.is_pair(msg):
@@ -169,7 +168,7 @@ class mac(gr.basic_block, Machine):
                     elif dt == "SACK":
                         sackd = self.get_bytes_field(frame_control, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
                         self.last_tx_n_errors = self.parse_sackd(sackd)
-                        if (self.last_tx_n_errors): self.logger.error("state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error")
+                        if (self.last_tx_n_errors): self.logger.notice("state = " + str(self.state) + ", SACK indicates " + str(self.last_tx_n_errors) + " blocks error")
 
                 if msg_id == "PHY-RXEND":
                     if self.last_rx_frame_type == "SACK":
@@ -187,7 +186,7 @@ class mac(gr.basic_block, Machine):
                     self.event_tone_map_arrived()
 
     def sack_timeout_callback(self):
-        self.logger.error("state = " + str(self.state) + ", Error: SACK timeout")
+        self.logger.notice("state = " + str(self.state) + ", SACK timeout")
         self.stats['n_missing_acks'] += 1
         self.event_sack_timeout()
 
@@ -331,6 +330,15 @@ class mac(gr.basic_block, Machine):
     def post_process_payload(self):
         if not (1 in self.last_rx_frame_blocks_error): self.send_post_process_payload_to_phy()
 
+    def update_last_tx_timestamp(self):
+        self.last_tx_timestamp = datetime.now()
+
+    def log_sof_arrived(self):
+        self.logger.info("SOF at timestamp " + str((self.last_tx_timestamp - self.epoch).total_seconds()) + " was acknowledged")
+
+    def log_sof_missed(self):
+        self.logger.info("SOF at timestamp " + str((self.last_tx_timestamp - self.epoch).total_seconds()) + " was not acknowledged")
+
     def forecast(self, noutput_items, ninput_items_required):
         #setup size of input_items[i] for work call
         for i in range(len(ninput_items_required)):
@@ -343,10 +351,10 @@ class mac(gr.basic_block, Machine):
     def stop(self):
         self.cancel_sack_timer()
         if self.is_master:
-            print self.name + " final report:"
-            print "PHY blocks transmitted successfully: " + str(self.stats['n_blocks_tx_success'])
-            print "PHY blocks transmitted unsuccessfully: " + str(self.stats['n_blocks_tx_fail'])
-            print "Missing SACK frames: " + str(self.stats['n_missing_acks'])
+            self.logger.notice("final report:")
+            self.logger.notice("PHY blocks transmitted successfully: " + str(self.stats['n_blocks_tx_success']))
+            self.logger.notice("PHY blocks transmitted unsuccessfully: " + str(self.stats['n_blocks_tx_fail']))
+            self.logger.notice("missing SACK frames: " + str(self.stats['n_missing_acks']))
         return True
 
     def general_work(self, input_items, output_items):
@@ -394,7 +402,7 @@ class mac(gr.basic_block, Machine):
         elif mft == 0b01:
             mgmt = False
         else:
-            self.logger.error("state = " + str(self.state) + ", MAC frame type not supported")
+            self.logger.notice("state = " + str(self.state) + ", MAC frame type not supported")
             return
 
         dest_addr = self.get_bytes_field(mac_frame, pos, ieee1901.MAC_FRAME_ODA_WIDTH)
@@ -403,7 +411,7 @@ class mac(gr.basic_block, Machine):
         pos += ieee1901.MAC_FRAME_OSA_WIDTH + ieee1901.MAC_FRAME_ETHERTYPE_OR_LENGTH_WIDTH
         payload = self.get_bytes_field(mac_frame, pos, length - pos - ieee1901.MAC_FRAME_ICV_WIDTH)
         if not self.crc32_check(mac_frame[ieee1901.MAC_FRAME_MFH_OFFSET + ieee1901.MAC_FRAME_MFH_WIDTH:]):
-            self.logger.error("state = " + str(self.state) + ", MAC frame CRC error")
+            self.logger.notice("state = " + str(self.state) + ", MAC frame CRC error")
         return (payload, mgmt)
 
     def submit_mac_frame(self, frame):
@@ -527,13 +535,13 @@ class mac(gr.basic_block, Machine):
             mgmt_queue = self.get_numeric_field(phy_block, ieee1901.PHY_BLOCK_HEADER_MMQF_OFFSET, ieee1901.PHY_BLOCK_HEADER_MMQF_WIDTH)
             if (mgmt_queue):
                 if ssn != prev_mgmt_ssn + 1:
-                    self.logger.error("state = " + str(self.state) + ", discontinued MGMT SSN numbering (last = " + str(prev_mgmt_ssn) + ", current = " + str(ssn) + ")")
+                    self.logger.notice("state = " + str(self.state) + ", discontinued MGMT SSN numbering (last = " + str(prev_mgmt_ssn) + ", current = " + str(ssn) + ")")
                 prev_mgmt_ssn = ssn
                 incomplete_frames = self.rx_incomplete_mgmt_frames
 
             else:
                 if ssn != self.last_rx_ssn + 1:
-                    self.logger.error("state = " + str(self.state) + ", discontinued SSN numbering (last = " +str(self.last_rx_ssn) + ", current = " + str(ssn) + ")")
+                    self.logger.notice("state = " + str(self.state) + ", discontinued SSN numbering (last = " +str(self.last_rx_ssn) + ", current = " + str(ssn) + ")")
                 self.last_rx_ssn = ssn
                 incomplete_frames = self.rx_incomplete_frames
 
@@ -544,7 +552,7 @@ class mac(gr.basic_block, Machine):
             j += phy_block_size
 
             if not self.crc32_check(phy_block):
-                self.logger.error("state = " + str(self.state) + ", PHY block CRC error")
+                self.logger.notice("state = " + str(self.state) + ", PHY block CRC error")
                 phy_blocks_error.append(1)
                 continue
             else:
@@ -592,7 +600,7 @@ class mac(gr.basic_block, Machine):
     def parse_sackd(self, sackd):
         sacki = sackd[0]
         if not sacki == 0b00010101:
-            self.logger.error("state = " + str(self.state) + ", not supported sacki = " + str(sacki))
+            self.logger.notice("state = " + str(self.state) + ", not supported sacki = " + str(sacki))
         n_errors = 0
         for i in range(self.last_tx_frame_n_blocks):
             n_errors += not (sackd[1 + i/8] & (1 << (i % 8)) == 0)
@@ -661,7 +669,7 @@ class mac(gr.basic_block, Machine):
         if mmtype == ieee1901.MGMT_MMTYPE_CM_CHAN_EST_ID:
             self.process_mgmt_msg_cm_chan_est(mmentry)
         else:
-            self.logger.error("state = " + str(self.state) + ", management message (" + str(mmtype) + ") not supported")
+            self.logger.notice("state = " + str(self.state) + ", management message (" + str(mmtype) + ") not supported")
 
     def create_sof_frame_control(self, tmi, mpdu_payload):
         frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
@@ -720,7 +728,7 @@ class mac(gr.basic_block, Machine):
         elif (dt == 4):
             return "SOUND"
         else:
-            self.logger.error("state = " + str(self.state) + ", unsupported frame type")
+            self.logger.notice("state = " + str(self.state) + ", unsupported frame type")
             return ""
 
     def set_bytes_field(self, frame, bytes, offset, width):

@@ -7,7 +7,7 @@
 #include <gnuradio/io_signature.h>
 #include <sys/time.h>
 #include "app_out_impl.h"
-#include "debug.h"
+#include "logging.h"
 #include <cassert>
 
 namespace gr {
@@ -33,8 +33,8 @@ namespace gr {
     {
         message_port_register_out(pmt::mp("mac out"));
         message_port_register_in(pmt::mp("mac in"));
-
         d_mac_payload_pmt = pmt::make_u8vector(PAYLOAD_SIZE, 0);
+        INIT_GR_LOG
     }
 
     /*
@@ -77,7 +77,7 @@ namespace gr {
           dict = pmt::dict_add(dict, pmt::mp("msdu"), d_mac_payload_pmt);
           message_port_pub(pmt::mp("mac out"), pmt::cons(pmt::mp("MAC-TXMSDU"), dict));
           payload_sent = true;
-          dout << "APP Out: sent payload, size = " << d_mac_payload_offset << std::endl;
+          PRINT_DEBUG("sent payload, size = " + std::to_string(d_mac_payload_offset));
           d_total_bytes += d_mac_payload_offset;
           d_mac_payload_offset = 0;
         }
@@ -86,7 +86,7 @@ namespace gr {
       struct timeval tp;
       gettimeofday(&tp, NULL);
       long int now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-      dout << "APP Out: Rate:" << (double)(d_total_bytes)/(now-d_time_begin) << " kB/s" << std::endl;
+      PRINT_DEBUG("Rate:" + std::to_string((double)(d_total_bytes)/(now-d_time_begin)) + " kB/s");
     }
 
     int

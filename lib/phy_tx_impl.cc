@@ -6,7 +6,7 @@
 
 #include <gnuradio/io_signature.h>
 #include <boost/thread.hpp>
-#include "debug.h"
+#include "logging.h"
 #include "phy_tx_impl.h"
 #include <thread>
 
@@ -35,8 +35,7 @@ namespace gr {
             d_datastream_len(0),
             d_samples_since_last_tx(0),
             d_frame_ready(false),
-            d_transmitter_state(HALT),
-            d_name("PHY Tx")
+            d_transmitter_state(HALT)
     {
       message_port_register_in(pmt::mp("mac in"));
       set_msg_handler(pmt::mp("mac in"), boost::bind(&phy_tx_impl::mac_in, this, _1));
@@ -59,12 +58,12 @@ namespace gr {
 
       if (cmd == "PHY-TXCONFIG") {
         if (d_transmitter_state == PREPARING) {
-          std::cerr << d_name << ": ERROR: cannot config while preparing for tx" << std::endl;
+          PRINT_NOTICE("cannot config while preparing for tx");
           return;
         }
         // Set tone map
         if (pmt::dict_has_key(dict,pmt::mp("tone_map"))) {
-          dout << d_name << ": setting custom tx tone map" << std::endl;
+          PRINT_DEBUG("setting custom tx tone map");
           pmt::pmt_t tone_map_pmt = pmt::dict_ref(dict, pmt::mp("tone_map"), pmt::PMT_NIL);
           size_t tone_map_len = 0;
           const uint8_t *tone_map_blob = pmt::u8vector_elements(tone_map_pmt, tone_map_len);
@@ -77,15 +76,18 @@ namespace gr {
 
       else if (cmd == "PHY-TXINIT") {
         if (!d_init_done) {
-          if (pmt::dict_has_key(dict,pmt::mp("id")))
-            d_name = "PHY Tx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
+          if (pmt::dict_has_key(dict,pmt::mp("id"))) {
+            std::string role = pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL));
+            set_block_alias(alias() + " (" + role + ")");
+          }
+          INIT_GR_LOG
 
           light_plc::tone_mask_t tone_mask;
           light_plc::sync_tone_mask_t sync_tone_mask;
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
               pmt::dict_has_key(dict,pmt::mp("sync_tone_mask")))
           {
-            dout << d_name << ": initializing transmitter" << std::endl;
+            PRINT_DEBUG("initializing transmitter");
 
             // Set broadcast tone mask
             pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("broadcast_tone_mask"), pmt::PMT_NIL);
@@ -112,9 +114,9 @@ namespace gr {
 
           d_transmitter_state = READY;
           d_init_done = true;
-          dout << d_name << ": init done" << std::endl;
+          PRINT_DEBUG("init done");
         } else
-          std::cerr << d_name << ": ERROR: cannot init more than once" << std::endl;
+          PRINT_NOTICE("cannot init more than once");
       }
 
       else if (cmd == "PHY-TXSTART") {
@@ -133,11 +135,11 @@ namespace gr {
             mpdu_payload = pmt::u8vector_elements(mpdu_payload_pmt, mpdu_payload_length);
             d_mpdu_payload = std::vector<unsigned char>(mpdu_payload, mpdu_payload + mpdu_payload_length);
           }
-          dout << d_name << ": received new MPDU from MAC" << std::endl;
+          PRINT_DEBUG("received new MPDU from MAC");
           d_transmitter_state = PREPARING;
           std::thread{&phy_tx_impl::create_ppdu, this}.detach(); // creating the PPDU in a new thread not to starve the work routine
         } else {
-          std::cerr << d_name << ": received MPDU while transmitter is not ready, dropping MPDU" << std::endl;
+          PRINT_NOTICE("received MPDU while transmitter is not ready, dropping MPDU");
         }
       }
     }
@@ -169,12 +171,12 @@ namespace gr {
             }
 
             std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_complex::value_type)*i);
-            dout << d_name << ": state = TX, copied " << i << "/" << d_datastream_len << std::endl;
+            PRINT_DEBUG("state = TX, copied " + std::to_string(i) + "/" + std::to_string(d_datastream_len));
 
             d_datastream_offset += i;
 
             if(i > 0 && d_datastream_offset == d_datastream_len) {
-              dout << d_name << ": state = TX, MPDU sent!" << std::endl;
+              PRINT_DEBUG("state = TX, MPDU sent!");
               d_datastream_offset = 0;
               d_datastream_len = 0;
               d_samples_since_last_tx = 0;

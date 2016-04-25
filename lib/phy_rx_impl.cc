@@ -6,7 +6,7 @@
 
 #include <gnuradio/io_signature.h>
 #include "phy_rx_impl.h"
-#include "debug.h"
+#include "logging.h"
 #include <gnuradio/fft/fft.h>
 #include <volk/volk.h>
 
@@ -41,8 +41,7 @@ namespace gr {
             d_log_level(log_level),
             d_qpsk_tone_mask(light_plc::tone_mask_t()),
             d_init_done(false),
-            d_receiver_state(HALT),
-            d_name("PHY Rx")
+            d_receiver_state(HALT)
     {
       message_port_register_out(pmt::mp("mac out"));
       message_port_register_in(pmt::mp("mac in"));
@@ -70,7 +69,7 @@ namespace gr {
       pmt::pmt_t dict = pmt::cdr(msg);
 
       if (cmd == "PHY-RXCALCTONEMAP.request") {
-        dout << d_name << ": recalculating tone map" << std::endl;
+        PRINT_DEBUG("recalculating tone map");
         float target_ber = pmt::to_float(pmt::dict_ref(dict, pmt::mp("target_ber"), pmt::PMT_NIL));
         light_plc::tone_map_t tone_map = d_phy_service.calculate_tone_map(target_ber, d_qpsk_tone_mask);
         d_phy_service.set_tone_map(tone_map);
@@ -86,31 +85,28 @@ namespace gr {
       }
 
       else if (cmd == "PHY-RXPOSTPROCESS") {
-        dout << d_name << ": post processing payload" << std::endl;
+        PRINT_DEBUG("post processing payload");
         d_phy_service.post_process_ppdu();
         PRINT_INFO_VAR(d_phy_service.stats.tone_mode, "toneMode");
         PRINT_INFO_VAR(d_phy_service.stats.n_bits, "nBits");
         PRINT_INFO_VAR(d_phy_service.stats.ber, "ber");
-        if (d_log_level >= 1) {
-          std::cout << d_name << ": channelGain = [";
-          for (auto iter=d_phy_service.stats.channel.begin(); iter != d_phy_service.stats.channel.end(); iter++)
-            std::cout << std::abs(*iter) << ",";
-          std::cout << "];" << std::endl;
-        }
       }
 
       else if (cmd == "PHY-RXINIT") {
         if (!d_init_done) {
 
-          if (pmt::dict_has_key(dict,pmt::mp("id")))
-            d_name = "PHY Rx (" + pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL)) + ")";
+          if (pmt::dict_has_key(dict,pmt::mp("id"))) {
+            std::string role = pmt::symbol_to_string(pmt::dict_ref(dict, pmt::mp("id"), pmt::PMT_NIL));
+            set_block_alias(alias() + " (" + role + ")");
+          }
+          INIT_GR_LOG
 
           light_plc::tone_mask_t tone_mask;
           light_plc::sync_tone_mask_t sync_tone_mask;
           if (pmt::dict_has_key(dict,pmt::mp("broadcast_tone_mask")) &&
               pmt::dict_has_key(dict,pmt::mp("sync_tone_mask")))
           {
-            dout << d_name << ": initializing receiver" << std::endl;
+            PRINT_DEBUG("initializing receiver");
 
             // Set broadcast tone mask
             pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("broadcast_tone_mask"), pmt::PMT_NIL);
@@ -136,7 +132,7 @@ namespace gr {
           }
 
           if (pmt::dict_has_key(dict,pmt::mp("force_tone_mask"))) {
-            dout << d_name << ": setting force tone mask" << std::endl;
+            PRINT_DEBUG("setting force tone mask");
             pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("force_tone_mask"), pmt::PMT_NIL);
             size_t tone_mask_len = 0;
             const uint8_t *tone_mask_blob = pmt::u8vector_elements(tone_mask_pmt, tone_mask_len);
@@ -158,9 +154,9 @@ namespace gr {
           d_preamble_corr = (float*)malloc(SYNCP_SIZE * sizeof(float));
 
           d_receiver_state = RESET;
-          dout << d_name << ": init done" << std::endl;
+          PRINT_DEBUG("init done");
         } else
-          std::cerr << d_name << ": ERROR: cannot init more than once" << std::endl;
+          PRINT_NOTICE("cannot init more than once");
       }
     }
 
@@ -242,7 +238,7 @@ namespace gr {
 
           // If plateau length is reached...
           if (d_plateau == MIN_PLATEAU) {
-            dout << d_name << ": state = SEARCH, Found frame!" << std::endl;
+            PRINT_DEBUG("state = SEARCH, Found frame!");
             d_sync_min = correlation;
             d_sync_min_index = d_buffer_offset;
             d_receiver_state = SYNC;
@@ -268,7 +264,7 @@ namespace gr {
           }
           copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
           i += 2 * SYNCP_SIZE;
-          dout << d_name << ": state = SYNC, min = " << d_sync_min << std::endl;
+          PRINT_DEBUG("state = SYNC, min = " + std::to_string(d_sync_min));
 
           // Perform fine sync
           int N = SYNCP_SIZE;
@@ -295,13 +291,13 @@ namespace gr {
             }
           }
           d_frame_start = 3 * (N / 2) - ((BUFFER_SIZE + d_buffer_offset - d_sync_min_index) % BUFFER_SIZE) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
-          dout << d_name << ": state = SYNC, fine sync, min = " << fine_sync_min << ", correction = "  << fine_sync_min_index-N+1-FINE_SYNC_LENGTH<< std::endl;
+          PRINT_DEBUG("state = SYNC, fine sync, min = " + std::to_string(fine_sync_min) + ", correction = " + std::to_string(fine_sync_min_index-N+1-FINE_SYNC_LENGTH));
           d_receiver_state = COPY_PREAMBLE;
           break;
         }
 
         case COPY_PREAMBLE: {
-          dout << d_name << ": state = COPY_PREAMBLE" << std::endl;
+          PRINT_DEBUG("state = COPY_PREAMBLE");
           i+=d_frame_start;
           copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in, i, sizeof(gr_complex));
 
@@ -323,7 +319,7 @@ namespace gr {
         }
 
         case COPY_FRAME_CONTROL: {
-          dout << d_name << ": state = COPY_FRAME_CONTROL" << std::endl;
+          PRINT_DEBUG("state = COPY_FRAME_CONTROL");
           memcpy(d_frame_control, in, FRAME_CONTROL_SIZE * sizeof(gr_complex));
           i += FRAME_CONTROL_SIZE;
 
@@ -331,12 +327,12 @@ namespace gr {
           size_t len;
           unsigned char *fc_blob = (unsigned char*)pmt::u8vector_writable_elements(d_frame_control_pmt, len);
           if (d_phy_service.process_ppdu_frame_control((light_plc::vector_complex::const_iterator)d_frame_control, fc_blob) == false) {
-            std::cerr << d_name << ": state = COPY_FRAME_CONTROL, ERROR: cannot parse frame control" << std::endl;
+            PRINT_NOTICE("state = COPY_FRAME_CONTROL, cannot parse frame control");
             d_receiver_state = RESET;
           } else {
             d_receiver_state = COPY_PAYLOAD;
             d_payload_size = d_phy_service.get_ppdu_payload_length();
-            dout << d_name << ": frame control is OK!" << std::endl;
+            PRINT_DEBUG("frame control is OK!");
             d_payload = (gr_complex*)volk_malloc(sizeof(gr_complex) * d_payload_size, volk_get_alignment());
           }
           break;
@@ -352,7 +348,7 @@ namespace gr {
             unsigned char *payload_blob = (unsigned char*)pmt::u8vector_writable_elements(payload_pmt, len);
             d_phy_service.process_ppdu_payload((light_plc::vector_complex::iterator)d_payload, payload_blob);      // get payload data
             PRINT_INFO_VECTOR(d_phy_service.stats.channel, "channelCarriers");
-            dout << d_name << ": payload resolved. Payload size (bytes) = " << d_phy_service.get_mpdu_payload_size() << std::endl;
+            PRINT_DEBUG("payload resolved. Payload size (bytes) = " + std::to_string(d_phy_service.get_mpdu_payload_size()));
             pmt::pmt_t dict = pmt::make_dict();
             dict = pmt::dict_add(dict, pmt::mp("frame_control"), d_frame_control_pmt);  // add frame control information
             dict = pmt::dict_add(dict, pmt::mp("payload"), payload_pmt);
@@ -367,7 +363,7 @@ namespace gr {
         }
 
         case RESET: {
-          dout << d_name << ": state = RESET" << std::endl;
+          PRINT_DEBUG ("state = RESET");
           d_sync_min = 1;
           d_plateau = 0;
           d_buffer_offset = 0;
@@ -393,7 +389,7 @@ namespace gr {
         }
 
        case IDLE:
-         dout << d_name << ": state = IDLE, ninput = " << ninput << std::endl;
+         PRINT_DEBUG ("state = IDLE, ninput = " +  std::to_string(ninput));
          i = ninput;
 
         case HALT:

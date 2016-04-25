@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $force_tone_mask, $target_ber, $channel_est_mode, $log)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $force_tone_mask, $target_ber, $channel_est_mode, $log_level)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -97,11 +97,11 @@
   </param>
   <param>
     <name>Log</name>
-    <key>log</key>
+    <key>log_level</key>
     <value>0</value>
     <type>int</type>
     <option>
-      <name>Disabled</name>
+      <name>Notice</name>
       <key>0</key>
     </option>
     <option>

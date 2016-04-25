@@ -7,7 +7,7 @@
 #include <gnuradio/io_signature.h>
 #include <sys/time.h>
 #include "app_in_impl.h"
-#include "debug.h"
+#include "logging.h"
 
 namespace gr {
   namespace plc {
@@ -70,7 +70,7 @@ namespace gr {
                 if (cmd  == std::string("MAC-RXMSDU")) {
                     pmt::pmt_t mac_payload_pmt = pmt::dict_ref(dict, pmt::mp("msdu"), pmt::PMT_NIL);
                     d_mac_payload = (const unsigned char*) pmt::u8vector_elements(mac_payload_pmt, d_mac_payload_length);
-                    dout << "APP In: received new payload, size = " << d_mac_payload_length << std::endl;
+                    PRINT_DEBUG("received new payload, size = " + std::to_string(d_mac_payload_length));
                     break;
                 }
             }
@@ -87,7 +87,7 @@ namespace gr {
         struct timeval tp;
         gettimeofday(&tp, NULL);
         long int now = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-        dout << "APP In: Rate:" << (double)(d_total_bytes)/(now-d_time_begin) << " kB/s" << std::endl;
+        PRINT_DEBUG("Rate:" + std::to_string((double)(d_total_bytes)/(now-d_time_begin)) + " kB/s");
 
         // Tell runtime system how many output items we produced.
         return i;

@@ -5,13 +5,13 @@
   <category>PLC</category>
   <import>import plc</import>
   <make>plc.phy_rx($log)</make>
- <param>
+  <param>
     <name>Log</name>
     <key>log</key>
     <value>0</value>
     <type>int</type>
     <option>
-      <name>Disabled</name>
+      <name>Notice</name>
       <key>0</key>
     </option>
     <option>
@@ -21,10 +21,6 @@
     <option>
       <name>Debug</name>
       <key>2</key>
-    </option>
-    <option>
-      <name>Debug Level 2</name>
-      <key>3</key>
     </option>
   </param>
   <sink>

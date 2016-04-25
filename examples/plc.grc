@@ -1560,7 +1560,7 @@
       <value>plc_mac_0</value>
     </param>
     <param>
-      <key>log</key>
+      <key>log_level</key>
       <value>settings.log</value>
     </param>
     <param>
@@ -1639,7 +1639,7 @@
       <value>plc_mac_0_0</value>
     </param>
     <param>
-      <key>log</key>
+      <key>log_level</key>
       <value>0</value>
     </param>
     <param>

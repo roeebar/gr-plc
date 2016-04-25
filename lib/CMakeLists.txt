@@ -22,7 +22,7 @@
 ########################################################################
 include(GrPlatform) #define LIB_SUFFIX
 
-# gnuradio-plc 
+# gnuradio-plc
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 list(APPEND plc_sources
@@ -76,5 +76,3 @@ include(GrTest)
 include_directories(${CPPUNIT_INCLUDE_DIRS})
 list(APPEND test_plc_sources
     )
-
-

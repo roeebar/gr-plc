@@ -43,7 +43,6 @@ namespace gr {
       size_t d_buffer_offset;
       float *d_preamble_corr;
       int d_frame_start;
-      std::string d_name;
 
      public:
       phy_rx_impl(int log_level);

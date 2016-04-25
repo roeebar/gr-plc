@@ -24,7 +24,6 @@ namespace gr {
       unsigned int d_samples_since_last_tx;
       bool d_frame_ready;
       enum {READY, PREPARING, TX, HALT} d_transmitter_state;
-      std::string d_name;
       std::vector<unsigned char> d_mpdu_fc, d_mpdu_payload;
 
      public:
