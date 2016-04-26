@@ -13,7 +13,7 @@ class mac(gr.basic_block, Machine):
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 2 # minimum time in seconds between sounds frames
     # SOUND_FRAME_RATE = 1000 # minimum time in seconds between sounds frames
-    SACK_TIMEOUT = 2 # minimum time in seconds to wait for sack
+    SACK_TIMEOUT = 0.3 # minimum time in seconds to wait for sack
     SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 
     rx_incomplete_frames = {}
