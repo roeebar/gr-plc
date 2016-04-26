@@ -334,7 +334,7 @@ class mac(gr.basic_block, Machine):
         self.last_tx_timestamp = datetime.now()
 
     def log_sof_arrived(self):
-        self.logger.info("SOF at timestamp " + str((self.last_tx_timestamp - self.epoch).total_seconds()) + " was acknowledged")
+        self.logger.info("SOF at timestamp " + str((self.last_tx_timestamp - self.epoch).total_seconds()) + " was acknowledged (" + str(self.last_tx_n_errors) + " errors)")
 
     def log_sof_missed(self):
         self.logger.info("SOF at timestamp " + str((self.last_tx_timestamp - self.epoch).total_seconds()) + " was not acknowledged")
