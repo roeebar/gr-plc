@@ -21,23 +21,23 @@ namespace gr {
     const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // maximum search length determines the volk memory allocation
     const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
     const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
-    const float phy_rx_impl::THRESHOLD = 0.9; // autocorrelation threshold
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
-    phy_rx::make(int log_level)
+    phy_rx::make(float threshold, int log_level)
     {
       return gnuradio::get_initial_sptr
-        (new phy_rx_impl(log_level));
+        (new phy_rx_impl(threshold, log_level));
     }
 
     /*
      * The private constructor
      */
-    phy_rx_impl::phy_rx_impl(int log_level)
+    phy_rx_impl::phy_rx_impl(float threshold, int log_level)
       : gr::sync_block("phy_rx",
               gr::io_signature::make(1, 1, sizeof(gr_complex)),
               gr::io_signature::make(0, 0, 0)),
+            d_threshold(threshold),
             d_log_level(log_level),
             d_qpsk_tone_mask(light_plc::tone_mask_t()),
             d_init_done(false),
@@ -129,6 +129,7 @@ namespace gr {
             light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
 
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_log_level >= 3);
+            PRINT_INFO_VAR(d_threshold, "threshold");
           }
 
           if (pmt::dict_has_key(dict,pmt::mp("force_tone_mask"))) {
@@ -226,9 +227,9 @@ namespace gr {
             d_energy_a += d_energy[i + SYNCP_SIZE] - d_energy[i]; // update energy window
             d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
             correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
-            if(correlation > THRESHOLD) {
+            if(correlation > d_threshold) {
               d_plateau++;
-            } else { // correlation <= THRESHOLD
+            } else { // correlation <= d_threshold
               d_plateau = 0;
             }
             i++;

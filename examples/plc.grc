@@ -85,7 +85,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(96, 107)</value>
+      <value>(176, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -370,7 +370,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(8, 107)</value>
+      <value>(176, 75)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -426,10 +426,6 @@
     <param>
       <key>value19</key>
       <value>0</value>
-    </param>
-    <param>
-      <key>value7</key>
-      <value>1</value>
     </param>
     <param>
       <key>value8</key>
@@ -513,11 +509,11 @@
     </param>
     <param>
       <key>field6</key>
-      <value>forceMask</value>
+      <value>qpskMask</value>
     </param>
     <param>
       <key>field7</key>
-      <value></value>
+      <value>sensitivity</value>
     </param>
     <param>
       <key>field8</key>
@@ -529,7 +525,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(184, 11)</value>
+      <value>(272, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -548,16 +544,20 @@
       <value>[0]*512 + [1,0]*512 + [0]*512</value>
     </param>
     <param>
-      <key>value6</key>
-      <value>[0]*512 + [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]*64 + [0]*512</value>
-    </param>
-    <param>
       <key>value4</key>
-      <value>0.60 + 0.3*0</value>
+      <value>0.55*0.15 + 0.3*0</value>
     </param>
     <param>
       <key>value5</key>
       <value>1</value>
+    </param>
+    <param>
+      <key>value6</key>
+      <value>[0]*512 + [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]*64 + [0]*512</value>
+    </param>
+    <param>
+      <key>value7</key>
+      <value>0.8</value>
     </param>
     <param>
       <key>value1</key>
@@ -846,7 +846,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(547, 704)</value>
+      <value>(539, 680)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -872,6 +872,10 @@
       <key>minoutbuf</key>
       <value>0</value>
     </param>
+    <param>
+      <key>sensitivity</key>
+      <value>settings.sensitivity</value>
+    </param>
   </block>
   <block>
     <key>PHY</key>
@@ -893,7 +897,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(427, 320)</value>
+      <value>(419, 296)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -918,6 +922,10 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+    <param>
+      <key>sensitivity</key>
+      <value>settings.sensitivity</value>
     </param>
   </block>
   <block>
@@ -1544,10 +1552,6 @@
       <value>1</value>
     </param>
     <param>
-      <key>force_tone_mask</key>
-      <value>settings.forceMask</value>
-    </param>
-    <param>
       <key>_coordinate</key>
       <value>(219, 232)</value>
     </param>
@@ -1570,6 +1574,10 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+    <param>
+      <key>qpsk_tone_mask</key>
+      <value>[]</value>
     </param>
     <param>
       <key>master</key>
@@ -1604,7 +1612,7 @@
     </param>
     <param>
       <key>channel_est_mode</key>
-      <value>1</value>
+      <value>2</value>
     </param>
     <param>
       <key>comment</key>
@@ -1623,10 +1631,6 @@
       <value>1</value>
     </param>
     <param>
-      <key>force_tone_mask</key>
-      <value>settings.forceMask</value>
-    </param>
-    <param>
       <key>_coordinate</key>
       <value>(339, 608)</value>
     </param>
@@ -1640,7 +1644,7 @@
     </param>
     <param>
       <key>log_level</key>
-      <value>0</value>
+      <value>settings.log</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -1649,6 +1653,10 @@
     <param>
       <key>minoutbuf</key>
       <value>0</value>
+    </param>
+    <param>
+      <key>qpsk_tone_mask</key>
+      <value>[]</value>
     </param>
     <param>
       <key>master</key>

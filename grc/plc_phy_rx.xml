@@ -4,7 +4,13 @@
   <key>plc_phy_rx</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.phy_rx($log)</make>
+  <make>plc.phy_rx($sensitivity, $log)</make>
+  <param>
+    <name>Sensitivity</name>
+    <key>sensitivity</key>
+    <value>0.9</value>
+    <type>float</type>
+  </param>
   <param>
     <name>Log</name>
     <key>log</key>

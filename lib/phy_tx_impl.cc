@@ -171,9 +171,8 @@ namespace gr {
             }
 
             std::memcpy(out, &d_datastream[d_datastream_offset], sizeof(light_plc::vector_complex::value_type)*i);
-            PRINT_DEBUG("state = TX, copied " + std::to_string(i) + "/" + std::to_string(d_datastream_len));
-
             d_datastream_offset += i;
+            PRINT_DEBUG("state = TX, copied " + std::to_string(d_datastream_offset) + "/" + std::to_string(d_datastream_len));
 
             if(i > 0 && d_datastream_offset == d_datastream_len) {
               PRINT_DEBUG("state = TX, MPDU sent!");

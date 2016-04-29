@@ -36,7 +36,7 @@ class mac(gr.basic_block, Machine):
     sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, force_tone_mask, target_ber, channel_est_mode, log_level):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, qpsk_tone_mask, target_ber, channel_est_mode, log_level):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -53,7 +53,7 @@ class mac(gr.basic_block, Machine):
         self.tmi = tmi
         self.broadcast_tone_mask = broadcast_tone_mask
         self.sync_tone_mask = sync_tone_mask
-        self.force_tone_mask = force_tone_mask
+        self.qpsk_tone_mask = qpsk_tone_mask
         self.target_ber = target_ber
         self.channel_est_mode = channel_est_mode
         if self.is_master:
@@ -119,6 +119,12 @@ class mac(gr.basic_block, Machine):
         if log_level == 2:
             graph = self.get_graph()
             graph.draw(self.name + '.png', prog='dot')
+
+        self.logger.info("toneMask = " + str(self.broadcast_tone_mask))
+        self.logger.info("syncToneMask = " + str(self.sync_tone_mask))
+        self.logger.info("qpskToneMask = " + str(self.qpsk_tone_mask))
+        self.logger.info("targetBer = " + str(self.target_ber))
+        self.logger.info("channelEstMode = " + str(self.channel_est_mode))
 
     def capacity(self):
         return self.tx_capacity
@@ -224,7 +230,7 @@ class mac(gr.basic_block, Machine):
         mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
 
         # Send the SOF frame to PHY
-        dict = gr.pmt.make_dict();
+        dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         self.logger.debug("state = " + str(self.state) + ", sending MPDU (SOF, tmi=" + str(self.tmi) + ") to PHY")
@@ -240,11 +246,11 @@ class mac(gr.basic_block, Machine):
         mpdu_fc_pmt = gr.pmt.init_u8vector(len(mpdu_fc), list(mpdu_fc))
 
         # Send SOUND frame to PHY
-        dict = gr.pmt.make_dict();
+        dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         self.logger.debug("state = " + str(self.state) + ", sending MPDU (Sound) to PHY")
-        self.last_tx_sound_frame = datetime.now();
+        self.last_tx_sound_frame = datetime.now()
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def transmit_sack(self):
@@ -272,14 +278,14 @@ class mac(gr.basic_block, Machine):
         mpdu_payload_pmt = gr.pmt.init_u8vector(len(mpdu_payload), list(mpdu_payload))
 
         # Sending the frame to PHY
-        dict = gr.pmt.make_dict();
+        dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("frame_control"), mpdu_fc_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("payload"), mpdu_payload_pmt)
         self.logger.debug("state = " + str(self.state) + ", sending MPDU (SOF MGMT, tmi=1) to PHY")
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-TXSTART"), dict))
 
     def send_calc_tone_info_to_phy(self):
-        dict = gr.pmt.make_dict();
+        dict = gr.pmt.make_dict()
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("target_ber"), gr.pmt.to_pmt(self.target_ber))
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXCALCTONEMAP.request"), dict))
         self.logger.debug("state = " + str(self.state) + ", sending PHY-RXCALCTONEMAP.request")
@@ -298,9 +304,9 @@ class mac(gr.basic_block, Machine):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("broadcast_tone_mask"), tone_mask_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sync_tone_mask"), sync_tone_mask_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("channel_est_mode"), gr.pmt.to_pmt(self.channel_est_mode))
-        if (self.force_tone_mask):
-            force_tone_mask_pmt = gr.pmt.init_u8vector(len(self.force_tone_mask), list(self.force_tone_mask))
-            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("force_tone_mask"), force_tone_mask_pmt)
+        if (self.qpsk_tone_mask):
+            force_tone_mask_pmt = gr.pmt.init_u8vector(len(self.qpsk_tone_mask), list(self.qpsk_tone_mask))
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("qpsk_tone_mask"), force_tone_mask_pmt)
 
         if self.is_master:
             dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("id"), gr.pmt.to_pmt("master"))
@@ -314,7 +320,7 @@ class mac(gr.basic_block, Machine):
         self.logger.debug("state = " + str(self.state) + ", sending PHY-TXINIT")
 
     def send_post_process_payload_to_phy(self):
-        dict = gr.pmt.make_dict();
+        dict = gr.pmt.make_dict()
         self.message_port_pub(gr.pmt.to_pmt("phy out"), gr.pmt.cons(gr.pmt.to_pmt("PHY-RXPOSTPROCESS"), dict))
         self.logger.debug("state = " + str(self.state) + ", sending PHY-RXPOSTPROCESS")
 
@@ -345,7 +351,7 @@ class mac(gr.basic_block, Machine):
             ninput_items_required[i] = noutput_items
 
     def start(self):
-        self.send_init_phy();
+        self.send_init_phy()
         self.send_status_to_app()
 
     def stop(self):
@@ -431,9 +437,9 @@ class mac(gr.basic_block, Machine):
             if not mgmt:
                 self.logger.debug("state = " + str(self.state) + ", received MAC frame, size = " + str(len(frame)) + ", sending payload to APP")
                 payload_u8vector = gr.pmt.init_u8vector(len(payload), list(payload))
-                dict = gr.pmt.make_dict();
+                dict = gr.pmt.make_dict()
                 dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("msdu"), payload_u8vector)
-                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-RXMSDU"), dict));
+                self.message_port_pub(gr.pmt.to_pmt("app out"), gr.pmt.cons(gr.pmt.to_pmt("MAC-RXMSDU"), dict))
             else:
                 self.logger.debug("state = " + str(self.state) + ", received MAC frame (management), size = " + str(len(frame)))
                 self.process_mgmt_msg(payload)
@@ -653,8 +659,8 @@ class mac(gr.basic_block, Machine):
             cbd_offset += ieee1901.MGMT_CM_CHAN_EST_CBD_WIDTH
         self.logger.debug("state = " + str(self.state) + ", TX custom tone map capacity: " + str(self.tx_capacity))
         self.send_set_tx_tone_map()
-        self.logger.info("txToneMap = " + str(self.tx_tone_map) + ";")
-        self.logger.info("txCapacity = " + str(self.tx_capacity) + ";")
+        self.logger.info("txToneMap = " + str(self.tx_tone_map))
+        self.logger.info("txCapacity = " + str(self.tx_capacity))
 
     def create_mgmt_msg(self, mmtype, mmentry):
         mgmt_msg = bytearray(len(mmentry) + (ieee1901.MGMT_MMV_WIDTH + ieee1901.MGMT_MMTYPE_WIDTH + ieee1901.MGMT_FMI_WIDTH)/8)
@@ -672,7 +678,7 @@ class mac(gr.basic_block, Machine):
             self.logger.notice("state = " + str(self.state) + ", management message (" + str(mmtype) + ") not supported")
 
     def create_sof_frame_control(self, tmi, mpdu_payload):
-        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8)
 
         # Set the pbsz bit
         if len(mpdu_payload) > 136/8:
@@ -689,38 +695,38 @@ class mac(gr.basic_block, Machine):
         return frame_control
 
     def create_sack_frame_control(self, sackd):
-        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8)
 
         # Set delimiter type to SACK
-        self.set_numeric_field(frame_control, 2, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+        self.set_numeric_field(frame_control, 2, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
 
         # SACK version number
-        self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SACK_SVN_OFFSET, ieee1901.FRAME_CONTROL_SACK_SVN_WIDTH);
+        self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SACK_SVN_OFFSET, ieee1901.FRAME_CONTROL_SACK_SVN_WIDTH)
 
         # Assign the SACK data bits
         sackd_padded = bytearray(ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
-        sackd_padded[0:len(sackd)] = sackd;
+        sackd_padded[0:len(sackd)] = sackd
         self.set_bytes_field(frame_control, sackd_padded, ieee1901.FRAME_CONTROL_SACK_SACKD_OFFSET/8, ieee1901.FRAME_CONTROL_SACK_SACKD_WIDTH/8)
 
-        return frame_control;
+        return frame_control
 
     def create_sound_frame_control(self, pb_size):
-        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8);
+        frame_control = bytearray(ieee1901.FRAME_CONTROL_NBITS/8)
 
         # Set delimiter type to Sound
-        self.set_numeric_field(frame_control, 4, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+        self.set_numeric_field(frame_control, 4, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
 
         # Set the pbsz bit
         if pb_size == "PB520":
-            self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH);
+            self.set_numeric_field(frame_control, 0, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH)
         else:
-            self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH);
+            self.set_numeric_field(frame_control, 1, ieee1901.FRAME_CONTROL_SOUND_PBSZ_OFFSET, ieee1901.FRAME_CONTROL_SOUND_PBSZ_WIDTH)
 
-        return frame_control;
+        return frame_control
 
     def get_frame_type(self, frame_control):
         # Get delimiter type
-        dt = self.get_numeric_field(frame_control, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH);
+        dt = self.get_numeric_field(frame_control, ieee1901.FRAME_CONTROL_DT_IH_OFFSET, ieee1901.FRAME_CONTROL_DT_IH_WIDTH)
         if (dt == 2):
             return "SACK"
         elif (dt == 1):
