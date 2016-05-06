@@ -553,7 +553,7 @@
     </param>
     <param>
       <key>value7</key>
-      <value>0.8</value>
+      <value>0.75</value>
     </param>
     <param>
       <key>value8</key>
@@ -1321,7 +1321,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -1454,7 +1454,7 @@
     <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>[(10**((2.2-7.782-20)/10)*settings.gain**2*512/2/samp_rate*4*4.6/2/2e-6)**0.5,]*5</value>
+      <value>[(10**((2.2-settings.snr)/10)*settings.gain**2*512/2/samp_rate*4*4.6/2/2e-6)**0.5,]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1664,7 +1664,7 @@
     </param>
     <param>
       <key>qpsk_tone_mask</key>
-      <value>settings.qpskMask</value>
+      <value>[]</value>
     </param>
     <param>
       <key>master</key>
@@ -2504,7 +2504,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3319,7 +3319,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
