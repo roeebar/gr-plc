@@ -4,7 +4,7 @@
   <key>plc_mac</key>
   <category>PLC</category>
   <import>import plc</import>
-  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $qpsk_tone_mask, $target_ber, $channel_est_mode, $log_level)</make>
+  <make>plc.mac($device_addr, $master, $tmi, $dest_addr, $broadcast_tone_mask, $sync_tone_mask, $qpsk_tone_mask, $target_ber, $channel_est_mode, $interframe_space, $log_level)</make>
   <param>
     <name>Address</name>
     <key>device_addr</key>
@@ -94,6 +94,12 @@
       <name>PREAMBLE</name>
       <key>2</key>
     </option>
+  </param>
+  <param>
+    <name>Inter-frame Space</name>
+    <key>interframe_space</key>
+    <value>7000</value>
+    <type>int</type>
   </param>
   <param>
     <name>Log</name>

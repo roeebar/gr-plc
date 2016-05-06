@@ -21,13 +21,15 @@ namespace gr {
       static const int FRAME_CONTROL_SIZE;
       static const float THRESHOLD;
       static const int MIN_PLATEAU;
-      static const int MIN_INTERFRAME_SPACE;
+      static const int SILENCE_PERIOD;
       static const size_t BUFFER_SIZE;
       static const int MAX_SEARCH_LENGTH;
 
       light_plc::phy_service d_phy_service;
       const float d_threshold;
+      int d_interframe_space;
       const int d_log_level;
+      int d_buffer_size;
       light_plc::tone_mask_t d_qpsk_tone_mask;
       bool d_init_done;
       enum {SEARCH, SYNC, COPY_PREAMBLE, COPY_FRAME_CONTROL, COPY_PAYLOAD, RESET, IDLE, HALT} d_receiver_state;

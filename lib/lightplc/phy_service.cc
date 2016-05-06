@@ -478,7 +478,7 @@ void phy_service::init_turbo_codec() {
     gen(0) = 013; gen(1) = 015;
     itpp::bmat puncture_matrix = "1;1;1";
     itpp::ivec interleaver_sequence_bvec;
-    d_turbo_codec.set_parameters(gen, gen, 4, interleaver_sequence_bvec, puncture_matrix, 4, "LOGMAX", 1.0, true,  itpp::LLR_calc_unit());
+    d_turbo_codec.set_parameters(gen, gen, 4, interleaver_sequence_bvec, puncture_matrix, 4, "LOGMAX", 1.0, true, itpp::LLR_calc_unit());
 }
 
 vector_int phy_service::tc_encoder(const vector_int &bitstream, pb_size_t pb_size, code_rate_t rate) {
@@ -1134,19 +1134,14 @@ bool phy_service::process_ppdu_frame_control(vector_complex::const_iterator iter
 
 void phy_service::process_noise(vector_complex::const_iterator iter_begin, vector_complex::const_iterator iter_end) {
     static const int N = NUMBER_OF_CARRIERS; // window length
-    int R = N/2; // 1-R is the overlapping length
     int M = iter_end - iter_begin; // total signal length
-    int K = (M - N) / R + 1; // number of overlapping windows fits in signal
-    vector_complex w(N); // signal window
-    vector_complex w_fft(NUMBER_OF_CARRIERS);
+    int K = M / N; // number of windows fits in signal
+    vector_complex w_fft(N);
     d_noise_psd.fill(0); // init vector to zero
     for (int k=0; k<K; k++) {
-        vector_complex::const_iterator iter = iter_begin + k*R;
-        for (int i=0; i<N; i++)
-            w[i] = *(iter++);
-        fft(w.begin(), w.end(), w_fft.begin());
+        fft(iter_begin + k*N, iter_begin + k*N + N, w_fft.begin());
         // Calculate the PSD, and average with previous values
-        for (int i=0; i<NUMBER_OF_CARRIERS; i++)
+        for (int i=0; i<N; i++)
            d_noise_psd[i] += std::norm(w_fft[i]) / K;
     }
     stats.noise_psd = d_noise_psd;
@@ -1154,7 +1149,7 @@ void phy_service::process_noise(vector_complex::const_iterator iter_begin, vecto
     return;
 }
 
-tone_map_t phy_service::calculate_tone_map(float P_t, tone_mask_t qpsk_force_mask) {
+ tone_map_t phy_service::calculate_tone_map(float P_t, tone_mask_t qpsk_force_mask) {
     // Calculating the SNR. The average received signal is NUMBER_OF_CARRIERS*H[k]
     tones_float_t snr;
     for (size_t i=0; i<NUMBER_OF_CARRIERS; i++)
@@ -1219,14 +1214,14 @@ inline float phy_service::calc_ser(modulation_type_t m, float snr) {
     float ser = 0;
     switch (m) {
         case MT_BPSK: {
-            float f = std::erfc(sqrt(snr / 2));
+            float f = std::erfc(sqrt(snr));
             ser = f / 2;
             break;
         }
         case MT_QAM8:
         {
-            float f1 = std::erfc(MODULATION_MAP[m].scale * sqrt(snr / 2));
-            float f2 = std::erfc(MODULATION_MAP[m].scale * 1.29 * sqrt(snr / 2));
+            float f1 = std::erfc(MODULATION_MAP[m].scale * sqrt(snr));
+            float f2 = std::erfc(MODULATION_MAP[m].scale * 1.29 * sqrt(snr));
             ser = 3 / 4 * f1 * - 3 / 8 * f1 * f2 + f2 / 2;
             break;
         }
@@ -1237,7 +1232,7 @@ inline float phy_service::calc_ser(modulation_type_t m, float snr) {
         case MT_QAM1024:
         case MT_QAM4096: {
             float M = 1 << MODULATION_MAP[m].n_bits;
-            float f = std::erfc(MODULATION_MAP[m].scale * sqrt(snr / 2)); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2)
+            float f = std::erfc(MODULATION_MAP[m].scale * sqrt(snr)); // MODULATION_MAP[m].scale = sqrt(3/(M-1)/2)
             float A = 1 - 1 / sqrt(M);
             ser = 2 * A * f * (1 - A * f / 2); // calculate symbol error rate (SER) for the carrier
             break;
@@ -1393,19 +1388,20 @@ vector_float::iterator phy_service::demodulate_soft_bits(const complex &value, m
 }
 vector_float::iterator phy_service::demodulate_soft_bits_helper(int n_bits, float r, float scale, float n0, vector_float::iterator iter) {
     r = r / scale;
-    int k = std::round((r+1)/2)*2-1;
     int l = 1<<n_bits;
+    int k = std::round((r+1)/2)*2-1; // find the closest constellation point
+    k = std::max(1-l, std::min(k, l-1)); // clip k if overflow
     for (int b = 0; b < n_bits; b++) {
-        float d = 0;
+        float d[2];
         for (int z=0; z<=1; z++) {
-            float d_left = l*2*l*2;
-            float d_right = d_left;
+            int i_right = r + 2 * l;
+            int i_left = r - 2 * l;
             // scan to the right and look for bit z (0 or 1)
             for (int i=k; i<=l-1; i+=2) {
                 int dec = qam_demodulate(i,l);
                 // if found the bit, calculate the distance and break
                 if (((dec >> b) & 0x1) == z) {
-                    d_right = (r-i)*(r-i);
+                    i_right = i;
                     break;
                 }
             }
@@ -1415,18 +1411,13 @@ vector_float::iterator phy_service::demodulate_soft_bits_helper(int n_bits, floa
                 int dec = qam_demodulate(i,l);// l-(i+1)/2) % l;
                 // if found the bit, calculate the distance and break
                 if (((dec >> b) & 0x1) == z) {
-                    d_left = (r-i)*(r-i);
+                    i_left = i;
                     break;
                 }
             }
-
-            // Choose the minimum between the distances
-            if (d_left > d_right)
-                d = d_right - d; // this means d_final = d_second - d_first
-            else
-                d = d_left - d;
+            d[z] = std::min((r-i_right)*(r-i_right), (r-i_left)*(r-i_left)); // take the minimum
         }
-        *iter++ = d*scale*scale/n0;
+        *iter++ = (d[1] - d[0]) * scale * scale / n0;
     }
     return iter;
 }
@@ -1794,7 +1785,7 @@ void phy_service::estimate_channel_gain_payload(vector_complex::const_iterator i
         }
     }
 
-    if (x.size() < 2) return; // require at least two carriers for interpolation...
+    assert(x.size() > 2); // require at least two carriers for interpolation...
 
     std::vector<linear_set_t> interp_set = linear(x,y);
     for (unsigned int i = 0, j = 0; i < NUMBER_OF_CARRIERS; i++) {

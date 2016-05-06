@@ -16,10 +16,8 @@ namespace gr {
     const int phy_rx_impl::SYNCP_SIZE = light_plc::phy_service::SYNCP_SIZE;
     const int phy_rx_impl::PREAMBLE_SIZE = light_plc::phy_service::PREAMBLE_SIZE;
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
-    const int phy_rx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
-    const size_t phy_rx_impl::BUFFER_SIZE = light_plc::phy_service::MIN_INTERFRAME_SPACE + phy_rx_impl::PREAMBLE_SIZE;
     const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // maximum search length determines the volk memory allocation
-    const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE; // length for frame alignment attempt
+    const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
     const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
@@ -38,6 +36,7 @@ namespace gr {
               gr::io_signature::make(1, 1, sizeof(gr_complex)),
               gr::io_signature::make(0, 0, 0)),
             d_threshold(threshold),
+            d_interframe_space(light_plc::phy_service::MIN_INTERFRAME_SPACE),
             d_log_level(log_level),
             d_qpsk_tone_mask(light_plc::tone_mask_t()),
             d_init_done(false),
@@ -128,13 +127,17 @@ namespace gr {
             pmt::pmt_t channel_est_mode_pmt = pmt::dict_ref(dict, pmt::mp("channel_est_mode"), pmt::PMT_NIL);
             light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
 
+            // Set inter-frame space
+            pmt::pmt_t interframe_space_pmt = pmt::dict_ref(dict, pmt::mp("interframe_space"), pmt::PMT_NIL);
+            d_interframe_space = pmt::to_uint64(interframe_space_pmt);
+
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_log_level >= 3);
             PRINT_INFO_VAR(d_threshold, "threshold");
           }
 
-          if (pmt::dict_has_key(dict,pmt::mp("force_tone_mask"))) {
-            PRINT_DEBUG("setting force tone mask");
-            pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("force_tone_mask"), pmt::PMT_NIL);
+          if (pmt::dict_has_key(dict,pmt::mp("qpsk_tone_mask"))) {
+            PRINT_DEBUG("setting qpsk tone mask");
+            pmt::pmt_t tone_mask_pmt = pmt::dict_ref(dict, pmt::mp("qpsk_tone_mask"), pmt::PMT_NIL);
             size_t tone_mask_len = 0;
             const uint8_t *tone_mask_blob = pmt::u8vector_elements(tone_mask_pmt, tone_mask_len);
             assert(tone_mask_len == d_qpsk_tone_mask.size());
@@ -146,7 +149,8 @@ namespace gr {
 
           // Init some vectors
           unsigned int alignment = volk_get_alignment();
-          d_buffer = (gr_complex*)volk_malloc(sizeof(gr_complex) * BUFFER_SIZE, alignment); // buffer
+          d_buffer_size = d_interframe_space + phy_rx_impl::PREAMBLE_SIZE;
+          d_buffer = (gr_complex*)volk_malloc(sizeof(gr_complex) * d_buffer_size, alignment); // buffer
           d_mult = (gr_complex*)volk_malloc(sizeof(gr_complex) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment); // for preamble correlation
           d_real = (float*)volk_malloc(sizeof(float) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment); // real part of preamble correlation
           d_energy = (float*)volk_malloc(sizeof(float) * MAX_SEARCH_LENGTH, alignment); // energy of preamble
@@ -235,7 +239,7 @@ namespace gr {
             i++;
           }
 
-          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
 
           // If plateau length is reached...
           if (d_plateau == MIN_PLATEAU) {
@@ -260,27 +264,27 @@ namespace gr {
             float correlation = d_search_corr / std::sqrt(d_energy_a * d_energy_b);
             if (correlation < d_sync_min) {
                 d_sync_min = correlation;
-                d_sync_min_index = (d_buffer_offset + i) % BUFFER_SIZE;
+                d_sync_min_index = (d_buffer_offset + i) % d_buffer_size;
             }
           }
-          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
           i += 2 * SYNCP_SIZE;
           PRINT_DEBUG("state = SYNC, min = " + std::to_string(d_sync_min));
 
           // Perform fine sync
           int N = SYNCP_SIZE;
-          int start = (BUFFER_SIZE + d_sync_min_index - 7 * N - FINE_SYNC_LENGTH) % BUFFER_SIZE;
+          int start = (d_buffer_size + d_sync_min_index - 7 * N - FINE_SYNC_LENGTH) % d_buffer_size;
           float fine_sync_corr = 0;
           float fine_sync_min = 0;
           int fine_sync_min_index = -1;
           for (int k=0; k<N+2*FINE_SYNC_LENGTH; k++) {
-            gr_complex p = d_buffer[(start + k + 5 * N) % BUFFER_SIZE];
-            gr_complex m = d_buffer[(start + k + 6 * N) % BUFFER_SIZE];
-            float new_y = std::real((d_buffer[(start + k) % BUFFER_SIZE] +
-                           d_buffer[(start + k + N) % BUFFER_SIZE] +
-                           d_buffer[(start + k + 2 * N) % BUFFER_SIZE] +
-                           d_buffer[(start + k + 3 * N) % BUFFER_SIZE] +
-                           d_buffer[(start + k + 4 * N) % BUFFER_SIZE]) * (std::conj(m-p)) + p * std::conj(m));
+            gr_complex p = d_buffer[(start + k + 5 * N) % d_buffer_size];
+            gr_complex m = d_buffer[(start + k + 6 * N) % d_buffer_size];
+            float new_y = std::real((d_buffer[(start + k) % d_buffer_size] +
+                           d_buffer[(start + k + N) % d_buffer_size] +
+                           d_buffer[(start + k + 2 * N) % d_buffer_size] +
+                           d_buffer[(start + k + 3 * N) % d_buffer_size] +
+                           d_buffer[(start + k + 4 * N) % d_buffer_size]) * (std::conj(m-p)) + p * std::conj(m));
             fine_sync_corr = fine_sync_corr + new_y - d_preamble_corr[k % N];
             d_preamble_corr[k % N] = new_y;
             if (k == N-1) {
@@ -291,7 +295,7 @@ namespace gr {
               fine_sync_min_index = k;
             }
           }
-          d_frame_start = 3 * (N / 2) - ((BUFFER_SIZE + d_buffer_offset - d_sync_min_index) % BUFFER_SIZE) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
+          d_frame_start = 3 * (N / 2) - ((d_buffer_size + d_buffer_offset - d_sync_min_index) % d_buffer_size) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
           PRINT_DEBUG("state = SYNC, fine sync, min = " + std::to_string(fine_sync_min) + ", correction = " + std::to_string(fine_sync_min_index-N+1-FINE_SYNC_LENGTH));
           d_receiver_state = COPY_PREAMBLE;
           break;
@@ -300,16 +304,16 @@ namespace gr {
         case COPY_PREAMBLE: {
           PRINT_DEBUG("state = COPY_PREAMBLE");
           i+=d_frame_start;
-          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, i, sizeof(gr_complex));
 
           // Process preamble
           light_plc::vector_complex preamble_aligned (PREAMBLE_SIZE);
-          copy_from_circular_buffer(preamble_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
+          copy_from_circular_buffer(preamble_aligned.data(), d_buffer, d_buffer_size, d_buffer_offset - PREAMBLE_SIZE, PREAMBLE_SIZE, sizeof(gr_complex));
           d_phy_service.process_ppdu_preamble(preamble_aligned.begin(), preamble_aligned.end());
 
           // Process noise
-          light_plc::vector_complex noise_aligned (MIN_INTERFRAME_SPACE);
-          copy_from_circular_buffer(noise_aligned.data(), d_buffer, BUFFER_SIZE, d_buffer_offset - PREAMBLE_SIZE - MIN_INTERFRAME_SPACE, MIN_INTERFRAME_SPACE, sizeof(gr_complex));
+          light_plc::vector_complex noise_aligned (d_interframe_space);
+          copy_from_circular_buffer(noise_aligned.data(), d_buffer, d_buffer_size, d_buffer_offset - PREAMBLE_SIZE - d_interframe_space, d_interframe_space, sizeof(gr_complex));
           d_phy_service.process_noise(noise_aligned.begin(), noise_aligned.end());
 
           // Print the calculated noise PSD
@@ -384,7 +388,7 @@ namespace gr {
             d_energy_a += d_energy[j];
             d_energy_b += d_energy[j + SYNCP_SIZE]; // update energy window
           }
-          copy_to_circular_buffer(d_buffer, BUFFER_SIZE, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
           d_receiver_state = SEARCH;
           break;
         }

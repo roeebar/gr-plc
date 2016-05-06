@@ -428,14 +428,6 @@
       <value>0</value>
     </param>
     <param>
-      <key>value8</key>
-      <value>0.01</value>
-    </param>
-    <param>
-      <key>value9</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>comment</key>
       <value></value>
     </param>
@@ -517,11 +509,11 @@
     </param>
     <param>
       <key>field8</key>
-      <value></value>
+      <value>snr</value>
     </param>
     <param>
       <key>field9</key>
-      <value></value>
+      <value>interframeSpace</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -545,7 +537,11 @@
     </param>
     <param>
       <key>value4</key>
-      <value>0.55*0.15 + 0.3*0</value>
+      <value>0.55*0.15*0 + 0.3</value>
+    </param>
+    <param>
+      <key>value9</key>
+      <value>140*50*3</value>
     </param>
     <param>
       <key>value5</key>
@@ -558,6 +554,10 @@
     <param>
       <key>value7</key>
       <value>0.8</value>
+    </param>
+    <param>
+      <key>value8</key>
+      <value>snr</value>
     </param>
     <param>
       <key>value1</key>
@@ -846,7 +846,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(539, 680)</value>
+      <value>(555, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -862,7 +862,7 @@
     </param>
     <param>
       <key>log</key>
-      <value>settings.log</value>
+      <value>1</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -897,7 +897,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(419, 296)</value>
+      <value>(435, 296)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1117,7 +1117,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(147, 632)</value>
+      <value>(131, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1219,7 +1219,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(747, 256)</value>
+      <value>(803, 256)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1262,7 +1262,7 @@
     </param>
     <param>
       <key>const</key>
-      <value>(10**((2.2-10)/10)*settings.gain**2/8)**0.5</value>
+      <value>(10**((2.2-settings.snr)/10)*settings.gain**2/8)**0.5</value>
     </param>
     <param>
       <key>affinity</key>
@@ -1274,7 +1274,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(811, 280)</value>
+      <value>(755, 280)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1321,7 +1321,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -1384,7 +1384,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(291, 688)</value>
+      <value>(291, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1427,7 +1427,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(153, 312)</value>
+      <value>(153, 336)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1454,7 +1454,7 @@
     <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>[0.342625]*5</value>
+      <value>[(10**((2.2-7.782-20)/10)*settings.gain**2*512/2/samp_rate*4*4.6/2/2e-6)**0.5,]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1482,7 +1482,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(635, 232)</value>
+      <value>(643, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1506,7 +1506,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>5*0</value>
+      <value>0</value>
     </param>
     <param>
       <key>o</key>
@@ -1533,7 +1533,7 @@
     </param>
     <param>
       <key>channel_est_mode</key>
-      <value>1</value>
+      <value>2</value>
     </param>
     <param>
       <key>comment</key>
@@ -1562,6 +1562,10 @@
     <param>
       <key>id</key>
       <value>plc_mac_0</value>
+    </param>
+    <param>
+      <key>interframe_space</key>
+      <value>settings.interframeSpace</value>
     </param>
     <param>
       <key>log_level</key>
@@ -1612,7 +1616,7 @@
     </param>
     <param>
       <key>channel_est_mode</key>
-      <value>2</value>
+      <value>0</value>
     </param>
     <param>
       <key>comment</key>
@@ -1643,6 +1647,10 @@
       <value>plc_mac_0_0</value>
     </param>
     <param>
+      <key>interframe_space</key>
+      <value>settings.interframeSpace</value>
+    </param>
+    <param>
       <key>log_level</key>
       <value>settings.log</value>
     </param>
@@ -1656,7 +1664,7 @@
     </param>
     <param>
       <key>qpsk_tone_mask</key>
-      <value>[]</value>
+      <value>settings.qpskMask</value>
     </param>
     <param>
       <key>master</key>
@@ -1695,7 +1703,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(227, 616)</value>
+      <value>(219, 608)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1783,6 +1791,49 @@
     <param>
       <key>vlen</key>
       <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>parameter</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(456, 11)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>snr</value>
+    </param>
+    <param>
+      <key>label</key>
+      <value></value>
+    </param>
+    <param>
+      <key>short_id</key>
+      <value></value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>eng_float</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>20</value>
     </param>
   </block>
   <block>
@@ -2453,11 +2504,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(507, 232)</value>
+      <value>(515, 232)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3268,11 +3319,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(627, 592)</value>
+      <value>(643, 608)</value>
     </param>
     <param>
       <key>_rotation</key>

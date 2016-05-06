@@ -12,7 +12,6 @@ class mac(gr.basic_block, Machine):
     MAX_SEGMENTS = 3 # max number of segments (PHY blocks) in one MAC frame
     MAX_FRAMES_IN_BUFFER = 10 # max number of MAC frames in tx buffer
     SOUND_FRAME_RATE = 2 # minimum time in seconds between sounds frames
-    # SOUND_FRAME_RATE = 1000 # minimum time in seconds between sounds frames
     SACK_TIMEOUT = 0.6 # minimum time in seconds to wait for sack
     SOF_FRAME_RATE = 0.001 # minimum time in seconds between SOF frames
 
@@ -36,7 +35,7 @@ class mac(gr.basic_block, Machine):
     sof_timer = None
     stats = {'n_blocks_tx_success': 0, 'n_blocks_tx_fail': 0, 'n_missing_acks': 0}
 
-    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, qpsk_tone_mask, target_ber, channel_est_mode, log_level):
+    def __init__(self, device_addr, master, tmi, dest, broadcast_tone_mask, sync_tone_mask, qpsk_tone_mask, target_ber, channel_est_mode, interframe_space, log_level):
         gr.basic_block.__init__(self,
             name="mac",
             in_sig=[],
@@ -56,6 +55,7 @@ class mac(gr.basic_block, Machine):
         self.qpsk_tone_mask = qpsk_tone_mask
         self.target_ber = target_ber
         self.channel_est_mode = channel_est_mode
+        self.interframe_space = interframe_space;
         if self.is_master:
             self.name = self.to_basic_block().alias() + " (master)"
             initial_state = 'waiting_for_app'
@@ -125,6 +125,7 @@ class mac(gr.basic_block, Machine):
         self.logger.info("qpskToneMask = " + str(self.qpsk_tone_mask))
         self.logger.info("targetBer = " + str(self.target_ber))
         self.logger.info("channelEstMode = " + str(self.channel_est_mode))
+        self.logger.info("interframeSpace = " + str(self.interframe_space))
 
     def capacity(self):
         return self.tx_capacity
@@ -304,9 +305,10 @@ class mac(gr.basic_block, Machine):
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("broadcast_tone_mask"), tone_mask_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("sync_tone_mask"), sync_tone_mask_pmt)
         dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("channel_est_mode"), gr.pmt.to_pmt(self.channel_est_mode))
+        dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("interframe_space"), gr.pmt.to_pmt(self.interframe_space))
         if (self.qpsk_tone_mask):
-            force_tone_mask_pmt = gr.pmt.init_u8vector(len(self.qpsk_tone_mask), list(self.qpsk_tone_mask))
-            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("qpsk_tone_mask"), force_tone_mask_pmt)
+            qpsk_tone_mask_pmt = gr.pmt.init_u8vector(len(self.qpsk_tone_mask), list(self.qpsk_tone_mask))
+            dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("qpsk_tone_mask"), qpsk_tone_mask_pmt)
 
         if self.is_master:
             dict = gr.pmt.dict_add(dict, gr.pmt.to_pmt("id"), gr.pmt.to_pmt("master"))

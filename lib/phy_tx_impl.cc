@@ -13,8 +13,6 @@
 namespace gr {
   namespace plc {
 
-    const int phy_tx_impl::MIN_INTERFRAME_SPACE = light_plc::phy_service::MIN_INTERFRAME_SPACE;
-
     phy_tx::sptr
     phy_tx::make(int log_level)
     {
@@ -29,6 +27,7 @@ namespace gr {
       : gr::sync_block("phy_tx",
               gr::io_signature::make(0, 0, 0),
               gr::io_signature::make(1, 1, sizeof(gr_complex))),
+            d_interframe_space(light_plc::phy_service::MIN_INTERFRAME_SPACE),
             d_log_level (log_level),
             d_init_done(false),
             d_datastream_offset(0),
@@ -108,6 +107,10 @@ namespace gr {
             // Set channel estimation mode
             pmt::pmt_t channel_est_mode_pmt = pmt::dict_ref(dict, pmt::mp("channel_est_mode"), pmt::PMT_NIL);
             light_plc::channel_est_t channel_est_mode = (light_plc::channel_est_t)pmt::to_uint64(channel_est_mode_pmt);
+
+            // Set inter-frame space
+            pmt::pmt_t interframe_space_pmt = pmt::dict_ref(dict, pmt::mp("interframe_space"), pmt::PMT_NIL);
+            d_interframe_space = pmt::to_uint64(interframe_space_pmt);
 
             d_phy_service = light_plc::phy_service(tone_mask, tone_mask, sync_tone_mask, channel_est_mode, d_log_level >= 3);
           }
@@ -189,10 +192,10 @@ namespace gr {
 
           case PREPARING:
             if (d_frame_ready) {
-              if (d_samples_since_last_tx >= MIN_INTERFRAME_SPACE)
+              if (d_samples_since_last_tx >= d_interframe_space)
                 d_transmitter_state = TX;
               else {
-                i = std::min(MIN_INTERFRAME_SPACE - d_samples_since_last_tx, (unsigned int)noutput_items);
+                i = std::min(d_interframe_space - d_samples_since_last_tx, noutput_items);
                 d_samples_since_last_tx += i;
                 std::memset(out, 0, sizeof(gr_complex)*i);
               }
