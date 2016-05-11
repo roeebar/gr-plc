@@ -9,6 +9,7 @@
 #include "logging.h"
 #include <gnuradio/fft/fft.h>
 #include <volk/volk.h>
+#include <math.h>
 
 namespace gr {
   namespace plc {
@@ -18,7 +19,6 @@ namespace gr {
     const int phy_rx_impl::FRAME_CONTROL_SIZE = light_plc::phy_service::FRAME_CONTROL_SIZE;
     const int phy_rx_impl::MAX_SEARCH_LENGTH = 16384; // maximum search length determines the volk memory allocation
     const int phy_rx_impl::COARSE_SYNC_LENGTH = 2 * phy_rx_impl::SYNCP_SIZE + light_plc::phy_service::ROLLOFF_INTERVAL; // length for frame alignment attempt
-    const int phy_rx_impl::FINE_SYNC_LENGTH = 10; // length for fine frame alignment attempt
     const int phy_rx_impl::MIN_PLATEAU = 5.5 * phy_rx_impl::SYNCP_SIZE - light_plc::phy_service::ROLLOFF_INTERVAL; // minimum autocorrelation plateau
 
     phy_rx::sptr
@@ -57,7 +57,8 @@ namespace gr {
       volk_free(d_real);
       volk_free(d_energy);
       volk_free(d_frame_control);
-      free(d_preamble_corr);
+      volk_free(d_corr_history);
+      volk_free(d_energy_history);
     }
 
     void phy_rx_impl::mac_in (pmt::pmt_t msg) {
@@ -155,8 +156,9 @@ namespace gr {
           d_real = (float*)volk_malloc(sizeof(float) * (MAX_SEARCH_LENGTH - SYNCP_SIZE), alignment); // real part of preamble correlation
           d_energy = (float*)volk_malloc(sizeof(float) * MAX_SEARCH_LENGTH, alignment); // energy of preamble
           assert (MAX_SEARCH_LENGTH > COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE); // the volk vectors are used during SYNC as well
+          d_corr_history = (float*)volk_malloc(sizeof(float) * SYNCP_SIZE, alignment); // correlation history
+          d_energy_history = (float*)volk_malloc(sizeof(float) * 2 * SYNCP_SIZE, alignment); // energy history
           d_frame_control = (gr_complex*)volk_malloc(sizeof(gr_complex) * FRAME_CONTROL_SIZE, alignment); // frame control
-          d_preamble_corr = (float*)malloc(SYNCP_SIZE * sizeof(float));
 
           d_receiver_state = RESET;
           PRINT_DEBUG("init done");
@@ -169,7 +171,7 @@ namespace gr {
     phy_rx_impl::forecast (int noutput_items, gr_vector_int &ninput_items_required)
     {
       if (d_receiver_state == SYNC) {
-        ninput_items_required[0] = COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE;
+        ninput_items_required[0] = COARSE_SYNC_LENGTH + SYNCP_SIZE;
       } else if (d_receiver_state == COPY_PREAMBLE) {
         ninput_items_required[0] = d_frame_start;
       } else if (d_receiver_state == COPY_FRAME_CONTROL) {
@@ -223,13 +225,18 @@ namespace gr {
           int search_len = std::min(ninput, MAX_SEARCH_LENGTH);
           volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, search_len - SYNCP_SIZE);
           volk_32fc_deinterleave_real_32f(d_real, d_mult, search_len - SYNCP_SIZE);
-          volk_32fc_magnitude_squared_32f(d_energy, in, search_len);
+          volk_32fc_magnitude_squared_32f(d_energy, in + SYNCP_SIZE, search_len - SYNCP_SIZE);
 
           float correlation = 0;
-          while (i + 2 * SYNCP_SIZE < search_len && d_plateau < MIN_PLATEAU) {
-            d_search_corr += d_real[i + SYNCP_SIZE] - d_real[i]; // update correlation window
-            d_energy_a += d_energy[i + SYNCP_SIZE] - d_energy[i]; // update energy window
-            d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
+          while (i < search_len - SYNCP_SIZE && d_plateau < MIN_PLATEAU) {
+            d_search_corr += d_real[i] - d_corr_history[d_corr_idx]; // update correlation window
+            int k = (d_energy_idx + SYNCP_SIZE) % (2 * SYNCP_SIZE);
+            d_energy_a += d_energy_history[k] - d_energy_history[d_energy_idx]; // update energy window
+            d_energy_b += d_energy[i] - d_energy_history[k]; // update energy window
+            d_corr_history[d_corr_idx] = d_real[i];
+            d_energy_history[d_energy_idx] = d_energy[i];
+            d_corr_idx = (d_corr_idx + 1) % SYNCP_SIZE;
+            d_energy_idx = (d_energy_idx + 1) % (2 * SYNCP_SIZE);
             correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
             if(correlation > d_threshold) {
               d_plateau++;
@@ -238,14 +245,13 @@ namespace gr {
             }
             i++;
           }
-
-          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, i, sizeof(gr_complex));
 
           // If plateau length is reached...
           if (d_plateau == MIN_PLATEAU) {
             PRINT_DEBUG("state = SEARCH, Found frame!");
             d_sync_min = correlation;
-            d_sync_min_index = d_buffer_offset;
+            d_sync_min_index = -1;
             d_receiver_state = SYNC;
           }
           break;
@@ -253,57 +259,35 @@ namespace gr {
 
         case SYNC: {
           // Perform coarse sync
-          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, COARSE_SYNC_LENGTH + SYNCP_SIZE);
-          volk_32fc_deinterleave_real_32f(d_real, d_mult, COARSE_SYNC_LENGTH + SYNCP_SIZE);
-          volk_32fc_magnitude_squared_32f(d_energy, in, COARSE_SYNC_LENGTH + 2 * SYNCP_SIZE);
-          while (i < COARSE_SYNC_LENGTH) {
-            d_search_corr += d_real[i + SYNCP_SIZE] - d_real[i]; // update correlation window
-            d_energy_a += d_energy[i + SYNCP_SIZE] - d_energy[i]; // update energy window
-            d_energy_b += d_energy[i + SYNCP_SIZE * 2] - d_energy[i + SYNCP_SIZE]; // update energy window
+          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, COARSE_SYNC_LENGTH);
+          volk_32fc_deinterleave_real_32f(d_real, d_mult, COARSE_SYNC_LENGTH);
+          volk_32fc_magnitude_squared_32f(d_energy, in + SYNCP_SIZE, COARSE_SYNC_LENGTH);
+          while (i < COARSE_SYNC_LENGTH && i - d_sync_min_index < 5 * (SYNCP_SIZE / 2)) {
+            d_search_corr += d_real[i] - d_corr_history[d_corr_idx]; // update correlation window
+            int k = (d_energy_idx + SYNCP_SIZE) % (2 * SYNCP_SIZE);
+            d_energy_a += d_energy_history[k] - d_energy_history[d_energy_idx]; // update energy window
+            d_energy_b += d_energy[i] - d_energy_history[k]; // update energy window
+            d_corr_history[d_corr_idx] = d_real[i];
+            d_energy_history[d_energy_idx] = d_energy[i];
+            d_corr_idx = (d_corr_idx + 1) % SYNCP_SIZE;
+            d_energy_idx = (d_energy_idx + 1) % (2 * SYNCP_SIZE);
             i++;
             float correlation = d_search_corr / std::sqrt(d_energy_a * d_energy_b);
             if (correlation < d_sync_min) {
                 d_sync_min = correlation;
-                d_sync_min_index = (d_buffer_offset + i) % d_buffer_size;
+                d_sync_min_index = i;
             }
           }
-          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in + 2 * SYNCP_SIZE, i, sizeof(gr_complex));
-          i += 2 * SYNCP_SIZE;
+          d_frame_start = 5 * (SYNCP_SIZE / 2) - (i - d_sync_min_index); // start of frame is at 2.5xSYNCP after minimum
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, i, sizeof(gr_complex));
           PRINT_DEBUG("state = SYNC, min = " + std::to_string(d_sync_min));
-
-          // Perform fine sync
-          int N = SYNCP_SIZE;
-          int start = (d_buffer_size + d_sync_min_index - 7 * N - FINE_SYNC_LENGTH) % d_buffer_size;
-          float fine_sync_corr = 0;
-          float fine_sync_min = 0;
-          int fine_sync_min_index = -1;
-          for (int k=0; k<N+2*FINE_SYNC_LENGTH; k++) {
-            gr_complex p = d_buffer[(start + k + 5 * N) % d_buffer_size];
-            gr_complex m = d_buffer[(start + k + 6 * N) % d_buffer_size];
-            float new_y = std::real((d_buffer[(start + k) % d_buffer_size] +
-                           d_buffer[(start + k + N) % d_buffer_size] +
-                           d_buffer[(start + k + 2 * N) % d_buffer_size] +
-                           d_buffer[(start + k + 3 * N) % d_buffer_size] +
-                           d_buffer[(start + k + 4 * N) % d_buffer_size]) * (std::conj(m-p)) + p * std::conj(m));
-            fine_sync_corr = fine_sync_corr + new_y - d_preamble_corr[k % N];
-            d_preamble_corr[k % N] = new_y;
-            if (k == N-1) {
-              fine_sync_min = fine_sync_corr;
-              fine_sync_min_index = k;
-            } else if (k >= N && fine_sync_corr < fine_sync_min) {
-              fine_sync_min = fine_sync_corr;
-              fine_sync_min_index = k;
-            }
-          }
-          d_frame_start = 3 * (N / 2) - ((d_buffer_size + d_buffer_offset - d_sync_min_index) % d_buffer_size) + (fine_sync_min_index - N + 1 - FINE_SYNC_LENGTH);
-          PRINT_DEBUG("state = SYNC, fine sync, min = " + std::to_string(fine_sync_min) + ", correction = " + std::to_string(fine_sync_min_index-N+1-FINE_SYNC_LENGTH));
           d_receiver_state = COPY_PREAMBLE;
           break;
         }
 
         case COPY_PREAMBLE: {
           PRINT_DEBUG("state = COPY_PREAMBLE");
-          i+=d_frame_start;
+          i += d_frame_start;
           copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, i, sizeof(gr_complex));
 
           // Process preamble
@@ -370,25 +354,25 @@ namespace gr {
         case RESET: {
           PRINT_DEBUG ("state = RESET");
           d_sync_min = 1;
-          d_plateau = 0;
           d_buffer_offset = 0;
           d_payload_size = 0;
           d_payload_offset = 0;
           d_search_corr = 0;
           d_energy_a = 0;
           d_energy_b = 0;
-          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, 2 * SYNCP_SIZE - 1);
-          volk_32fc_deinterleave_real_32f(d_real, d_mult, 2 * SYNCP_SIZE - 1);
-          volk_32fc_magnitude_squared_32f(d_energy, in, 2 * SYNCP_SIZE - 1);
-          for (int j=0; j<SYNCP_SIZE; j++) {
-            d_preamble_corr[j] = 0;
+          d_corr_idx = 0;
+          d_energy_idx = 0;
+          volk_32fc_x2_multiply_conjugate_32fc(d_mult, in, in + SYNCP_SIZE, SYNCP_SIZE);
+          volk_32fc_deinterleave_real_32f(d_corr_history, d_mult, SYNCP_SIZE);
+          volk_32fc_magnitude_squared_32f(d_energy_history, in, 2 * SYNCP_SIZE);
+          while (i < SYNCP_SIZE) {
+            d_search_corr += d_corr_history[i]; // update correlation window
+            d_energy_a += d_energy_history[i]; // update energy window
+            d_energy_b += d_energy_history[i + SYNCP_SIZE]; // update energy window
+            i++;
           }
-          for (int j=0; j<SYNCP_SIZE-1; j++) {
-            d_search_corr += d_real[j];
-            d_energy_a += d_energy[j];
-            d_energy_b += d_energy[j + SYNCP_SIZE]; // update energy window
-          }
-          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, 2 * SYNCP_SIZE - 1, sizeof(gr_complex));
+          d_plateau = d_search_corr / std::sqrt(d_energy_a*d_energy_b) > d_threshold ? 1 : 0; // set d_plateau=1 if correlation above threshold
+          copy_to_circular_buffer(d_buffer, d_buffer_size, d_buffer_offset, in, i, sizeof(gr_complex));
           d_receiver_state = SEARCH;
           break;
         }

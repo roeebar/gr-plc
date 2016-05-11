@@ -36,7 +36,7 @@ namespace gr {
       float d_search_corr;
       float d_energy_a, d_energy_b;
       gr_complex *d_mult, *d_buffer, *d_frame_control, *d_payload;
-      float *d_real, *d_energy;
+      float *d_real, *d_energy, *d_corr_history, *d_energy_history;
       int d_plateau;
       int d_payload_size;
       int d_payload_offset;
@@ -44,8 +44,8 @@ namespace gr {
       float d_sync_min;
       int d_sync_min_index;
       size_t d_buffer_offset;
-      float *d_preamble_corr;
       int d_frame_start;
+      int d_corr_idx, d_energy_idx;
 
      public:
       phy_rx_impl(float threshold, int log_level);
