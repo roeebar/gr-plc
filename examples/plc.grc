@@ -388,10 +388,6 @@
   <block>
     <key>variable_struct</key>
     <param>
-      <key>value10</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>value11</key>
       <value>0</value>
     </param>
@@ -445,7 +441,7 @@
     </param>
     <param>
       <key>field10</key>
-      <value></value>
+      <value>estMode</value>
     </param>
     <param>
       <key>field11</key>
@@ -534,6 +530,10 @@
     <param>
       <key>value2</key>
       <value>[0]*512 + [1,0]*512 + [0]*512</value>
+    </param>
+    <param>
+      <key>value10</key>
+      <value>0</value>
     </param>
     <param>
       <key>value4</key>
@@ -846,7 +846,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(555, 608)</value>
+      <value>(555, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -897,7 +897,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(435, 296)</value>
+      <value>(435, 384)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -932,7 +932,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>0.0039406</value>
+      <value>1</value>
     </param>
     <param>
       <key>alias</key>
@@ -952,11 +952,11 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(632, 131)</value>
+      <value>(803, 336)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>180</value>
+      <value>90</value>
     </param>
     <param>
       <key>id</key>
@@ -1007,7 +1007,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(512, 161)</value>
+      <value>(512, 249)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1058,7 +1058,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(473, 480)</value>
+      <value>(473, 568)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1117,7 +1117,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(131, 608)</value>
+      <value>(131, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1164,7 +1164,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(83, 248)</value>
+      <value>(83, 336)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1196,61 +1196,6 @@
     </param>
   </block>
   <block>
-    <key>blocks_file_source</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>file</key>
-      <value>/home/roee/noise.raw</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(803, 256)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>90</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_file_source_1</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>complex</value>
-    </param>
-    <param>
-      <key>repeat</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
     <key>blocks_multiply_const_vxx</key>
     <param>
       <key>alias</key>
@@ -1274,7 +1219,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(755, 280)</value>
+      <value>(755, 368)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1283,6 +1228,57 @@
     <param>
       <key>id</key>
       <value>blocks_multiply_const_vxx_0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>complex</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_multiply_const_vxx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>const</key>
+      <value>(10**((2.2-30)/10)*settings.gain**2/8)**0.5</value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(640, 243)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>180</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_multiply_const_vxx_0_0</value>
     </param>
     <param>
       <key>type</key>
@@ -1333,7 +1329,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(616, 459)</value>
+      <value>(616, 547)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1384,7 +1380,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(291, 608)</value>
+      <value>(291, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1427,7 +1423,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(153, 336)</value>
+      <value>(153, 424)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1482,7 +1478,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(643, 232)</value>
+      <value>(643, 320)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1553,7 +1549,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(219, 232)</value>
+      <value>(227, 312)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1616,7 +1612,7 @@
     </param>
     <param>
       <key>channel_est_mode</key>
-      <value>0</value>
+      <value>settings.estMode</value>
     </param>
     <param>
       <key>comment</key>
@@ -1636,7 +1632,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(339, 608)</value>
+      <value>(339, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1664,7 +1660,7 @@
     </param>
     <param>
       <key>qpsk_tone_mask</key>
-      <value>[]</value>
+      <value>[] if settings.estMode!=1 else settings.qpskMask</value>
     </param>
     <param>
       <key>master</key>
@@ -1703,7 +1699,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(219, 608)</value>
+      <value>(219, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1758,7 +1754,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(11, 248)</value>
+      <value>(11, 336)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2508,7 +2504,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(515, 232)</value>
+      <value>(515, 320)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3323,7 +3319,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(643, 608)</value>
+      <value>(643, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3496,9 +3492,15 @@
   </connection>
   <connection>
     <source_block_id>analog_fastnoise_source_x_0</source_block_id>
-    <sink_block_id>blocks_add_xx_0</sink_block_id>
+    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>1</sink_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>analog_fastnoise_source_x_0</source_block_id>
+    <sink_block_id>blocks_multiply_const_vxx_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0</source_block_id>
@@ -3537,16 +3539,16 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>blocks_file_source_1</source_block_id>
-    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
     <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_multiply_const_vxx_0_0</source_block_id>
+    <sink_block_id>blocks_add_xx_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>1</sink_key>
   </connection>
   <connection>
     <source_block_id>channels_channel_model_0</source_block_id>
