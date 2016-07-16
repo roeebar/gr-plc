@@ -262,8 +262,8 @@ void phy_service::update_frame_control (vector_int &mpdu_fc_int, tx_params_t tx_
         int fec_block_size = calc_fec_block_size(tx_params.tone_mode, tone_info.rate, tx_params.pb_size);
         int n_bits = n_blocks * fec_block_size;
         int n_symbols = (n_bits % tone_info.capacity) ? n_bits / tone_info.capacity + 1 : n_bits / tone_info.capacity;
-        float symbol_durarion = (NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL) / SAMPLE_RATE; // one symbol duration (microseconds)
-        fl_width = std::ceil((n_symbols * symbol_durarion + IEEE1901_RIFS_DEFAULT)/1.28);
+        float symbol_durarion = (NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD) / SAMPLE_RATE; // one symbol duration (microseconds)
+        fl_width = std::ceil((n_symbols * symbol_durarion + (float)IEEE1901_ROLLOFF_INTERVAL / SAMPLE_RATE + IEEE1901_RIFS_DEFAULT) / 1.28);
     }
     switch (dt) {
         case DT_SOF:
@@ -1285,7 +1285,7 @@ bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_para
             }
 
             fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOF_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOF_FL_WIDTH);
-            rx_params.n_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT) / ((NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL)/SAMPLE_RATE);
+            rx_params.n_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT - (float)IEEE1901_ROLLOFF_INTERVAL / SAMPLE_RATE) / ((NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD) / SAMPLE_RATE) + 0.5; // add 0.5 due numerical instability
             break;
         }
 
@@ -1304,7 +1304,7 @@ bool phy_service::get_rx_params (const vector_int &fc_bits, rx_params_t &rx_para
             }
 
             fl_width = get_field(fc_bits, IEEE1901_FRAME_CONTROL_SOUND_FL_OFFSET, IEEE1901_FRAME_CONTROL_SOUND_FL_WIDTH);
-            rx_params.n_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT) / ((NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD + (float)IEEE1901_ROLLOFF_INTERVAL)/SAMPLE_RATE);
+            rx_params.n_symbols = (fl_width * 1.28 - IEEE1901_RIFS_DEFAULT - (float)IEEE1901_ROLLOFF_INTERVAL / SAMPLE_RATE) / ((NUMBER_OF_CARRIERS + (float)IEEE1901_GUARD_INTERVAL_PAYLOAD) / SAMPLE_RATE) + 0.5; // add 0.5 due numerical instability
             break;
         }
 

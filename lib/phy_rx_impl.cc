@@ -238,7 +238,7 @@ namespace gr {
             d_corr_idx = (d_corr_idx + 1) % SYNCP_SIZE;
             d_energy_idx = (d_energy_idx + 1) % (2 * SYNCP_SIZE);
             correlation = d_search_corr / std::sqrt(d_energy_a*d_energy_b);
-            if(correlation > d_threshold) {
+            if(!std::isinf(correlation) && correlation > d_threshold) {
               d_plateau++;
             } else { // correlation <= d_threshold
               d_plateau = 0;

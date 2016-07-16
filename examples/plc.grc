@@ -253,7 +253,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1224, 603)</value>
+      <value>(1120, 603)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -382,15 +382,11 @@
     </param>
     <param>
       <key>value</key>
-      <value>25e6</value>
+      <value>25.0e6</value>
     </param>
   </block>
   <block>
     <key>variable_struct</key>
-    <param>
-      <key>value11</key>
-      <value>0</value>
-    </param>
     <param>
       <key>value12</key>
       <value>0</value>
@@ -445,7 +441,7 @@
     </param>
     <param>
       <key>field11</key>
-      <value></value>
+      <value>snri</value>
     </param>
     <param>
       <key>field12</key>
@@ -537,11 +533,11 @@
     </param>
     <param>
       <key>value4</key>
-      <value>0.55*0.15*0 + 0.3</value>
+      <value>0.55*0.12*0 + 0.3</value>
     </param>
     <param>
       <key>value9</key>
-      <value>140*50*3</value>
+      <value>int(140e-6*samp_rate*2*3)</value>
     </param>
     <param>
       <key>value5</key>
@@ -558,6 +554,10 @@
     <param>
       <key>value8</key>
       <value>snr</value>
+    </param>
+    <param>
+      <key>value11</key>
+      <value>2.5</value>
     </param>
     <param>
       <key>value1</key>
@@ -846,7 +846,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(555, 696)</value>
+      <value>(451, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -932,7 +932,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>1</value>
+      <value>(0.018910+3.4241e-04*0)*(10**(-settings.snr/10.0)-10**(-27.0/10.0))**0.5</value>
     </param>
     <param>
       <key>alias</key>
@@ -948,15 +948,15 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(803, 336)</value>
+      <value>(795, 728)</value>
     </param>
     <param>
       <key>_rotation</key>
-      <value>90</value>
+      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1003,66 +1003,15 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(512, 249)</value>
+      <value>(528, 913)</value>
     </param>
     <param>
       <key>_rotation</key>
       <value>180</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_add_xx_0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>complex</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>num_inputs</key>
-      <value>2</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_add_xx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(473, 568)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>270</value>
     </param>
     <param>
       <key>id</key>
@@ -1117,7 +1066,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(131, 696)</value>
+      <value>(27, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1160,7 +1109,7 @@
     </param>
     <param>
       <key>file</key>
-      <value>/home/roee/Dropbox/Thesis/gr-plc/Testing/1516_x_334.mkv</value>
+      <value>/home/roee/Dropbox/Thesis/gr-plc/testing/1516_x_334.mkv</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1196,108 +1145,6 @@
     </param>
   </block>
   <block>
-    <key>blocks_multiply_const_vxx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>const</key>
-      <value>(10**((2.2-settings.snr)/10)*settings.gain**2/8)**0.5</value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(755, 368)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>270</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_multiply_const_vxx_0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>complex</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
-    <key>blocks_multiply_const_vxx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>const</key>
-      <value>(10**((2.2-30)/10)*settings.gain**2/8)**0.5</value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(640, 243)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>180</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>blocks_multiply_const_vxx_0_0</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>complex</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
     <key>channels_channel_model</key>
     <param>
       <key>alias</key>
@@ -1317,7 +1164,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>epsilon</key>
@@ -1329,7 +1176,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(616, 547)</value>
+      <value>(456, 547)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1380,7 +1227,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(291, 696)</value>
+      <value>(187, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1450,7 +1297,7 @@
     <key>plc_impulse_source</key>
     <param>
       <key>a</key>
-      <value>[(10**((2.2-settings.snr)/10)*settings.gain**2*512/2/samp_rate*4*4.6/2/2e-6)**0.5,]*5</value>
+      <value>[(2.0/5.0*(10**(-settings.snri/10.0))*(4.6/2/2e-6)*((4096+756)/2*5.0/samp_rate))**0.5*0.018910,]*5</value>
     </param>
     <param>
       <key>alias</key>
@@ -1478,7 +1325,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(643, 320)</value>
+      <value>(675, 704)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1486,7 +1333,7 @@
     </param>
     <param>
       <key>iat</key>
-      <value>((4096+756-496)/2/samp_rate,)*5</value>
+      <value>((4096+756)/2*5.0/samp_rate,)*5</value>
     </param>
     <param>
       <key>id</key>
@@ -1502,7 +1349,7 @@
     </param>
     <param>
       <key>n_noises</key>
-      <value>0</value>
+      <value>5</value>
     </param>
     <param>
       <key>o</key>
@@ -1632,7 +1479,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(339, 696)</value>
+      <value>(235, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1699,7 +1546,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(219, 696)</value>
+      <value>(115, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2500,7 +2347,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -3315,11 +3162,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>0</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(643, 696)</value>
+      <value>(539, 696)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -3474,7 +3321,7 @@
   </connection>
   <connection>
     <source_block_id>PHY_0</source_block_id>
-    <sink_block_id>blocks_add_xx_0</sink_block_id>
+    <sink_block_id>PHY_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3486,43 +3333,31 @@
   </connection>
   <connection>
     <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>channels_channel_model_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>PHY_0_0</source_block_id>
+    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>analog_fastnoise_source_x_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>2</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>analog_fastnoise_source_x_0</source_block_id>
-    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
-    <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>analog_fastnoise_source_x_0</source_block_id>
-    <sink_block_id>blocks_multiply_const_vxx_0_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_add_xx_0</source_block_id>
-    <sink_block_id>PHY_0_0</sink_block_id>
+    <source_block_id>blocks_add_xx_0_1</source_block_id>
+    <sink_block_id>PHY_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0_1</source_block_id>
     <sink_block_id>blocks_file_sink_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_add_xx_0_1</source_block_id>
-    <sink_block_id>channels_channel_model_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_add_xx_0_1</source_block_id>
-    <sink_block_id>uhd_usrp_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -3539,22 +3374,10 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
+    <source_block_id>channels_channel_model_0</source_block_id>
     <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_multiply_const_vxx_0_0</source_block_id>
-    <sink_block_id>blocks_add_xx_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>1</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>channels_channel_model_0</source_block_id>
-    <sink_block_id>PHY_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>2</sink_key>
   </connection>
   <connection>
     <source_block_id>plc_app_in_0</source_block_id>
@@ -3600,8 +3423,8 @@
   </connection>
   <connection>
     <source_block_id>uhd_usrp_source_0</source_block_id>
-    <sink_block_id>PHY_0</sink_block_id>
+    <sink_block_id>blocks_add_xx_0_1</sink_block_id>
     <source_key>0</source_key>
-    <sink_key>0</sink_key>
+    <sink_key>2</sink_key>
   </connection>
 </flow_graph>
