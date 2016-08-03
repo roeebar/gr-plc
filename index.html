@@ -1,38 +1,42 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html>
   <head>
-    <meta charset="UTF-8">
-    <title>Gr-plc by roeebar</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Gr-plc by roeebar</title>
   </head>
+
   <body>
-    <section class="page-header">
-      <h1 class="project-name">Gr-plc</h1>
-      <h2 class="project-tagline">Open IEEE 1901/HomePlug Module for GNURadio</h2>
-      <a href="https://github.com/roeebar/gr-plc" class="btn">View on GitHub</a>
-      <a href="https://github.com/roeebar/gr-plc/zipball/master" class="btn">Download .zip</a>
-      <a href="https://github.com/roeebar/gr-plc/tarball/master" class="btn">Download .tar.gz</a>
-    </section>
+    <header>
+      <div class="inner">
+        <h1>Gr-plc</h1>
+        <h2>Open IEEE 1901/HomePlug Module for GNURadio</h2>
+        <a href="https://github.com/roeebar/gr-plc" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
 
-    <section class="main-content">
-      <h3>
-<a id="ieee-1901" class="anchor" href="#ieee-1901" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>IEEE 1901</h3>
-
-<p>The IEEE 1901 is a standard for high speed communication protocol via electric power lines. The 1901 standards include two different physical layers, one based on FFT orthogonal frequency-division multiplexing (OFDM) modulation and another based on wavelet OFDM modulation. Each PHY is optional, and implementers of the specification may, but are not required to include both. The FFT PHY is derived from HomePlug AV technology and is deployed in HomePlug-based products. The Wavelet PHY is derived from HD-PLC technology and is deployed in HD-PLC-based products.</p>
-
-<h3>
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h3>
 <a id="open-ieee-1901-implementation" class="anchor" href="#open-ieee-1901-implementation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Open IEEE 1901 Implementation</h3>
 
-<p>The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio systems. On such communication systems the core components are running on a personal computer. </p>
+<p>The IEEE 1901 is a standard for high speed communication protocol via electric power lines. The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio systems. On such systems the core components are running on a personal computer. </p>
 
 <h3>
-<a id="gnu-radio-module" class="anchor" href="#gnu-radio-module" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>GNU Radio Module</h3>
+<a id="gr-plc" class="anchor" href="#gr-plc" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Gr-plc</h3>
 
-<p>GNU Radio is a free software development toolkit that provides signal processing blocks to implement software-defined radios and signal-processing systems. The Gr-plc is basically a C++ implementation of IEEE 1901, designed to work in GNU Radio. </p>
+<p>GNU Radio is a free software development toolkit that provides signal processing blocks to implement software-defined radios and signal-processing systems. Gr-plc is basically a C++ implementation of IEEE 1901, designed to work in GNU Radio. </p>
 
 <h3>
 <a id="blocks" class="anchor" href="#blocks" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Blocks</h3>
@@ -47,20 +51,26 @@
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Authors and Contributors</h3>
 
-<p>You can @mention a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor’s GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
-
 <h3>
 <a id="support-or-contact" class="anchor" href="#support-or-contact" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Support or Contact</h3>
+        </section>
 
-<p>Having trouble with Pages? Check out our <a href="https://help.github.com/pages">documentation</a> or <a href="https://github.com/contact">contact support</a> and we’ll help you sort it out.</p>
+        <aside id="sidebar">
+          <a href="https://github.com/roeebar/gr-plc/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/roeebar/gr-plc/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
 
-      <footer class="site-footer">
-        <span class="site-footer-owner"><a href="https://github.com/roeebar/gr-plc">Gr-plc</a> is maintained by <a href="https://github.com/roeebar">roeebar</a>.</span>
+          <p class="repo-owner"><a href="https://github.com/roeebar/gr-plc"></a> is maintained by <a href="https://github.com/roeebar">roeebar</a>.</p>
 
-        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
-      </footer>
-
-    </section>
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
 
   
   </body>
