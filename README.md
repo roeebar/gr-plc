@@ -1,4 +1,4 @@
-# gr-plc
+# Gr-plc
 
 GNU Radio blocks and library for IEEE1901/HomePlug-like communication.
 
@@ -24,7 +24,6 @@ gr-plc library depends on [IT++ library](http://itpp.sourceforge.net/) for the t
 
 For building and installing gr-plc run the following:
 
-
     git clone git://github.com/roeebar/gr-plc.git
     cd gr-plc
     mkdir build  
@@ -34,7 +33,7 @@ For building and installing gr-plc run the following:
     sudo make install  
     sudo ldconfig  
 
-### PHY Block
+### Install PHY block
 
 The physical layer is encapsulated in a hierarchical block to allow for a clearer transceiver structure in GNU Radio Companion. This hierarchical block is not included in the installation process. You have to open */examples/phy_hier.grc* with GNU Radio Companion and build it. This will install the block in *~/.grc_gnuradio/*.
 
