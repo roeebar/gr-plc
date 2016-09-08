@@ -34,6 +34,14 @@ For building and installing gr-plc run the following:
     sudo make install  
     sudo ldconfig  
 
+### PHY Block
+
+The physical layer is encapsulated in a hierarchical block to allow for a clearer transceiver structure in GNU Radio Companion. This hierarchical block is not included in the installation process. You have to open */examples/phy_hier.grc* with GNU Radio Companion and build it. This will install the block in *~/.grc_gnuradio/*.
+
+### Check message port connections
+
+Sometime the connections between the message ports (the gray ones in GNU Radio Companion) break. Therefore, please open the flow graphs and assert that everything is connected. It should be pretty obvious how the blocks are supposed to be wired. 
+
 ### Notes
 
 - To disable thread priority UHD warning, add the following to */etc/security/limits.conf*  
