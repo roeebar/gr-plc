@@ -19,20 +19,34 @@
     </section>
 
     <section class="main-content">
-      <p>IEEE 1901 is a standard for high speed communication protocol via electric powerlines. The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio systems. </p>
+      <p>IEEE 1901 is a standard for high speed communication protocol via electric powerlines. The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio (SDR) systems. </p>
 
-<p>Gr-plc is a C++ implementation of IEEE 1901, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement software-defined radios and signal-processing systems.  </p>
+<p>Gr-plc is a C++ implementation of IEEE 1901, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement SDR and signal-processing systems. The system was tested using Ettus USRP N210 and the LFRX and LFTX daughterboards.</p>
 
 <p>The gr-plc module includes the following GNU Radio blocks:</p>
 
 <ul>
-<li>PHY In - receives IEEE 1901 frames</li>
-<li>PHY Out - transmits IEEE 1901 frame</li>
+<li>PHY Rx - receives IEEE 1901 frames</li>
+<li>PHY Tx - transmits IEEE 1901 frame</li>
 <li>PHY - an hierarchy block that includes the PHY In and PHY Out</li>
-<li>MAC - a simplified IEEE 1901 MAC layer that control the PHY block</li>
+<li>MAC - a simplified IEEE 1901 MAC layer </li>
 <li>APP In - a simple APP layer sink</li>
 <li>APP Out - a simple APP layer source</li>
 </ul>
+
+<p>The important blocks are the PHY Rx and PHY Tx which contain the actual implementation of the IEEE 1901 physical layer. The PHY Rx includes the following:</p>
+
+<ul>
+<li>Frame detection and alignment algorithm</li>
+<li>Turbo decoder (incompatible with IEEE 1901)</li>
+<li>Several channel estimation methods</li>
+<li>Support for IEEE 1901 ROBO Modes: Standard ROBO, High-Speed ROBO and Mini ROBO</li>
+<li>Support for IEEE 1901 modulation types: BPSK, QPSK, 8-QAM, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM</li>
+<li>Adaptive bit loading algorithm</li>
+<li>Noise power spectral density estimation capability</li>
+</ul>
+
+<p>The MAC block implements a simplified IEEE 1901 MAC layer and performs master-slave channel access (see More Details below). </p>
 
 <h1>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h1>
@@ -42,7 +56,7 @@
 <h1>
 <a id="usage" class="anchor" href="#usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Usage</h1>
 
-<p>A typical two-transceiver flow graph is given in <em>examples/plc.grc</em> and illustrated below:</p>
+<p>A typical two-transceiver flow graph is given in <em>examples/plc.grc</em> and is illustrated below:</p>
 
 <p><img src="figures/tranceiver.png" alt=""></p>
 
