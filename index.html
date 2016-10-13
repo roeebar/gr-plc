@@ -93,8 +93,28 @@
 <li>Gain: The parameter controls the transmitted signal gain.</li>
 </ul>
 
-<h2>
-<a id="more-details" class="anchor" href="#more-details" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>More Details</h2>
+<p><em>NOTE: when running the flow graph inside GNU Radio Companion, make sure that the Log parameter is set to "Notice" in all blocks. Otherwise, GRC will become unresponsive as the output window is filled with trace information</em></p>
+
+<h1>
+<a id="demo" class="anchor" href="#demo" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Demo</h1>
+
+<p>Gr-plc has been used to research the feasibility of in-vechicle powerline communication. 
+A video demonstrating gr-plc experimentation in a car is shown below. </p>
+
+<p>Setup:</p>
+
+<ul>
+<li>Car model: 2006 Pontiac Solstice</li>
+<li>Communication between cigarette lighter to front light</li>
+<li>512 OFDM carriers between 6.25MHz to 18.75MHz, -80 dBm/Hz PSD </li>
+<li>Front-end equipment: 2 Ettus USRP N210 with LFRX/LFTX, 2 bias tees to block DC component, amplifier in the transmitter</li>
+<li>PC running GNU Radio with gr-plc</li>
+</ul>
+
+
+
+<h1>
+<a id="more-details" class="anchor" href="#more-details" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>More Details</h1>
 
 <p>A more detailed explanation of the parameters and the algorithms used is given in the thesis "In-vehicle powerline communication using software-defined radio":
 <a href="https://open.library.ubc.ca/collections/ubctheses/24/items/1.0307515">https://open.library.ubc.ca/collections/ubctheses/24/items/1.0307515</a></p>
