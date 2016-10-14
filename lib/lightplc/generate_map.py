@@ -1,4 +1,22 @@
 #!/usr/bin/python
+ #
+ # Gr-plc - IEEE 1901 module for GNU Radio
+ # Copyright (C) 2016 Roee Bar <roeeb@ece.ubc.ca>
+ #
+ # This program is free software: you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+ # the Free Software Foundation, either version 3 of the License, or
+ # (at your option) any later version.
+ #
+ # This program is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ #
+ # You should have received a copy of the GNU General Public License
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ #
+
 import sys
 
 def grayToBinary( num ):
@@ -7,11 +25,11 @@ def grayToBinary( num ):
     	num = num ^ mask;
     	mask = mask >> 1;
     return num;
-	
+
 def generateIQMap (nBits):
 	n = 1 << nBits;
-	imap = [0 for x in range(n*n)] 
-	qmap = [0 for x in range(n*n)] 
+	imap = [0 for x in range(n*n)]
+	qmap = [0 for x in range(n*n)]
 	j=0
 	powerSum = 0;
 	for q in range(0,1<<nBits):
@@ -26,7 +44,7 @@ def generateIQMap (nBits):
 
 def generateIMap (nBits):
 	n = 1 << nBits;
-	imap = [0 for x in range(n)] 
+	imap = [0 for x in range(n)]
 	j=0
 	powerSum = 0;
 	for i in range(0,1<<nBits):
@@ -49,12 +67,12 @@ for m in modulations:
 	sys.stdout.write("const unsigned int MAP_" + m["name"] + "_NBITS = " + str(m["bits"]) + ";\n")
 	sys.stdout.write("const complex MAP_"+m["name"]+"["+str(1<<m["bits"])+"] = {\n")
 	if m["name"] == "BPSK":
-		imap,powerSum=generateIMap(m["bits"]);	
+		imap,powerSum=generateIMap(m["bits"]);
 		scale = (powerSum/len(imap))**-0.5
 		for j in range(len(imap)-1):
 			sys.stdout.write ("complex("+str(imap[j])+", 0),\n");
 		sys.stdout.write ("complex("+str(imap[-1])+", 0)\n};\n");
-		
+
 	elif m["name"] == "QAM8":
 		imap,powerSum=generateIMap(m["bits"]-1)
 		scale = (powerSum/len(imap) + 1.29**2)**-0.5
@@ -69,4 +87,4 @@ for m in modulations:
 			sys.stdout.write ("complex("+str(imap[j])+", "+str(qmap[j])+"), // "+("0b{0:0"+str(m["bits"])+"b}").format(j)+"\n")
 		sys.stdout.write ("complex("+str(imap[-1])+", "+str(qmap[-1])+") // "+("0b{0:0"+str(m["bits"])+"b}").format(j+1)+"\n};\n")
 
-	sys.stdout.write ("const float MAP_"+m["name"]+"_SCALE = "+str(scale)+";\n\n")	
+	sys.stdout.write ("const float MAP_"+m["name"]+"_SCALE = "+str(scale)+";\n\n")

@@ -1,3 +1,21 @@
+ #
+ # Gr-plc - IEEE 1901 module for GNU Radio
+ # Copyright (C) 2016 Roee Bar <roeeb@ece.ubc.ca>
+ #
+ # This program is free software: you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+ # the Free Software Foundation, either version 3 of the License, or
+ # (at your option) any later version.
+ #
+ # This program is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ #
+ # You should have received a copy of the GNU General Public License
+ # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ #
+
 MAC_FRAME_MFH_WIDTH = 2
 MAC_FRAME_MFH_OFFSET = 0
 MAC_FRAME_CONFOUNDER_WIDTH = 4
@@ -9,7 +27,7 @@ MAC_FRAME_OVERHEAD = MAC_FRAME_MFH_WIDTH + MAC_FRAME_ODA_WIDTH + MAC_FRAME_OSA_W
 
 PHY_BLOCK_HEADER_WIDTH = 4
 PHY_BLOCK_BODY_OFFSET = 4
-PHY_BLOCK_PBCS_WIDTH = 4 
+PHY_BLOCK_PBCS_WIDTH = 4
 
 # The numbers represents bits location/width
 PHY_BLOCK_HEADER_SSN_WIDTH = 16
@@ -30,9 +48,9 @@ BITLOADING_NBITS = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 6, 6: 8, 7: 10, 8: 12}  # N
 FRAME_CONTROL_NBITS = 128                    # Number of bits in a frame control
 
 FRAME_CONTROL_DT_IH_OFFSET = 0               # Delimiter Type
-FRAME_CONTROL_DT_IH_WIDTH = 3                
+FRAME_CONTROL_DT_IH_WIDTH = 3
 FRAME_CONTROL_ACCESS_OFFSET = 3              # Access Field
-FRAME_CONTROL_ACCESS_WIDTH = 1               
+FRAME_CONTROL_ACCESS_WIDTH = 1
 FRAME_CONTROL_SNID_OFFSET = 4                # Short Network Identifier
 FRAME_CONTROL_SNID_WIDTH = 4
 FRAME_CONTROL_FCCS_OFFSET = 104              # Frame Control Check Sequence
@@ -88,7 +106,7 @@ FRAME_CONTROL_SOF_MFSCMDMGMT_OFFSET = 90         # Management MAC Frame Stream
 FRAME_CONTROL_SOF_MFSCMDMGMT_WIDTH = 3
 FRAME_CONTROL_SOF_COMMANDMFSCMDDATA_OFFSET = 94  # Data MAC Frame Stream Command
 FRAME_CONTROL_SOF_COMMANDMFSCMDDATA_WIDTH = 3
-FRAME_CONTROL_SOF_MFSRSPMGMT_OFFSET = 97         # Management medium access control (MAC) frame stream (MFS) Response for the data sent in the preceding Reverse SOF 
+FRAME_CONTROL_SOF_MFSRSPMGMT_OFFSET = 97         # Management medium access control (MAC) frame stream (MFS) Response for the data sent in the preceding Reverse SOF
 FRAME_CONTROL_SOF_MFSRSPMGMT_WIDTH = 2
 FRAME_CONTROL_SOF_MFSRSPDATA_OFFSET = 98         # Data MFS Response for the data sent in the preceding Reverse SOF
 FRAME_CONTROL_SOF_MFSRSPDATA_WIDTH = 2
@@ -129,13 +147,13 @@ FRAME_CONTROL_SOUND_PBSZ_WIDTH = 1
 FRAME_CONTROL_SOUND_BDF_OFFSET = 34              # Beacon Detect Flag
 FRAME_CONTROL_SOUND_BDF_WIDTH = 1
 FRAME_CONTROL_SOUND_SAF_OFFSET = 35              # Sound ACK Flag
-FRAME_CONTROL_SOUND_SAF_WIDTH = 1 
+FRAME_CONTROL_SOUND_SAF_WIDTH = 1
 FRAME_CONTROL_SOUND_SCF_OFFSET = 36              # Sound Complete Flag
-FRAME_CONTROL_SOUND_SCF_WIDTH = 1 
+FRAME_CONTROL_SOUND_SCF_WIDTH = 1
 FRAME_CONTROL_SOUND_REQ_TM_OFFSET = 37           # Tone Maps Requested
-FRAME_CONTROL_SOUND_REQ_TM_WIDTH = 3 
+FRAME_CONTROL_SOUND_REQ_TM_WIDTH = 3
 FRAME_CONTROL_SOUND_FL_OFFSET = 40               # 1901 Frame Length
-FRAME_CONTROL_SOUND_FL_WIDTH = 12 
+FRAME_CONTROL_SOUND_FL_WIDTH = 12
 FRAME_CONTROL_SOUND_MPDUCNT_OFFSET = 52          # MPDU Count
 FRAME_CONTROL_SOUND_MPDUCNT_WIDTH = 2
 FRAME_CONTROL_SOUND_RSVD_OFFSET = 54             # Reserved
@@ -178,7 +196,7 @@ MGMT_CM_CHAN_EST_RIFS_WIDTH = 8
 MGMT_CM_CHAN_EST_RIFS_OFFSET = 16
 MGMT_CM_CHAN_EST_RIFS_TWOSYM_WIDTH = 8
 MGMT_CM_CHAN_EST_RIFS_TWOSYM_OFFSET = 24
-MGMT_CM_CHAN_EST_G2SYM_WIDTH = 8 
+MGMT_CM_CHAN_EST_G2SYM_WIDTH = 8
 MGMT_CM_CHAN_EST_G2SYM_OFFSET = 32
 MGMT_CM_CHAN_EST_RESPT_WIDTH = 8
 MGMT_CM_CHAN_EST_RESPT_OFFSET = 40
