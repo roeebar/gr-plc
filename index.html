@@ -21,14 +21,16 @@
     <section class="main-content">
       <p>IEEE 1901 is a standard for high speed communication protocol via electric powerlines. The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio (SDR) systems. </p>
 
-<p>Gr-plc is a C++ implementation of IEEE 1901, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement SDR and signal-processing systems. The system was tested using Ettus USRP N210 and the LFRX and LFTX daughterboards.</p>
+<p>Gr-plc is a C++ implementation of an IEEE 1901-like protocol, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement SDR and signal-processing systems. The system was tested using Ettus USRP N210 and the LFRX and LFTX daughterboards. </p>
+
+<p>We refer to the protocol as "IEEE 1901-like" mainly since the turbo code used in gr-plc is different than the one in IEEE 1901. The reason is that the library used for decoding (IT++) does not support a two-input turbo code as in IEEE 1901. If desired, the original IEEE 1901 encoder and decoder can be integrated instead, while keeping the rest of implementation intact. For other differences between gr-plc and IEEE 1901 see <a href="#more_details">More Details</a>. </p>
 
 <p>The gr-plc module includes the following GNU Radio blocks:</p>
 
 <ul>
-<li>PHY Rx - receives IEEE 1901 frames</li>
-<li>PHY Tx - transmits IEEE 1901 frame</li>
-<li>PHY - an hierarchy block that includes the PHY Rx and PHY Tx</li>
+<li>PHY Rx - receives IEEE 1901-like frames</li>
+<li>PHY Tx - transmits IEEE 1901-like frame</li>
+<li>PHY - an hierarchy block that includes the PHY In and PHY Out</li>
 <li>MAC - a simplified IEEE 1901 MAC layer </li>
 <li>APP In - a simple APP layer sink</li>
 <li>APP Out - a simple APP layer source</li>
@@ -40,13 +42,13 @@
 <li>Frame detection and alignment algorithm</li>
 <li>Turbo decoder (incompatible with IEEE 1901)</li>
 <li>Several channel estimation methods</li>
-<li>Support for IEEE 1901 ROBO Modes: Standard ROBO, High-Speed ROBO and Mini ROBO</li>
-<li>Support for IEEE 1901 modulation types: BPSK, QPSK, 8-QAM, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM</li>
+<li>Support for all IEEE 1901 ROBO Modes: Standard ROBO, High-Speed ROBO and Mini ROBO</li>
+<li>Support for all IEEE 1901 modulation types: BPSK, QPSK, 8-QAM, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM</li>
 <li>Adaptive bit loading algorithm</li>
 <li>Noise power spectral density estimation capability</li>
 </ul>
 
-<p>The MAC block implements a simplified IEEE 1901 MAC layer and performs master-slave channel access (see More Details below). </p>
+<p>The MAC block implements a simplified IEEE 1901 MAC layer and performs master-slave channel access (see <a href="#more_details">More Details</a>). </p>
 
 <h1>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Installation</h1>
@@ -111,10 +113,10 @@ A video demonstrating gr-plc experimentation in a car is shown below. </p>
 <li>PC running GNU Radio with gr-plc</li>
 </ul>
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/1qBgZBy6484" frameborder="0" allowfullscreen></iframe>
-      
+
+
 <h1>
-<a id="more-details" class="anchor" href="#more-details" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>More Details</h1>
+<a id="more-details" class="anchor" href="#more-details" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><a name="more_details"></a>More Details</h1>
 
 <p>A more detailed explanation of the parameters and the algorithms used is given in the thesis "In-vehicle powerline communication using software-defined radio":
 <a href="https://open.library.ubc.ca/collections/ubctheses/24/items/1.0307515">https://open.library.ubc.ca/collections/ubctheses/24/items/1.0307515</a></p>
