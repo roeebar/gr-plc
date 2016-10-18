@@ -11,7 +11,7 @@
 
   <title>
     
-       &middot; Gr-plc
+      FAQ &middot; Gr-plc
     
   </title>
 
@@ -44,7 +44,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-nav-item active" href="/">Home</a>
+      <a class="sidebar-nav-item" href="/">Home</a>
 
       
 
@@ -70,7 +70,7 @@
       
         
           
-            <a class="sidebar-nav-item" href="/faq.html">FAQ</a>
+            <a class="sidebar-nav-item active" href="/faq.html">FAQ</a>
           
         
       
@@ -99,23 +99,23 @@
 
     <div class="content container">
       <div class="page">
-  <h1 class="page-title"></h1>
-  <h1 id="what-is-gr-plc">What is gr-plc?</h1>
+  <h1 class="page-title">FAQ</h1>
+  <h4 id="what-is-the-purpose-of-this-project">What is the purpose of this project?</h4>
+<p>The aim of this project is to provide an open source software implementation of IEEE 1901 physical layer. The software can then be used in software-defined radio systems.</p>
 
-<p>Gr-plc is a C++ implementation of an IEEE 1901-like protocol, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement SDR and signal-processing systems. The system was tested using Ettus USRP N210 and the LFRX and LFTX daughterboards.</p>
+<h4 id="what-is-ieee-1901">What is IEEE 1901?</h4>
+<p>IEEE 1901 is a standard for high speed communication protocol via electric powerlines. The baseline of IEEE 1901 is The HomePlug AV and HD-PLC standard.</p>
 
-<p>Gr-plc includes the following:</p>
-<ul>
-  <li>IEEE 1901 frame detection and alignment algorithms</li>
-  <li>Turbo decoder (incompatible with IEEE 1901, see <a href="faq.html">FAQ</a>)</li>
-  <li>Several channel estimation methods</li>
-  <li>Support for all IEEE 1901 ROBO Modes: Standard ROBO, High-Speed ROBO and Mini ROBO</li>
-  <li>Support for all IEEE 1901 modulation types: BPSK, QPSK, 8-QAM, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM</li>
-  <li>Adaptive bit loading algorithm</li>
-  <li>Noise power spectral density estimation capability</li>
-</ul>
+<h4 id="why-ieee-1901">Why IEEE 1901?</h4>
+<p>We chose IEEE 1901 as it includes the HomePlug standard, which is the most widely used standard for in-home PLC. IEEE 1901 also indirectly includes the HomePlug Green PHY standard, which is a more power-efficient version of HomePlug.</p>
 
-<p>You can <a href="demo.html">watch a demo</a> of how gr-plc is used for in-vehicle powerline communication.</p>
+<h4 id="is-gr-plc-compatible-with-ieee-1901">Is gr-plc compatible with IEEE 1901?</h4>
+<p>No. That is why we refer to gr-plc protocol as “IEEE 1901-like”.</p>
+
+<p>Gr-plc includes only the HomePlug part (i.e. FFT-PHY) of IEEE 1901. In addition, the turbo code used in gr-plc is different than the one in IEEE 1901/HomePlug. The reason is that the library used for decoding (IT++) does not support a two-input turbo code as in IEEE 1901. If desired, the original IEEE 1901 encoder and decoder can be integrated instead, while keeping the rest of implementation intact. For other differences between gr-plc and IEEE 1901 see <a href="#more_details">more details</a>.</p>
+
+<h4 id="a-namemoredetailsawhere-can-i-find-more-details"><a name="more_details"></a>Where can I find more details?</h4>
+<p>A more detailed explanation of the parameters and the algorithms used are given in the thesis “<a href="https://open.library.ubc.ca/collections/ubctheses/24/items/1.0307515">In-vehicle powerline communication using software-defined radio</a>”</p>
 
 </div>
 

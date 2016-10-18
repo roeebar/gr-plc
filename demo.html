@@ -11,7 +11,7 @@
 
   <title>
     
-       &middot; Gr-plc
+      Demo &middot; Gr-plc
     
   </title>
 
@@ -44,7 +44,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-nav-item active" href="/">Home</a>
+      <a class="sidebar-nav-item" href="/">Home</a>
 
       
 
@@ -76,7 +76,7 @@
       
         
           
-            <a class="sidebar-nav-item" href="/demo.html">Demo</a>
+            <a class="sidebar-nav-item active" href="/demo.html">Demo</a>
           
         
       
@@ -99,23 +99,20 @@
 
     <div class="content container">
       <div class="page">
-  <h1 class="page-title"></h1>
-  <h1 id="what-is-gr-plc">What is gr-plc?</h1>
+  <h1 class="page-title">Demo</h1>
+  <p>Gr-plc has been used to research the feasibility of in-vechicle powerline communication.
+A video demonstrating gr-plc experimentation in a car is shown below.</p>
 
-<p>Gr-plc is a C++ implementation of an IEEE 1901-like protocol, designed to work in GNU Radio. GNU Radio is a free software development toolkit that provides signal processing blocks to implement SDR and signal-processing systems. The system was tested using Ettus USRP N210 and the LFRX and LFTX daughterboards.</p>
-
-<p>Gr-plc includes the following:</p>
+<p>Setup:</p>
 <ul>
-  <li>IEEE 1901 frame detection and alignment algorithms</li>
-  <li>Turbo decoder (incompatible with IEEE 1901, see <a href="faq.html">FAQ</a>)</li>
-  <li>Several channel estimation methods</li>
-  <li>Support for all IEEE 1901 ROBO Modes: Standard ROBO, High-Speed ROBO and Mini ROBO</li>
-  <li>Support for all IEEE 1901 modulation types: BPSK, QPSK, 8-QAM, 16-QAM, 64-QAM, 256-QAM, 1024-QAM and 4096-QAM</li>
-  <li>Adaptive bit loading algorithm</li>
-  <li>Noise power spectral density estimation capability</li>
+  <li>Car model: 2006 Pontiac Solstice</li>
+  <li>Communication between cigarette lighter to front light</li>
+  <li>512 OFDM carriers between 6.25MHz to 18.75MHz, -80 dBm/Hz PSD</li>
+  <li>Front-end equipment: 2 Ettus USRP N210 with LFRX/LFTX, 2 bias tees to block DC component, amplifier in the transmitter</li>
+  <li>PC running GNU Radio with gr-plc</li>
 </ul>
 
-<p>You can <a href="demo.html">watch a demo</a> of how gr-plc is used for in-vehicle powerline communication.</p>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/1qBgZBy6484" frameborder="0" allowfullscreen=""></iframe>
 
 </div>
 
