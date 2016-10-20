@@ -2,13 +2,13 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
  <title>Gr-plc</title>
- <link href="/atom.xml" rel="self"/>
- <link href="/"/>
- <updated>2016-10-18T15:06:49-07:00</updated>
- <id></id>
+ <link href="http://localhost:4000/atom.xml" rel="self"/>
+ <link href="http://localhost:4000/"/>
+ <updated>2016-10-19T22:43:58-07:00</updated>
+ <id>http://localhost:4000</id>
  <author>
    <name>Roee Bar</name>
-   <email></email>
+   <email>roeeb@ubc.ece.ca</email>
  </author>
 
  
